@@ -2,13 +2,18 @@
 						BITS	16
 
 
+%macro					PLACE 1							; --USE_IN_NASM--
+						TIMES	%1-($-$$) DB 0			; --USE_IN_NASM--
+%endmacro												; --USE_IN_NASM--
+
+
 CODE					SEGMENT USE16
 
 						DB		"IPL4"
 
 						JMP		SHORT REALMAIN
 
-						DB		005EH-6 dup (0)
+						PLACE	005EH
 
 ; REALMAIN must be at 005EH
 REALMAIN:
@@ -18,3 +23,31 @@ REALMAIN:
 
 BOOT_ICM:
 ; Read IO.SYS 64KB from sector 1 from 0400H, then JMP to 0050:0
+
+						MOV		AX,0040H
+						MOV		DS,AX
+
+						MOV		AH,05H	; Read Sector
+
+						MOV		AL,4AH	; Device ID IC Memory Card
+
+						MOV		CX,WORD PTR CS:[LOADER_LBA+2]
+						MOV		DX,WORD PTR CS:[LOADER_LBA]
+						XOR		CH,CH	; Just in case
+
+						MOV		BX,64	; 64 sectors.  Looks like 1024 bytes/sec   64KB
+						XOR		DI,DI	; OFFSET 0
+
+						; How can I write CALL 		FAR PTR 0FFFBH:0014H
+						DB		9AH		; CALLF FFFB:0014
+						DW		 0014H
+						DW		0FFFBH
+
+						JB		ERROR_END
+
+						DB		0EAH ; JMPF
+						DW		0000H
+						DW		0050H
+
+						PLACE	511
+						DB		0
