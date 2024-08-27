@@ -1,0 +1,20 @@
+						CPU		386
+						BITS	16
+
+
+CODE					SEGMENT USE16
+
+						DB		"IPL4"
+
+						JMP		SHORT REALMAIN
+
+						DB		005EH-6 dup (0)
+
+; REALMAIN must be at 005EH
+REALMAIN:
+						CMP		BL,4	; Need to be from IC Memory Card
+						JE		BOOT_ICM
+						RETF
+
+BOOT_ICM:
+; Read IO.SYS 64KB from sector 1 from 0400H, then JMP to 0050:0
