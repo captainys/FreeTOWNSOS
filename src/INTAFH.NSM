@@ -1,0 +1,14 @@
+; INT AFH Service Routine
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+
+
+CODE					SEGMENT USE16
+
+INTAFH:
+						CLC
+						IRET
+

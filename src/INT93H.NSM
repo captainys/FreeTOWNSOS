@@ -1,0 +1,14 @@
+; INT 93H Disk BIOS
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+
+
+CODE					SEGMENT USE16
+
+INT93H:
+						CLC
+						IRET
+

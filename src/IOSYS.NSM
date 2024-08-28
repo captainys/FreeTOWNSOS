@@ -8,7 +8,29 @@ CODE					SEGMENT USE16
 
 						DB		"FBIOS"
 
-						PLACE	0100H
+						PLACE	00FAH
+
+YSDOS_SEG				DW		0FFFFh
+DRIVER_LIST				DD		0FFFFFFFFh
+
+ENTRY:
+						; Default INT Handlers be DEFAULT_INT_HANDLER of the same segment.
+						MOV		AX,CS
+						SHL		EAX,16
+						MOV		AX,DEFAULT_INT_HANDLER
+
+						XOR		DX,DX
+						MOV		ES,DX
+
+						MOV		CX,256
+						MOV		DI,0
+						REP		STOSD
 
 
-ENTRY:					JMP		ENTRY
+INFINITY				JMP		INFINITY
+
+
+
+
+DEFAULT_INT_HANDLER:
+						JMP		DEFAULT_INT_HANDLER

@@ -1,0 +1,14 @@
+; INT 96H Timer BIOS
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+
+
+CODE					SEGMENT USE16
+
+INT96H:
+						CLC
+						IRET
+
