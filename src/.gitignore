@@ -1,0 +1,6 @@
+*.LST
+*.obj
+*.exe
+HDIMG.h3
+IPL
+IOSYS

@@ -31,6 +31,8 @@ ERROR_END:
 BOOT_HD:
 ; Read IO.SYS 64KB from sector 1 from 0400H, then JMP to 0050:0
 
+						TSUGARU_DEBUG
+
 						MOV		AX,0040H
 						MOV		DS,AX
 
@@ -41,8 +43,8 @@ BOOT_HD:
 						OR		AL,0B0H	; 0B0H+SCSIID is for SCSI device.
 
 
-						MOV		CX,0
-						XOR		DX,IOSYS_START_SECTOR
+						XOR		CX,CX
+						MOV		DX,IOSYS_START_SECTOR
 						XOR		CH,CH	; Just in case
 
 						MOV		BX,128	; 128 sectors times 512 bytes/sec = 64KB
@@ -52,8 +54,6 @@ BOOT_HD:
 						DB		9AH		; CALLF FFFB:0014
 						DW		 0014H
 						DW		0FFFBH
-
-						TSUGARU_DEBUG
 
 						JB		ERROR_END
 

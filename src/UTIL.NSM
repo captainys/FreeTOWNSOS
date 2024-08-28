@@ -6,5 +6,4 @@
 						OUT		DX,AL
 						POP		DX
 						POP		AX
-						RET
 %endmacro
