@@ -1,0 +1,10 @@
+%macro					TSUGARU_DEBUG	0
+						PUSH	AX
+						PUSH	DX
+						MOV		AL,02H   ; TOWNS_VMIF_CMD_PAUSE
+						MOV		DX,2386H ; TOWNSIO_VM_HOST_IF_CMD_STATUS
+						OUT		DX,AL
+						POP		DX
+						POP		AX
+						RET
+%endmacro

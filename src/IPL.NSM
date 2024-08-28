@@ -1,10 +1,16 @@
+; IPL to be boot from an HDD image.
+; Wanted to make it a IC Memory Card boot, but realized Compatible System ROM does not support IC Memory Card Boot yet.
+
 						CPU		386
 						BITS	16
 
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
 
 %macro					PLACE 1							; --USE_IN_NASM--
 						TIMES	%1-($-$$) DB 0			; --USE_IN_NASM--
 %endmacro												; --USE_IN_NASM--
+
 
 
 CODE					SEGMENT USE16
@@ -17,11 +23,12 @@ CODE					SEGMENT USE16
 
 ; REALMAIN must be at 005EH
 REALMAIN:
-						CMP		BL,4	; Need to be from IC Memory Card
-						JE		BOOT_ICM
+						CMP		BL,1	; Need to be from SCSI
+						JE		BOOT_HD
+ERROR_END:
 						RETF
 
-BOOT_ICM:
+BOOT_HD:
 ; Read IO.SYS 64KB from sector 1 from 0400H, then JMP to 0050:0
 
 						MOV		AX,0040H
@@ -29,19 +36,24 @@ BOOT_ICM:
 
 						MOV		AH,05H	; Read Sector
 
-						MOV		AL,4AH	; Device ID IC Memory Card
+						MOV		AL,BH	; Incoming BH is the unit number
+						AND		AL,7
+						OR		AL,0B0H	; 0B0H+SCSIID is for SCSI device.
 
-						MOV		CX,WORD PTR CS:[LOADER_LBA+2]
-						MOV		DX,WORD PTR CS:[LOADER_LBA]
+
+						MOV		CX,0
+						XOR		DX,IOSYS_START_SECTOR
 						XOR		CH,CH	; Just in case
 
-						MOV		BX,64	; 64 sectors.  Looks like 1024 bytes/sec   64KB
+						MOV		BX,128	; 128 sectors times 512 bytes/sec = 64KB
 						XOR		DI,DI	; OFFSET 0
 
 						; How can I write CALL 		FAR PTR 0FFFBH:0014H
 						DB		9AH		; CALLF FFFB:0014
 						DW		 0014H
 						DW		0FFFBH
+
+						TSUGARU_DEBUG
 
 						JB		ERROR_END
 
