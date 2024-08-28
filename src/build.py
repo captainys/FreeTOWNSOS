@@ -22,6 +22,20 @@ if 0!=proc.returncode:
 
 
 
+proc=subprocess.Popen(["NASM","CONDEV.NSM","-l","CONDEV.LST"])
+proc.communicate()
+if 0!=proc.returncode:
+	print("Error building CONDEV")
+	quit()
+
+proc=subprocess.Popen(["NASM","CLOCKDEV.NSM","-l","CLOCKDEV.LST"])
+proc.communicate()
+if 0!=proc.returncode:
+	print("Error building CLOCKDEV")
+	quit()
+
+
+
 proc=subprocess.Popen(["cl","assemble.cpp","/EHsc"])
 proc.communicate()
 if 0!=proc.returncode:

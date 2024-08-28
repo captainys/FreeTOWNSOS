@@ -1,10 +1,7 @@
 						CPU		386
 						BITS	16
 
-
-%macro					PLACE 1							; --USE_IN_NASM--
-						TIMES	%1-($-$$) DB 0			; --USE_IN_NASM--
-%endmacro												; --USE_IN_NASM--
+						%INCLUDE "UTIL.NSM"
 
 
 CODE					SEGMENT USE16
@@ -15,8 +12,3 @@ CODE					SEGMENT USE16
 
 
 ENTRY:					JMP		ENTRY
-
-
-
-						PLACE	65535
-						DB		0FFH

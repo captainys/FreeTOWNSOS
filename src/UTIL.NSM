@@ -7,3 +7,9 @@
 						POP		DX
 						POP		AX
 %endmacro
+
+
+
+%macro					PLACE 1
+						TIMES	%1-($-$$) DB 0
+%endmacro
