@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 
 THISFILE=os.path.realpath(__file__)
 THISDIR=os.path.dirname(THISFILE)
@@ -15,8 +16,9 @@ proc=subprocess.Popen([
 	"F0",
 	"-FD0",
 	FDIMG,
-	"-DEBUG"
-])
+	"-DEBUG",
+	"-INITCMD","ENA FDCMON",
+]+sys.argv[1:])
 
 proc.wait()
 
