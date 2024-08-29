@@ -1,4 +1,4 @@
-; INT 96H Calendar BIOS
+; INT 97H Timer BIOS
 
 						CPU		386
 						BITS	16

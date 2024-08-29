@@ -1,4 +1,4 @@
-; INT 96H Calendar BIOS
+; INT FDH Software Timer BIOS
 
 						CPU		386
 						BITS	16

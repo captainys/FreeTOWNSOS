@@ -2,18 +2,46 @@
 						BITS	16
 
 						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
 
 
 CODE					SEGMENT USE16
-
-						DB		"FBIOS"
-
-						PLACE	00FAH
-
-YSDOS_SEG				DW		0FFFFh
-DRIVER_LIST				DD		0FFFFFFFFh
-
 ENTRY:
+						JE		SHORT REALENTRY
+
+SEG_INT8EH				DW		0		; +02H
+SEG_INT90H				DW		0		; +04H
+SEG_INT91H				DW		0		; +06H
+SEG_INT92H				DW		0		; +08H Reserved for FM-R Graphics BIOS
+SEG_INT93H				DW		0		; +0AH
+SEG_INT94H				DW		0		; +0CH Reserved for FM-R Printer BIOS
+SEG_INT95H				DW		0		; +0EH Reserved for FM-R Hard-Copy BIOS
+SEG_INT96H				DW		0		; +10H Reserved for FM-R Calendar BIOS
+SEG_INT97H				DW		0		; +12H
+SEG_INT98H				DW		0		; +14H Reserved for FM-R Mouse BIOS
+SEG_INT9BH				DW		0		; +16H
+SEG_INT9EH				DW		0		; +18H Reserved for FM-R Buzzer BIOS
+SEG_INTAEH				DW		0		; +1AH
+SEG_INTAFH				DW		0		; +1CH
+SEG_INTECH				DW		0		; +1EH Reserved for FM-R OAK BIOS
+SEG_INTEDH				DW		0		; +20H Reserved for FM-R OAK BIOS
+SEG_INTFDH				DW		0		; +22H
+
+REALENTRY:
+						MOV		CS:[BOOT_DEVICE],BX	; Sent from the IPL
+						CALL	SETUP_REALMODE_INT_HANDLER
+
+						MOV		AH,BIOSCMD_COMMON_INIT
+						INT		93H
+
+INFINITY				JMP		INFINITY
+
+
+
+
+
+SETUP_REALMODE_INT_HANDLER:
 						; Default INT Handlers be DEFAULT_INT_HANDLER of the same segment.
 						MOV		AX,CS
 						SHL		EAX,16
@@ -26,11 +54,38 @@ ENTRY:
 						MOV		DI,0
 						REP		STOSD
 
-
-INFINITY				JMP		INFINITY
-
-
+						MOV		AX,CS:[SEG_INT8EH]
+						SHL		EAX,16
+						MOV		ES:[08EH*4],EAX
+						MOV		AX,CS:[SEG_INT90H]
+						SHL		EAX,16
+						MOV		ES:[090H*4],EAX
+						MOV		AX,CS:[SEG_INT91H]
+						SHL		EAX,16
+						MOV		ES:[091H*4],EAX
+						MOV		AX,CS:[SEG_INT93H]
+						SHL		EAX,16
+						MOV		ES:[093H*4],EAX
+						MOV		AX,CS:[SEG_INT97H]
+						SHL		EAX,16
+						MOV		ES:[097H*4],EAX
+						MOV		AX,CS:[SEG_INT9BH]
+						SHL		EAX,16
+						MOV		ES:[09BH*4],EAX
+						MOV		AX,CS:[SEG_INTAEH]
+						SHL		EAX,16
+						MOV		ES:[0AEH*4],EAX
+						MOV		AX,CS:[SEG_INTAFH]
+						SHL		EAX,16
+						MOV		ES:[0AFH*4],EAX
+						MOV		AX,CS:[SEG_INTFDH]
+						SHL		EAX,16
+						MOV		ES:[0FDH*4],EAX
+						RET
 
 
 DEFAULT_INT_HANDLER:
 						JMP		DEFAULT_INT_HANDLER
+
+
+BOOT_DEVICE				DW		0

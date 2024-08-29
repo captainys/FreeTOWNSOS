@@ -24,9 +24,11 @@ def Run(argv):
 		"INT91H",
 		"INT93H",
 		"INT96H",
+		"INT97H",
 		"INT9BH",
 		"INTAEH",
 		"INTAFH",
+		"INTFDH",
 	]
 
 	for src in srcs:

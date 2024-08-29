@@ -13,3 +13,52 @@
 %macro					PLACE 1
 						TIMES	%1-($-$$) DB 0
 %endmacro
+
+
+
+; BP+28H			DS
+; BP+26H			ES
+; BP+24H			FS
+; BP+22H			GS
+; BP+1EH			EDI
+; BP+1AH			ESI
+; BP+16H			EBP
+; BP+12H			PrevESP
+; BP+0EH			EBX
+; BP+0AH			EDX
+; BP+06H			ECX
+; BP+02H			EAX
+; BP+00H			FLAGS
+STRUC					SAVED_WORLD
+SAVED_FLAGS				RESW	1
+SAVED_EAX				RESD	1
+SAVED_ECX				RESD	1
+SAVED_EDX				RESD	1
+SAVED_EBX				RESD	1
+SAVED_ESP				RESD	1
+SAVED_EBP				RESD	1
+SAVED_ESI				RESD	1
+SAVED_EDI				RESD	1
+SAVED_GS				RESW	1
+SAVED_FS				RESW	1
+SAVED_ES				RESW	1
+SAVED_DS				RESW	1
+ENDSTRUC
+
+%macro					SAVE_WORLD 0
+						PUSH	DS
+						PUSH	ES
+						PUSH	FS
+						PUSH	GS
+						PUSHAD
+						PUSHF
+%endmacro
+
+%macro					RESTORE_WORLD 0
+						POPAD
+						POPF
+						POP		GS
+						POP		FS
+						POP		ES
+						POP		DS
+%endmacro

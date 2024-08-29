@@ -10,6 +10,7 @@
 
 						%INCLUDE "UTIL.NSM"
 						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
 
 
 ; Root directory will be read from B000:4000
