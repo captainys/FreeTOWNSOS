@@ -1,6 +1,7 @@
 *.LST
 *.obj
 *.exe
+*.bin
 HDIMG.h3
 IPL
 IOSYS

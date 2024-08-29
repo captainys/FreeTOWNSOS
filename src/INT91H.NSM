@@ -1,0 +1,14 @@
+; INT 91H Console BIOS
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+
+
+CODE					SEGMENT USE16
+
+INT91H:
+						CLC
+						IRET
+

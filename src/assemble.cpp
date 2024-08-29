@@ -1,54 +1,102 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 
 unsigned char data[512*1024];
 
 
-size_t read(unsigned char *ptr,std::ifstream &ifp)
+class PositionAndSize
 {
-	ifp.seekg(std::ios::end);
-	size_t sz=ifp.tellg();
-	ifp.seekg(std::ios::beg);
-	ifp.read((char *)ptr,sz);
-	return sz;
-}
+public:
+	size_t pos,size;
+};
 
+PositionAndSize ReadFile(unsigned char *data,size_t &ptr,std::string fileName)
+{
+	PositionAndSize ps;
+
+	std::ifstream ifp(fileName,std::ios::binary);
+
+	if(true!=ifp.is_open())
+	{
+		std::cout << "Error opening " << fileName << "\n";
+		exit(1);
+	}
+
+	ifp.seekg(0,std::ios::end);
+	size_t sz=ifp.tellg();
+	ifp.seekg(0,std::ios::beg);
+	ifp.read((char *)(data+ptr),sz);
+
+	ps.pos=ptr;
+	ps.size=(sz+15)&~15;
+
+	ptr+=ps.size;
+
+	return ps;
+}
 
 int main(void)
 {
+	std::string files[]=
+	{
+		"IOSYS.bin",
+		"CONDEV.bin",
+		"CLOCKDEV.bin",
+		"DUMMYDEV.bin",
+		"INT8EH.bin",
+		"INT90H.bin",
+		"INT91H.bin",
+		"INT93H.bin",
+		"INT96H.bin",
+		"INT9BH.bin",
+		"INTAEH.bin",
+		"INTAFH.bin",
+		"../resources/YSDOS.SYS",
+	};
+	std::vector <PositionAndSize> filePos;
+
 	memset(data,0,sizeof(data));
 
-	std::ifstream ipl("IPL",std::ios::binary);
+	std::ifstream ipl("IPL.bin",std::ios::binary);
 	ipl.read((char *)data,512);
 
 	size_t ptr=512;
 
-	std::ifstream iosys("IOSYS",std::ios::binary);
-	size_t IOSYS_size=(read(data+ptr,iosys)+15)&~15;
-	size_t IOSYS_ptr=ptr;
-
-	ptr+=IOSYS_size;
-
-	std::ifstream condev("CONDEV",std::ios::binary);
-	size_t CONDEV_size=(read(data+ptr,condev)+15)&~15;
-	size_t CONDEV_ptr=ptr;
-
-	ptr+=CONDEV_size;
-
-	std::ifstream clockdev("CLOCKDEV",std::ios::binary);
-	size_t CLOCKDEV_size=(read(data+ptr,clockdev)+15)&~15;
-	size_t CLOCKDEV_ptr=ptr;
-
-	ptr+=CLOCKDEV_size;
-
-	std::cout << "CONDEV at " << CONDEV_ptr << "\n";
-	std::cout << "CLOCKDEV at " << CLOCKDEV_ptr << "\n";
+	for(auto file : files)
+	{
+		filePos.push_back(ReadFile(data,ptr,file));
+	}
 
 	// IOSYS loaded at 0040:0000
 	// CONDEV will be located at 0040h+IOSYS_ptr/16 segment
 	// CLOCKDEV will be located at 0040h+CLOCKDEV_ptr/16 segment
 	// Question is how to tell IO.SYS about the location of CONDEV.
+
+	auto IOSYS_ptr=filePos[0].pos;
+	auto CONDEV_ptr=filePos[1].pos;
+	auto CLOCKDEV_ptr=filePos[2].pos;
+	auto DUMMYDEV_ptr=filePos[3].pos;
+
+	unsigned char *IOSYSTop=data+512;
+	const unsigned int IOSYSSEG=0x40;
+
+	const unsigned int YSDOSSEG=IOSYSSEG+(filePos.back().pos-IOSYS_ptr)/0x10;
+	*(unsigned short*)(data+0x2FA)=YSDOSSEG;
+
+	const unsigned int CONDEVSEG=IOSYSSEG+(CONDEV_ptr-IOSYS_ptr)/0x10;
+	*(unsigned short *)(data+0x2FC)=0;
+	*(unsigned short *)(data+0x2FE)=CONDEVSEG;
+
+	const unsigned int CLOCKSEG=IOSYSSEG+(CLOCKDEV_ptr-IOSYS_ptr)/0x10; 
+	*(unsigned short*)(data+CONDEV_ptr)=0;
+	*(unsigned short*)(data+CONDEV_ptr+2)=CLOCKSEG;
+
+	const unsigned int DUMMYSEG=IOSYSSEG+(DUMMYDEV_ptr-IOSYS_ptr)/0x10; 
+	*(unsigned short*)(data+CLOCKDEV_ptr)=0;
+	*(unsigned short*)(data+CLOCKDEV_ptr+2)=DUMMYSEG;
+
 
 	std::ofstream hdimg("HDIMG.h3",std::ios::binary);
 	hdimg.write((char *)data,sizeof(data));

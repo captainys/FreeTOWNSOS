@@ -1,0 +1,14 @@
+; INT 90H Keyboard BIOS
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+
+
+CODE					SEGMENT USE16
+
+INT90H:
+						CLC
+						IRET
+
