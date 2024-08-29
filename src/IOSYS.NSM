@@ -36,10 +36,42 @@ REALENTRY:
 						INT		93H
 
 
-						TSUGARU_DEBUG
+						PUSH	0040H
+						POP		GS
+						MOV		EAX,GS:[IOSYS_SIZE]  ; This gives the size of IO.SYS after 0050H segment.
+
+						SHR		EAX,4
+						MOV		BX,CS
+						ADD		AX,BX ; AX is the next page after IO.SYS
+
+						PUSH	AX	; Loading point in the stack.
+
+						MOV		BX,CS:[BOOT_DEVICE]
+						CMP		BL,BOOTDEV_FD
+						JE		BOOT_FROM_FD
+						CMP		BL,BOOTDEV_CD
+						JE		BOOT_FROM_CD
+						CMP		BL,BOOTDEV_HD
+						JE		BOOT_FROM_HD
+
+BOOT_FROM_HD:
+BOOT_FROM_CD:
 INFINITY				JMP		INFINITY
 
 
+
+BOOT_FROM_FD:
+						TSUGARU_DEBUG
+
+						MOV		AL,BH
+						AND		AL,0FH
+						OR		AL,DISKBIOS_FDD_0
+						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
+
+						MOV		AH,DISKBIOS_CMD_03H_RESTORE
+						INT		93H
+
+						JMP		INFINITY
 
 
 
@@ -91,3 +123,4 @@ DEFAULT_INT_HANDLER:
 
 
 BOOT_DEVICE				DW		0
+DISKBIOS_BOOT_DEVICE	DB		0
