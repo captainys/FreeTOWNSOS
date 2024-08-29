@@ -1,17 +1,20 @@
 import subprocess
 import os
 import sys
+import shutil
 
 
 THISFILE=os.path.realpath(__file__)
 THISDIR=os.path.dirname(THISFILE)
 
+def CopyToResources(filename):
+	shutil.copyfile(filename,os.path.join("..","resources",filename))
 
 def Run(argv):
 	os.chdir(THISDIR)
 
 	srcs=[
-		"IPL",
+		"FD_IPL",
 		"IOSYS",
 		"CONDEV",
 		"CLOCKDEV",
@@ -39,6 +42,8 @@ def Run(argv):
 	if 0!=proc.returncode:
 		print("Error bulding assemble.exe")
 		quit()
+
+	CopyToResources("FD_IPL.bin");
 
 	subprocess.Popen(["./assemble"])
 

@@ -1,0 +1,151 @@
+; IPL to be boot from an FD Disk image.
+; Wanted to make it a IC Memory Card boot, but realized Compatible System ROM does not support IC Memory Card Boot yet.
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+
+
+
+CODE					SEGMENT USE16
+
+						DB		"IPL4"
+
+						JMP		SHORT REALMAIN
+
+; Offset +0BH to +23H will be BPB
+; Fujitsu IPL uses dword at offset +20H as IO.SYS location (LBA if HDD, CHR if FDD)
+
+						PLACE	005EH
+
+; REALMAIN must be at 005EH
+REALMAIN:
+						CMP		BL,BOOTDEV_FD
+						JE		BOOT
+ERROR_END:
+						RETF
+
+IOSYS_FILENAME			DB		"IO      SYS"
+
+BOOT:
+; Read IO.SYS 64KB from sector 1 from 0400H, then JMP to 0050:0
+
+						TSUGARU_DEBUG
+
+						PUSH	CS
+						POP		DS
+
+						; Read Directory from B100:0000
+
+						; Calculate number of sectors of the root directory
+						MOV		AX,[BPB_NUM_ROOT_DIR_ENT]
+						SHL		AX,DIRENT_SHIFT		; AX is number of bytes of the root directory entries.
+
+						ADD		AX,[BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
+						DEC		AX
+						CWD
+						DIV		WORD [BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
+
+						MOV		BX,AX
+
+						; BX is the number of sectors.
+
+
+						; Calculate LBA of the root directory
+						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
+						; Skip FAT
+						MOVZX	AX,BYTE [BPB_NUM_FATS]
+						MOV		DX,[BPB_SECT_PER_FAT]
+						MUL		DX
+
+						; Skip IPL sector (reserved sector)
+						MOVZX	DX,BYTE [BPB_RESERVED_SECTOR_CT]
+						ADD		AX,DX
+
+						; AX is LBA of the root directory.
+
+						PUSH	BX
+						CALL	LBA_TO_CYLINDER_HEAD_SECTOR
+						POP		BX
+
+						TSUGARU_DEBUG
+
+PAUSE:					JMP		PAUSE
+
+
+
+; Input AX
+; Output   CX:Cylinder  DH:Head  DL:Sector  (Good for Disk BIOS input)
+LBA_TO_CYLINDER_HEAD_SECTOR:
+						PUSH	SI
+						PUSH	DI
+
+						PUSH	AX	; Save LBA
+
+						; Cylinder=LBA/#ofHeads
+						CWD
+						DIV		WORD [BPB_NUM_HEADS]
+						MOV		SI,AX	; SI is Cylinder
+
+						POP		AX	; AX is LBA
+						PUSH	AX	; Save LBA again
+
+						; Sector=LBA%sectorsPerTrack
+						CWD
+						DIV		WORD [BPB_SECT_PER_TRACK]
+						MOV		DI,DX	; DI is Sector#
+
+						; Head=LBA%2  Let's not think about num_heads=1 situation.
+						POP		DX	; DX is LBA
+						PUSH	DX	; Save LBA again
+
+						AND		DL,1
+						MOV		DH,DL	; DL is Head
+
+						MOV		CX,SI	; CX is Cylinder
+
+						MOV		AX,DI
+						MOV		DL,AL	; DL is Sector#
+
+						POP		AX
+						RET
+
+
+; Input AX
+; Output AX(LBA)
+CLUSTER_TO_LBA:
+
+
+
+						MOV		AX,0040H
+						MOV		DS,AX
+
+						MOV		AH,05H	; Read Sector
+
+						MOV		AL,BH	; Incoming BH is the unit number
+						AND		AL,7
+						OR		AL,0B0H	; 0B0H+SCSIID is for SCSI device.
+
+
+						XOR		CX,CX
+						MOV		DX,IOSYS_START_SECTOR
+						XOR		CH,CH	; Just in case
+
+						MOV		BX,128	; 128 sectors times 512 bytes/sec = 64KB
+						XOR		DI,DI	; OFFSET 0
+
+						; How can I write CALL 		FAR PTR 0FFFBH:0014H
+						DB		9AH		; CALLF FFFB:0014
+						DW		 0014H
+						DW		0FFFBH
+
+						JB		ERROR_END
+
+						DB		0EAH ; JMPF
+						DW		0000H
+						DW		0050H
+
+						PLACE	511
+						DB		0
