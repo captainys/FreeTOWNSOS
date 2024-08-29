@@ -76,6 +76,8 @@ public:
 
 #define DIRENT_SHIFT			5    // 32 bytes per dirent
 
+#define NULL_CLUSTER 0xFFFFFFFF
+
 #define I386_RETF              0xCB
 
 
@@ -132,11 +134,16 @@ public:
 		uint16_t numHiddenSectors;
 		uint32_t totalNumSectors32bit;
 
+		size_t GetBytesPerCluster(void) const
+		{
+			return sectorsPerCluster*bytesPerSector;
+		}
+
 		unsigned int GetFATSector(void) const
 		{
 			return numReservedSectors;  // Skip IPL
 		}
-		unsigned int GetBackupFATSector(void) const // 0xFFFFFFFF if no backup FAT
+		unsigned int GetBackupFATSector(void) const // NULL_CLUSTER if no backup FAT
 		{
 			if(2==numFATs)
 			{
@@ -144,7 +151,7 @@ public:
 			}
 			else
 			{
-				return 0xFFFFFFFF;
+				return NULL_CLUSTER;
 			}
 		}
 		unsigned int GetRootDirSector(void) const
@@ -181,6 +188,8 @@ public:
 	uint32_t GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int cluster) const;
 	void PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,unsigned int incoming) const;
 	uint32_t FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const;
+	unsigned char *GetCluster(int cluster,const BPB &bpb);
+	const unsigned char *GetCluster(int cluster,const BPB &bpb) const;
 
 	unsigned char *FindAvailableDirEnt(void);
 	void WriteDirEnt(
@@ -190,6 +199,8 @@ public:
 	    unsigned int year,unsigned int month,unsigned int date,
 	    unsigned int firstCluster,
 	    unsigned int fileSize);
+
+	unsigned int WriteData(const std::vector <unsigned char> &data);
 
 
 	void ReadSector(unsigned char data[],int trk,int sid,int sec);
@@ -352,14 +363,14 @@ uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int
 		if(0==(cluster&1))
 		{
 			uint32_t data;
-			data=ReadWord(FAT+(cluster/2*3));
+			data=ReadWord(FAT+(cluster/2)*3);
 			data&=0xFFF;
 			return data;
 		}
 		else
 		{
 			uint32_t data;
-			data=ReadWord(FAT+(cluster/2*3)+1);
+			data=ReadWord(FAT+(cluster/2)*3+1);
 			data>>=4;
 			data&=0xFFF;
 			return data;
@@ -377,18 +388,18 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 		if(0==(cluster&1))
 		{
 			uint32_t data;
-			data=ReadWord(FAT+(cluster/2));
+			data=ReadWord(FAT+(cluster/2)*3);
 			data&=0xF000;
 			data|=(incoming&0xFFF);
-			WriteWord(FAT+(cluster/2),data);
+			WriteWord(FAT+(cluster/2)*3,data);
 		}
 		else
 		{
 			uint32_t data;
-			data=ReadWord(FAT+(cluster/2)+1);
+			data=ReadWord(FAT+(cluster/2)*3+1);
 			data&=0x000F;
 			data|=(incoming<<4);
-			WriteWord(FAT+(cluster/2)+1,data);
+			WriteWord(FAT+(cluster/2)*3+1,data);
 		}
 	}
 }
@@ -404,6 +415,35 @@ uint32_t Disk::FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) co
 		}
 	}
 	return ~0;
+}
+
+unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)
+{
+	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();
+	if(2<=cluster) // Cluster 2 is real first cluster.
+	{
+		cluster-=2;
+	}
+	else
+	{
+		cluster=0;
+	}
+	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
+	return data.data()+clusterPos;
+}
+const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
+{
+	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();
+	if(2<=cluster) // Cluster 2 is real first cluster.
+	{
+		cluster-=2;
+	}
+	else
+	{
+		cluster=0;
+	}
+	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
+	return data.data()+clusterPos;
 }
 
 unsigned char *Disk::FindAvailableDirEnt(void)
@@ -451,6 +491,43 @@ void Disk::WriteDirEnt(
 	WriteDword(dirEnt+DIRENT_FILE_SIZE,fileSize);
 }
 
+unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
+{
+	auto bpb=GetBPB();
+	size_t pos=0;
+	unsigned int prevCluster=0,firstCluster=NULL_CLUSTER;
+	while(pos<data.size())
+	{
+		size_t writeSize=std::min(data.size()-pos,bpb.GetBytesPerCluster());
+		auto cluster=FindAvailableCluster(GetFAT(),bpb);
+		if(cluster!=NULL_CLUSTER)
+		{
+			if(0==pos)
+			{
+				firstCluster=cluster;
+			}
+			else
+			{
+				PutFATEntry(GetFAT(),bpb,prevCluster,cluster);
+				PutFATEntry(GetBackupFAT(),bpb,prevCluster,cluster);
+			}
+			prevCluster=cluster;
+
+			PutFATEntry(GetFAT(),bpb,cluster,0xFFFF);
+			PutFATEntry(GetBackupFAT(),bpb,cluster,0xFFFF);
+
+			auto ptr=GetCluster(cluster,bpb);
+			memcpy(ptr,data.data()+pos,writeSize);
+		}
+		else
+		{
+			break;
+		}
+		pos+=writeSize;
+	}
+	return firstCluster;
+}
+
 int main(int ac,char *av[])
 {
 	Disk disk;
@@ -474,6 +551,27 @@ int main(int ac,char *av[])
 			   0);
 		}
 	}
+
+	// TestWrite
+	{
+		auto dirEnt=disk.FindAvailableDirEnt();
+		auto file=ReadBinaryFile("../resources/YSDOS.SYS");
+		auto firstCluster=disk.WriteData(file);
+		if(nullptr!=dirEnt)
+		{
+			disk.WriteDirEnt(
+				dirEnt,
+			   "YSDOS   ",
+			   "SYS",
+			   DIRENT_ATTR_READONLY|DIRENT_ATTR_ARCHIVE /*|DIRENT_ATTR_SYSTEM*/,
+			   23,42,00,
+			   2024,8,28,
+			   firstCluster,
+			   file.size());
+		}
+	}
+
+
 
 	std::ofstream ofp(av[1],std::ios::binary);
 	ofp.write((char *)disk.data.data(),disk.data.size());
