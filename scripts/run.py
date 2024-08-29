@@ -6,15 +6,15 @@ THISDIR=os.path.dirname(THISFILE)
 
 ROMDIR=os.path.join(THISDIR,"..","CompROM")
 SRCDIR=os.path.join(THISDIR,"..","src")
-HDIMG=os.path.join(SRCDIR,"HDIMG.h3")
+FDIMG=os.path.join(SRCDIR,"FDIMG.bin")
 
 proc=subprocess.Popen([
 	"Tsugaru_CUI",
 	ROMDIR,
 	"-BOOTKEY",
-	"H3",
-	"-HD3",
-	HDIMG,
+	"F0",
+	"-FD0",
+	FDIMG,
 	"-DEBUG"
 ])
 

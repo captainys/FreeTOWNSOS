@@ -173,6 +173,8 @@ public:
 	void MakeInitialFAT(unsigned char FAT[]) const;
 	void MakeInitialRootDir(unsigned char rootDir[],unsigned int numEnt) const;
 
+	void WriteIPLSector(const std::vector <unsigned char> &ipl);
+
 	BPB GetBPB(void) const;
 
 	size_t GetFATLength(void) const;
@@ -193,7 +195,7 @@ public:
 
 	unsigned char *FindAvailableDirEnt(void);
 	void WriteDirEnt(
-	    unsigned char *dirEnt,char file[],char ext[],
+	    unsigned char *dirEnt,std::string file,std::string ext,
 	    uint8_t attr,
 	    unsigned int hour,unsigned int min,unsigned int sec,
 	    unsigned int year,unsigned int month,unsigned int date,
@@ -273,6 +275,11 @@ void Disk::MakeInitialRootDir(unsigned char rootDir[],unsigned int numEnt) const
 	{
 		rootDir[i]=0;
 	}
+}
+
+void Disk::WriteIPLSector(const std::vector <unsigned char> &ipl)
+{
+	memcpy(data.data(),ipl.data(),ipl.size());
 }
 
 Disk::BPB Disk::GetBPB(void) const
@@ -463,7 +470,7 @@ unsigned char *Disk::FindAvailableDirEnt(void)
 }
 
 void Disk::WriteDirEnt(
-	    unsigned char *dirEnt,char file[],char ext[],
+	    unsigned char *dirEnt,std::string file,std::string ext,
 	    uint8_t attr,
 	    unsigned int hour,unsigned int min,unsigned int sec,
 	    unsigned int year,unsigned int month,unsigned int day,
@@ -528,10 +535,34 @@ unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
 	return firstCluster;
 }
 
+class CommandParameterInfo
+{
+public:
+	std::string outFileName="output.bin";
+
+	bool RecognizeCommandParameter(int ac,char *av[])
+	{
+		if(2<=ac)
+		{
+			outFileName=av[1];
+		}
+		return true;
+	}
+};
+
 int main(int ac,char *av[])
 {
+	CommandParameterInfo cpi;
+	if(true!=cpi.RecognizeCommandParameter(ac,av))
+	{
+		std::cout << "Error in the command parameter(s)\n";
+		return 1;
+	}
+
 	Disk disk;
 	disk.Create(BPB_MEDIA_1232K);
+
+	disk.WriteIPLSector(ReadBinaryFile("../resources/FD_IPL.bin"));
 
 	auto bpb=disk.GetBPB();
 	std::cout << disk.FindAvailableCluster(disk.GetFAT(),bpb) << "\n";
@@ -552,17 +583,24 @@ int main(int ac,char *av[])
 		}
 	}
 
-	// TestWrite
+	std::string srcFile[]=
+	{
+		"../resources/IO.SYS"   ,"IO      ","SYS",
+		"../resources/YSDOS.SYS","YSDOS   ","SYS",
+		"","",""
+	};
+
+	for(int i=0; ""!=srcFile[i]; i+=3)
 	{
 		auto dirEnt=disk.FindAvailableDirEnt();
-		auto file=ReadBinaryFile("../resources/YSDOS.SYS");
+		auto file=ReadBinaryFile(srcFile[i]);
 		auto firstCluster=disk.WriteData(file);
 		if(nullptr!=dirEnt)
 		{
 			disk.WriteDirEnt(
 				dirEnt,
-			   "YSDOS   ",
-			   "SYS",
+			   srcFile[i+1],
+			   srcFile[i+2],
 			   DIRENT_ATTR_READONLY|DIRENT_ATTR_ARCHIVE /*|DIRENT_ATTR_SYSTEM*/,
 			   23,42,00,
 			   2024,8,28,
@@ -571,9 +609,7 @@ int main(int ac,char *av[])
 		}
 	}
 
-
-
-	std::ofstream ofp(av[1],std::ios::binary);
+	std::ofstream ofp(cpi.outFileName,std::ios::binary);
 	ofp.write((char *)disk.data.data(),disk.data.size());
 
 	return 0;

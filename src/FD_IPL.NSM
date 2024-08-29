@@ -1,3 +1,7 @@
+; Requirement
+;   IO.SYS needs to be saved continuously in the disk.  No fragmentation.  Must be at the root directory.
+
+
 ; IPL to be boot from an FD Disk image.
 ; Wanted to make it a IC Memory Card boot, but realized Compatible System ROM does not support IC Memory Card Boot yet.
 
@@ -15,6 +19,23 @@ CODE					SEGMENT USE16
 
 						JMP		SHORT REALMAIN
 
+						PLACE	000BH
+
+						; BIOS Parameter Block for 1232KB disk
+						DW		1024	; 1024 bytes per sector
+						DB		1		; 1 sector per cluster
+						DW		1		; 1 reserved sector (IPL)
+						DB		2		; 2 File Allocation Tables
+						DW		0C0h	; 0C0h root-directory entries
+						DW		04D0h	; 04D0h (1232) sectors
+						DB		0FEh	; Media Descriptor for 1232KB
+						DW		2		; 2 sectors per FAT
+						DW		8		; 8 sectors per track
+						DW		2		; 2 heads
+						DD		0		; 0 hidden sectors
+						DD		0		; 32-bit number of sectors (Used as IO.SYS location in Fujitsu IPL4)
+
+
 ; Offset +0BH to +23H will be BPB
 ; Fujitsu IPL uses dword at offset +20H as IO.SYS location (LBA if HDD, CHR if FDD)
 
@@ -28,14 +49,27 @@ ERROR_END:
 						RETF
 
 IOSYS_FILENAME			DB		"IO      SYS"
+BOOT_DEVICE				DB		0
+BOOT_UNIT				DB		0
+DISKBIOS_DEVICE_CODE	DB		20h
+ROOTDIR_SECTOR			DW		0
+ROOTDIR_NUM_SECTORS		DW		0
+
+;	Incoming BH is the unit number
 
 BOOT:
 ; Read IO.SYS 64KB from sector 1 from 0400H, then JMP to 0050:0
 
-						TSUGARU_DEBUG
+						MOV		AX,CS
+						MOV		DS,AX
+						MOV		ES,AX
 
-						PUSH	CS
-						POP		DS
+						MOV		[BOOT_DEVICE],BL
+						MOV		[BOOT_UNIT],BH
+
+						AND		BH,7
+						OR		BH,DISKBIOS_FDD_0
+						MOV		[DISKBIOS_DEVICE_CODE],BH
 
 						; Read Directory from B100:0000
 
@@ -49,6 +83,7 @@ BOOT:
 						DIV		WORD [BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
 
 						MOV		BX,AX
+						MOV		[ROOTDIR_SECTOR],AX
 
 						; BX is the number of sectors.
 
@@ -63,6 +98,7 @@ BOOT:
 						; Skip IPL sector (reserved sector)
 						MOVZX	DX,BYTE [BPB_RESERVED_SECTOR_CT]
 						ADD		AX,DX
+						MOV		[ROOTDIR_NUM_SECTORS],AX
 
 						; AX is LBA of the root directory.
 
@@ -70,10 +106,128 @@ BOOT:
 						CALL	LBA_TO_CYLINDER_HEAD_SECTOR
 						POP		BX
 
-						TSUGARU_DEBUG
+						MOV		DI,1000h
+						MOV		AL,[DISKBIOS_DEVICE_CODE]
+						CALL	READ_SECTORS
 
-PAUSE:					JMP		PAUSE
+						MOV		DI,1000h
+						MOV		SI,IOSYS_FILENAME
+						MOV		DX,[BPB_NUM_ROOT_DIR_ENT]
+FIND_IOSYS_LOOP:
+						PUSH	SI
+						PUSH	DI
+						MOV		CX,11
+						CLD
+						REP		CMPSB
+						POP		DI
+						POP		SI
 
+						JE		FOUND_IOSYS
+
+						DEC		DX
+						JE		IOSYS_NOT_FOUND
+						ADD		DI,DIRENT_LENGTH
+						JMP		FIND_IOSYS_LOOP
+
+FOUND_IOSYS:
+						MOV		EAX,[DI+DIRENT_FILE_SIZE]
+						MOVZX	ECX,WORD [BPB_BYTES_PER_SECTOR]
+
+						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
+						DEC		EAX
+
+						CDQ
+						DIV		ECX
+
+						MOV		EBX,EAX	; BX is number of sectors.
+
+						PUSH	BX
+						MOV		AX,[DI+DIRENT_FIRST_CLUSTER]
+
+						CALL	CLUSTER_TO_LBA
+						CALL	LBA_TO_CYLINDER_HEAD_SECTOR
+
+						POP		BX
+
+						MOV		AL,CS:[DISKBIOS_DEVICE_CODE]
+						PUSH	WORD IOSYS_SEGMENT
+						POP		DS
+
+						XOR		DI,DI
+						CALL	READ_SECTORS
+
+						DB		0EAH ; JMPF
+						DW		0000H
+						DW		0050H
+
+
+IOSYS_NOT_FOUND:
+						STC
+						RETF	; Return to the SYSROM
+
+
+
+; Input
+;   AL		20h or 21h
+;   CX		Cylinder
+;	DH		Head
+;	DL		Sector
+;	BX		Number of Sectors
+;	DS:DI	Data Buffer
+; Output
+;   AH		BIOS Error Code
+;   CX		Error Info
+;   CF		Set if Error
+READ_SECTORS:
+
+READ_SECTORS_LOOP:
+						PUSH	AX
+						PUSH	CX
+
+						PUSH	BX		; {
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		BX,1	; Earlier version compatible ROM had an error in consecutive read (BX!=1)
+
+						; How can I write CALL 		FAR PTR 0FFFBH:0014H
+						DB		9AH		; CALLF FFFB:0014
+						DW		 0014H
+						DW		0FFFBH
+
+						POP		BX		; }
+
+						AND		AH,AH
+						JNE		READ_SECTORS_ERROR
+
+						POP		CX
+						POP		AX
+
+						ADD		DI,CS:[BPB_BYTES_PER_SECTOR]
+						DEC		BX
+						JLE		READ_SECTOR_DONE
+
+						INC		DL		; Next Sector
+						CMP		DL,CS:[BPB_SECT_PER_TRACK]
+						JLE		READ_SECTORS_LOOP
+
+						MOV		DL,1
+
+						INC		DH		; Next Side
+						AND		DH,1
+						JNE		READ_SECTORS_LOOP
+
+						INC		CX		; Next Track
+						JMP		READ_SECTORS_LOOP
+
+
+READ_SECTOR_DONE:
+						CLC
+						RET
+
+READ_SECTORS_ERROR:
+						ADD		SP,4
+						STC
+						RET
 
 
 ; Input AX
@@ -84,22 +238,15 @@ LBA_TO_CYLINDER_HEAD_SECTOR:
 
 						PUSH	AX	; Save LBA
 
-						; Cylinder=LBA/#ofHeads
-						CWD
-						DIV		WORD [BPB_NUM_HEADS]
-						MOV		SI,AX	; SI is Cylinder
-
-						POP		AX	; AX is LBA
-						PUSH	AX	; Save LBA again
-
+						; Cylinder=LBA/(#ofHeads*#sectorsPerTrack)
 						; Sector=LBA%sectorsPerTrack
 						CWD
 						DIV		WORD [BPB_SECT_PER_TRACK]
 						MOV		DI,DX	; DI is Sector#
 
-						; Head=LBA%2  Let's not think about num_heads=1 situation.
-						POP		DX	; DX is LBA
-						PUSH	DX	; Save LBA again
+						CWD
+						DIV		WORD [BPB_NUM_HEADS]
+						MOV		SI,AX	; SI is Cylinder, DX is head
 
 						AND		DL,1
 						MOV		DH,DL	; DL is Head
@@ -108,44 +255,25 @@ LBA_TO_CYLINDER_HEAD_SECTOR:
 
 						MOV		AX,DI
 						MOV		DL,AL	; DL is Sector#
+						INC		DL		; Secotr # starts with 1.
 
 						POP		AX
+						POP		DI
+						POP		SI
 						RET
 
 
 ; Input AX
 ; Output AX(LBA)
 CLUSTER_TO_LBA:
+						PUSH	DX
 
+						SUB		AX,2	; In DOS, cluster 2 is the first cluster.
+						MOVZX	DX,BYTE [BPB_SECTOR_PER_CLUSTER]
+						MUL		DX
 
+						ADD		AX,[ROOTDIR_SECTOR]
+						ADD		AX,[ROOTDIR_NUM_SECTORS]
 
-						MOV		AX,0040H
-						MOV		DS,AX
-
-						MOV		AH,05H	; Read Sector
-
-						MOV		AL,BH	; Incoming BH is the unit number
-						AND		AL,7
-						OR		AL,0B0H	; 0B0H+SCSIID is for SCSI device.
-
-
-						XOR		CX,CX
-						MOV		DX,IOSYS_START_SECTOR
-						XOR		CH,CH	; Just in case
-
-						MOV		BX,128	; 128 sectors times 512 bytes/sec = 64KB
-						XOR		DI,DI	; OFFSET 0
-
-						; How can I write CALL 		FAR PTR 0FFFBH:0014H
-						DB		9AH		; CALLF FFFB:0014
-						DW		 0014H
-						DW		0FFFBH
-
-						JB		ERROR_END
-
-						DB		0EAH ; JMPF
-						DW		0000H
-						DW		0050H
-
-						PLACE	511
-						DB		0
+						POP		DX
+						RET

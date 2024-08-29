@@ -3,6 +3,7 @@
 *.exe
 *.bin
 HDIMG.h3
+FDIMG.bin
 IPL
 IOSYS
 CONDEV

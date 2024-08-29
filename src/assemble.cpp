@@ -53,17 +53,12 @@ int main(void)
 		"INT9BH.bin",
 		"INTAEH.bin",
 		"INTAFH.bin",
-		"../resources/YSDOS.SYS",
 	};
 	std::vector <PositionAndSize> filePos;
 
 	memset(data,0,sizeof(data));
 
-	std::ifstream ipl("IPL.bin",std::ios::binary);
-	ipl.read((char *)data,512);
-
-	size_t ptr=512;
-
+	size_t ptr=0;
 	for(auto file : files)
 	{
 		filePos.push_back(ReadFile(data,ptr,file));
@@ -79,7 +74,7 @@ int main(void)
 	auto CLOCKDEV_ptr=filePos[2].pos;
 	auto DUMMYDEV_ptr=filePos[3].pos;
 
-	unsigned char *IOSYSTop=data+512;
+	unsigned char *IOSYSTop=data;
 	const unsigned int IOSYSSEG=0x40;
 
 	const unsigned int YSDOSSEG=IOSYSSEG+(filePos.back().pos-IOSYS_ptr)/0x10;
@@ -98,8 +93,8 @@ int main(void)
 	*(unsigned short*)(data+CLOCKDEV_ptr+2)=DUMMYSEG;
 
 
-	std::ofstream hdimg("HDIMG.h3",std::ios::binary);
-	hdimg.write((char *)data,sizeof(data));
+	std::ofstream hdimg("../resources/IO.SYS",std::ios::binary);
+	hdimg.write((char *)data,ptr);
 
 	return 0;
 }
