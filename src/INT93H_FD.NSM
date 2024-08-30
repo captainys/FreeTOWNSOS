@@ -19,6 +19,12 @@ FDC_SPD_INUSE  			EQU		010h
 
 
 INT93_FD_MODE			DD		030208H,030208H,030208H,030208H
+INT93_FD_MODE_1232K		EQU		030208H ; 2HD  1024bytesPerSec  2sides   8secPerTrk  1232KB
+INT93_FD_MODE_1440K		EQU		020212H ; 2HD   512bytesPerSec  2sides  18secPerTrk  1440KB  MODEB
+INT93_FD_MODE_640K		EQU		120208H ; 2DD   512bytesPerSec  2sides   8secPerTrk   640KB
+INT93_FD_MODE_720K		EQU		120209H ; 2DD   512bytesPerSec  2sides   9secPerTrk   720KB
+
+
 INT93_FD_CURRENT_CYL	DB		0,0,0,0
 INT93_FD_SEEK_STEP		DB		1,1,1,1
 
@@ -256,7 +262,9 @@ INT93H_FD_READ_NOT_RECORD_NOT_FOUND:
 						JNE		INT93H_FD_LOST_DATA
 
 						; One sector was read with no error.
-						ADD		DI,1024
+						MOV		AL,[BP+SAVED_EAX]
+						CALL	INT93H_FD_SECTLEN_FROM_DRV
+						ADD		DI,AX
 						DEC		BX
 						JE		INT93H_EXIT_NO_ERROR
 
@@ -277,10 +285,17 @@ INT93H_FD_NEXT_SIDE:
 
 ; Input    Same as INT 05H
 ; Output   AL FDC Status
+;          Destroys SI
 INT93H_FD_READ_INTERNAL:
 						PUSH	DX
 						PUSH	CX
 						PUSH	BX
+						PUSH	AX
+
+						CALL	INT93H_FD_SECTLEN_FROM_DRV
+						MOV		SI,AX
+
+						POP		AX
 						PUSH	AX
 
 						CALL	INT93H_FD_WAIT_FDC_READY
@@ -303,7 +318,7 @@ INT93H_FD_READ_INTERNAL:
 						MOVZX	EDI,DI
 						ADD		EDX,EDI
 						MOV		AL,DMA_CHANNEL_FD
-						MOV		CX,1024
+						MOV		CX,SI
 						CALL	INT93H_DMA_SETUP_READ
 						POP		CX
 
@@ -412,31 +427,48 @@ INT93H_FD_CTRL_BYTE_FROM_DRV_MODE:
 INT93H_FD_CONTROL_BYTE_2HD:
 						MOV		AL,FDC_CTL_MOTOR;
 						MOV		AH,FDC_SPD_360RPM+FDC_SPD_INUSE;
-						;	seekStep=1;
+
+						CMP		EBX,INT93_FD_MODE_1440K
+						JNE		INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT
+
+						OR		AH,FDC_SPD_MODE_B	;if 1440KB, add FDC_SPD_MODE_B
 						JMP		INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT
 
 INT93H_FD_CONTROL_BYTE_2DD:
 						MOV		AL,FDC_CTL_CLKSEL+FDC_CTL_MOTOR;
 						MOV		AH,FDC_SPD_INUSE;
-						;	seekStep=1;
 						JMP		INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT
-
 
 INT93H_FD_CONTROL_BYTE_2D:
 						MOV		AL,FDC_CTL_CLKSEL+FDC_CTL_MOTOR;
 						MOV		AH,FDC_SPD_INUSE;
-						;	seekStep=2;
-						JMP		INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT
-
-; 1440K
-						;		controlByte=CTL_MOTOR;
-						;		speedByte=SPD_MODE_B|SPD_360RPM|SPD_INUSE;
-						;		seekStep=1;
-
 
 INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT:
 						POP		EBX
 						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input AL=drive Only bottom 2 bits are effective.  Higher bits ignored.
+; Output AX=length
+INT93H_FD_SECTLEN_FROM_DRV:
+						PUSH	CX
+						PUSH	BX
+
+						AND		AL,3
+						MOVZX	BX,AL
+						SHL		BX,2
+						MOV		CX,CS:[INT93_FD_MODE+2+BX]
+
+						AND		CL,3
+						MOV		AX,128
+						SHL		AX,CL
+
+						POP		BX
+						POP		CX
+						RET
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

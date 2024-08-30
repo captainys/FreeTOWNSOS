@@ -75,27 +75,27 @@ BOOT_FROM_FD:
 
 
 
-						; ; Test FD Read
-						; ; 1000h for 4 sectors
-						; ; 2000h for one track
-						; ; 4000h for one cylinder
+						; Test FD Read
+						; 1000h for 4 sectors
+						; 2000h for one track
+						; 4000h for one cylinder
 
-						; ; 0     Trk0 Side0
-						; ; 2000H Trk0 Side1
-						; ; 4000H Trk1 Side0
-						; ; 6000H Trk1 Side1
-						; ; 7000H Trk1 Side1 Sect5
+						; 0     Trk0 Side0
+						; 2000H Trk0 Side1
+						; 4000H Trk1 Side0
+						; 6000H Trk1 Side1
+						; 7000H Trk1 Side1 Sect5
 
-						; MOV		AH,5
-						; MOV		AL,020H
-						; MOV		CX,1
-						; MOV		DH,1
-						; MOV		DL,5
-						; MOV		BX,8
-						; MOV		DI,8000H
-						; MOV		DS,DI
-						; XOR		Di,Di
-						; INT 	93H
+						MOV		AH,5
+						MOV		AL,020H
+						MOV		CX,1
+						MOV		DH,1
+						MOV		DL,5
+						MOV		BX,8
+						MOV		DI,8000H
+						MOV		DS,DI
+						XOR		Di,Di
+						INT 	93H
 
 
 						JMP		INFINITY
