@@ -89,6 +89,21 @@ INT93H_INIT:
 
 INT46H_FD_INT_HANDLER:
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0FFh
+
+						; Clear IRR
+						PUSH	DX
+						PUSH	AX
+						MOV		DX,IO_FDC_STATUS
+						IN		AL,DX
+						MOV		DX,IO_DMA_STATUS ; Do I have to do it?
+						IN		AL,DX
+
+						MOV		AL,066H	; Specific EOI(060H)|INT 6(006H)
+						OUT		IO_PIC0_OCW2,AL
+
+						POP		AX
+						POP		DX
+
 						IRET
 
 INT48H_SCSI_INT_HANDLER:

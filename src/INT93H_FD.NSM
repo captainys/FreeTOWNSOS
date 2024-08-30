@@ -17,6 +17,8 @@ FDC_SPD_INUSE  			EQU		010h
 
 
 INT93_FD_MODE			DD		030208H,030208H,030208H,030208H
+INT93_FD_CURRENT_CYL	DB		0,0,0,0
+INT93_FD_SEEK_STEP		DB		1,1,1,1
 
 
 INT93H_FD:
@@ -96,14 +98,8 @@ INT93H_FD_RESTORE:
 
 						MOV		AL,[BP+SAVED_EAX]
 						AND		AL,3
-
-						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
-						OR		AL,FDC_CTL_IRQEN
-						MOV		DX,IO_FDC_DRIVE_CONTROL
-						OUT		DX,AL
-
-						; Select Drive
-						; Select Side
+						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQEN
 						CALL	INT93H_FD_WAIT_FDC_READY
 
 						MOV		AL,FDCCMD_RESTORE_HEAD_UNLOAD
@@ -112,36 +108,143 @@ INT93H_FD_RESTORE:
 
 						CALL	INT93H_FD_WAIT_INT46
 
+						MOVZX	BX,BYTE [BP+SAVED_EAX]
+						AND		BL,3
+						MOV		BYTE CS:[INT93_FD_CURRENT_CYL+BX],0
+
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_SEEK:
+						TSUGARU_DEBUG
+
+						MOV		AL,[BP+SAVED_EAX]
+						MOV		CX,[BP+SAVED_ECX]
+						CALL	INT93H_FD_SEEK_INTERNAL
+
+						MOV		DX,IO_FDC_STATUS
+						IN		AL,DX
+
+						TEST	AL,010H
+						JNE		INT93H_FD_SEEK_ERROR
+						TEST	AL,080H
+						JNE		INT93H_FD_DRIVE_NOT_READY
+
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Input
+;   AL Drive
+;   CL Cylinder
+INT93H_FD_SEEK_INTERNAL:
+						PUSH	DX
+						PUSH	BX
+
+						CALL	INT93H_FD_WAIT_FDC_READY
+						CLI
+
+						MOV		BYTE CS:[INT46H_DID_COME_IN],0
+
+						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQDIS
+
+						PUSH	AX
+
+						AND		AL,3
+						MOVZX	BX,AL
+						MOV		AL,CS:[INT93_FD_CURRENT_CYL+BX]
+						MOV		DX,IO_FDC_CYLINDER
+						OUT		DX,AL
+
+						MOV		AL,CL
+						MOV		AH,CS:[INT93_FD_SEEK_STEP+BX]
+						MUL		AH
+						MOV		DX,IO_FDC_DATA
+						OUT		DX,AL
+
+						CALL	INT93H_FD_WAIT_FDC_READY
+
+						POP		AX
+						PUSH	AX
+
+						STI
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQEN
+
+						MOV		AL,FDCCMD_SEEK
+						MOV		DX,IO_FDC_COMMAND
+						OUT		DX,AL
+
+						CALL	INT93H_FD_WAIT_INT46
+
+						MOV		DX,IO_FDC_CYLINDER
+						IN		AL,DX
+
+						POP		BX		; BX is incomng AX.
+						PUSH	BX
+
+						AND		BX,3
+						MOV		CS:[INT93_FD_CURRENT_CYL+BX],AL
+
+						POP		AX
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQDIS
+						POP		BX
+						POP		DX
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_READ:
+						MOV		AX,[BP+SAVED_EAX]
+						MOV		CX,[BP+SAVED_ECX]
+						CALL	INT93H_FD_SEEK_INTERNAL
+
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_WRITE:
 						JMP		INT93H_EXIT
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 INT93H_FD_CHECK_SECTOR:
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_READADDR:
 						JMP		INT93H_EXIT
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 INT93H_FD_FORMAT:
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_GET_ERROR_DETAIL:
 						JMP		INT93H_EXIT
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_WAIT_INT46:
@@ -150,7 +253,6 @@ INT93H_FD_WAIT_INT46:
 						AND		AL,AL
 						JE		INT93H_FD_WAIT_INT46
 						RET
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -224,3 +326,80 @@ INT93H_FD_WAIT_FDC_READY_LOOP:
 						POP		AX
 						POP		DX
 						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+INT93H_FD_SELECT_DRIVE:
+						PUSH	AX
+						PUSH	CX
+						PUSH	DX
+
+						MOV		CH,1
+						MOV		CL,AL
+						SHL		CH,CL
+
+						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
+
+						MOV		DX,IO_FDC_DRIVE_SELECT
+						XCHG	AL,AH
+						; AL is speedByte
+						OUT		DX,AL
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+
+						OR		AL,CH
+						OUT		DX,AL
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+
+						POP		DX
+						POP		CX
+						POP		AX
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input AL drive
+INT93H_FD_WRITE_DRIVE_CONTROL_IRQEN:
+						PUSH	AX
+						PUSH	DX
+						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
+						OR		AL,FDC_CTL_IRQEN
+						MOV		DX,IO_FDC_DRIVE_CONTROL
+						OUT		DX,AL
+						POP		DX
+						POP		AX
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input AL drive
+
+INT93H_FD_WRITE_DRIVE_CONTROL_IRQDIS:
+						PUSH	AX
+						PUSH	DX
+						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
+						MOV		DX,IO_FDC_DRIVE_CONTROL
+						OUT		DX,AL
+						POP		DX
+						POP		AX
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_FD_SEEK_ERROR:
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],0
+						JMP		INT93H_EXIT
+
+INT93H_FD_DRIVE_NOT_READY:
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],1
+						JMP		INT93H_EXIT
