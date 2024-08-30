@@ -22,9 +22,6 @@ INT93H_DMA_SETUP_READ:
 						OUT		IO_DMA_ADDR_HIGH,AL     ; 00A7h
 						ROL		EDX,16
 
-						MOV		AX,CX
-						OUT		IO_DMA_COUNT_LOW,AX		; 00A2h
-
 						MOV		AH,1
 						AND		CL,3
 						SHL		AH,CL
