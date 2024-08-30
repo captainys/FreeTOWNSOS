@@ -142,6 +142,7 @@ INT93H_FD_SEEK:
 ; Input
 ;   AL Drive
 ;   CL Cylinder
+; All registers preserved.
 INT93H_FD_SEEK_INTERNAL:
 						PUSH	DX
 						PUSH	BX
@@ -201,13 +202,112 @@ INT93H_FD_SEEK_INTERNAL:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+; Input AH=05 AL=Device CX=Cylinder  DH=Head  DL=Sector  BX=number of sectors  DS:DI=Buffer
 INT93H_FD_READ:
-						MOV		AX,[BP+SAVED_EAX]
+						MOV		BX,[BP+SAVED_DS]
+						MOV		DS,BX
+						MOV		DI,[BP+SAVED_EDI]
+
+						MOV		BX,[BP+SAVED_EBX]
 						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+
+						AND		BX,BX
+						JE		INT93H_EXIT_NO_ERROR
+
+INT93H_FD_READ_CYLINDER_LOOP:
+						MOV		AX,[BP+SAVED_EAX]
 						CALL	INT93H_FD_SEEK_INTERNAL
 
-						JMP		INT93H_EXIT
+INT93H_FD_READ_TRACK_LOOP:
+						MOV		SI,BX	; Remember where I am at the beginning of the track.
+INT93H_FD_READ_SECTOR_LOOP:
+						; Loop until Record Not Found && 0<BX
+						PUSH	BX
+						PUSH	CX
+						PUSH	DX
+						CALL	INT93H_FD_READ_INTERNAL
+						POP		DX
+						POP		CX
+						POP		BX
 
+						TEST	AL,IOERR_RECORD_NOT_FOUND
+						JE		INT93H_FD_READ_NOT_RECORD_NOT_FOUND
+						CMP		SI,BX
+						JNE		INT93H_FD_NEXT_SIDE	; If at least one sector was read, then try next side.
+						JMP		INT93H_FD_RECORD_NOT_FOUND_ERROR
+
+INT93H_FD_READ_NOT_RECORD_NOT_FOUND:
+						TEST	AL,IOERR_CRC
+						JNE		INT93H_FD_CRC_ERROR
+						TEST	AL,IOERR_LOST_DATA
+						JNE		INT93H_FD_LOST_DATA
+
+						; One sector was read with no error.
+						DEC		BX
+						JE		INT93H_EXIT_NO_ERROR
+
+						INC		DL	; Next Sector
+						JMP		INT93H_FD_READ_SECTOR_LOOP
+
+INT93H_FD_NEXT_SIDE:
+						INC		DH	; Next Side
+						AND		DH,1
+						JNE		INT93H_FD_READ_TRACK_LOOP
+
+						INC		CL	; Next Cylinder
+						JMP		INT93H_FD_READ_CYLINDER_LOOP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input    Same as INT 05H
+; Output   AL FDC Status
+INT93H_FD_READ_INTERNAL:
+						PUSH	DX
+						PUSH	CX
+						PUSH	BX
+						PUSH	AX
+
+						CALL	INT93H_FD_WAIT_FDC_READY
+						CLI
+
+						MOV		BYTE CS:[INT46H_DID_COME_IN],0
+
+						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQDIS
+
+						CLI
+						; CALL		DMA_SETUP
+						STI
+
+						XCHG	BX,DX		; Now BH=Head  BL=Sector
+
+						MOV		AL,CL
+						MOV		DX,IO_FDC_CYLINDER
+						OUT		DX,AL
+
+						MOV		AL,BL
+						MOV		DX,IO_FDC_SECTOR
+						OUT		DX,AL
+
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQEN
+
+						; FDC_Command(FDCCMD_READSECTOR);
+
+						CALL	INT93H_FD_WAIT_INT46
+
+						CALL	INT93H_FD_WRITE_DRIVE_CONTROL_IRQDIS
+
+						POP		AX
+
+						MOV		DX,IO_FDC_STATUS
+						IN		AL,DX
+
+						POP		BX
+						POP		CX
+						POP		DX
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -364,7 +464,31 @@ INT93H_FD_SELECT_DRIVE:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Input AL drive
+; Input AL=drive  DH=side  AH=IRQEN
+INT93H_FD_DRIVE_CONTROL:
+						PUSH	AX
+						PUSH	DX
+						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
+
+						TEST	AH,AH
+						JE		INT93H_FD_DRIVE_CONTROL_IRQSET
+						OR		AL,FDC_CTL_IRQEN
+INT93H_FD_DRIVE_CONTROL_IRQSET:
+
+						TEST	DH,DH
+						JE		INT93H_FD_DRIVE_CONTROL_SIDESET
+						OR		AL,FDC_CTL_SIDE
+INT93H_FD_DRIVE_CONTROL_SIDESET:
+
+						MOV		DX,IO_FDC_DRIVE_CONTROL
+						OUT		DX,AL
+						POP		DX
+						POP		AX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input AL drive  DH side
 INT93H_FD_WRITE_DRIVE_CONTROL_IRQEN:
 						PUSH	AX
 						PUSH	DX
@@ -401,5 +525,21 @@ INT93H_FD_SEEK_ERROR:
 
 INT93H_FD_DRIVE_NOT_READY:
 						MOV		BYTE CS:[ERROR_CODE],080H
-						MOV		WORD CS:[ERROR_DETAIL],1
+						MOV		WORD CS:[ERROR_DETAIL],DISKBIOS_HARDERROR_DRIVE_NOT_READY
 						JMP		INT93H_EXIT
+
+INT93H_FD_RECORD_NOT_FOUND_ERROR:
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],DISKBIOS_HARDERROR_RECORD_NOT_FOUND
+						JMP		INT93H_EXIT
+
+INT93H_FD_CRC_ERROR:
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],DISKBIOS_HARDERROR_CRC_ERROR
+						JMP		INT93H_EXIT
+
+INT93H_FD_LOST_DATA:
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],DISKBIOS_HARDERROR_LOST_DATA
+						JMP		INT93H_EXIT
+
