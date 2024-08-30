@@ -1,0 +1,28 @@
+BLKDEV_HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
+								DW	0FFFFh
+BLKDEV_HEADER_ATTRIBWORD		DW	0800h   ; BlockDev|open/close/removable media
+BLKDEV_HEADER_STRATEGY_PTR		DW	BLKDEV_STRATEGY
+BLKDEV_HEADER_INTERRUPT_PTR		DW	BLKDEV_INTERRUPT
+BLKDEV_HEADER_NAME				DB	"QUACK!!!"
+
+BLKDEV_REQHDR_PTR		DD	0
+
+BLKDEV_STRATEGY:
+						MOV		CS:[BLKDEV_REQHDR_PTR],BX
+						MOV		CS:[BLKDEV_REQHDR_PTR+2],ES
+						RETF
+
+BLKDEV_INTERRUPT:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						TSUGARU_DEBUG
+
+						RETF
+
+BLKDEV_INIT:
+						; Need to return (ES:BX is the request header)
+						; BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN]  Number of units, or drives under control of this driver
+						; ES:[BX+REQ_INIT_BPB_ARRAY_RETURN]      Far pointer to the BPB array  Let's say it is xxxx:yyyy
+						; Then,
+						;   xxxx:yyyy ptr0 ptr1 ptr2 ptr3 ... ptr(#unit-1)
+						; each pointer is a short pointer. xxxx:ptr0 is the first BPB.
+						RETF

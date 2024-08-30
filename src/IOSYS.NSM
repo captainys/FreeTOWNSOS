@@ -184,7 +184,22 @@ FDBOOT_FOUND_YSDOS:
 
 ; Stack Top is YSDOS Segment
 YSDOS_LOADED:
-						JMP		YSDOS_LOADED
+						; INPUT to YSDOS.SYS
+						;    DX     ENDMEM 0C000H in TOWNS because always TOWNS has more than 640KB
+						;    DS:SI  DEVHEAD
+
+						PUSH	CS
+						POP		DS
+						MOV		SI,CONDEV_HEADER_NEXT
+						MOV		DX,0C000h
+
+						PUSH	WORD 0
+						MOV		BP,SP
+						CALL	FAR [BP]
+
+						; OUTPUT from YSDOS.SYS
+						;    ES:DI  Pointer to SYSVARS
+						HLT
 
 
 
@@ -237,8 +252,11 @@ DEFAULT_INT_HANDLER:
 
 BOOT_DEVICE				DW		0
 DISKBIOS_BOOT_DEVICE	DB		0
-
+YSDOS_SYSVARS_OFFSET	DW		0
+YSDOS_SYSVARS_SEG		DW		0
 
 						%INCLUDE	"DOSUTIL.NSM"
 						%INCLUDE	"CONDEV.NSM"
 						%INCLUDE	"CLOCKDEV.NSM"
+						%INCLUDE	"TOWNS_CD.NSM"
+						%INCLUDE	"BLOCKDEV.NSM"
