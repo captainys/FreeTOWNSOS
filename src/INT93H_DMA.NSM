@@ -1,7 +1,63 @@
 
 ; Input
 ;   AL  DMA Channel
-;   EDI Physical Address
+;   EDX Physical Address
 ;   CX  Count
 INT93H_DMA_SETUP_READ:
+						PUSH	AX
+						PUSH	CX
+
+						OUT		IO_DMA_CHANNEL,AL		; 00A1h
+
+						XCHG	AX,CX					; Now CX is channel
+						OUT		IO_DMA_COUNT_LOW,AX		; 00A2h
+
+						MOV		AX,DX
+						OUT		IO_DMA_ADDR_LOW,AX		; 00A4h
+
+						ROL		EDX,16
+						MOV		AX,DX
+						OUT		IO_DMA_ADDR_MID_HIGH,AL ; 00A6h
+						MOV		AL,AH
+						OUT		IO_DMA_ADDR_HIGH,AL     ; 00A7h
+						ROL		EDX,16
+
+						MOV		AX,CX
+						OUT		IO_DMA_COUNT_LOW,AX		; 00A2h
+
+						MOV		AH,1
+						AND		CL,3
+						SHL		AH,CL
+						NOT		AH
+						IN		AL,IO_DMA_MASK
+						AND		AL,AH
+						AND		AL,0Fh
+						OUT		IO_DMA_MASK,AL		; 00AFh
+
+						MOV		AL,44h					; Single Mode, I/O->MEM
+						OUT		IO_DMA_MODE_CONTROL,AL	; 00AAh
+
+						POP		CX
+						POP		AX
+						RET
+
+
+; Input
+;   AL DMA Channel
+INT93H_DMA_MASK:
+						PUSH	AX
+						PUSH	CX
+
+						MOV		CL,AL
+						AND		CL,3
+						MOV		AH,1
+						SHL		AH,CL
+
+						IN		AL,IO_DMA_MASK
+						OR		AL,AH
+						AND		AL,0Fh
+						OUT		IO_DMA_MASK,AL		; 00AFh
+
+						POP		CX
+						POP		AX
 						RET
