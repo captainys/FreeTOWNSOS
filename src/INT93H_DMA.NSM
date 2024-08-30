@@ -1,0 +1,7 @@
+
+; Input
+;   AL  DMA Channel
+;   EDI Physical Address
+;   CX  Count
+INT93H_DMA_SETUP_READ:
+						RET

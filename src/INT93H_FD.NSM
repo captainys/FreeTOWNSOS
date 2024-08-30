@@ -291,9 +291,19 @@ INT93H_FD_READ_INTERNAL:
 						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
 
 						CLI
-						; CALL		DMA_SETUP
 
 						XCHG	BX,DX		; Now BH=Head  BL=Sector
+
+						PUSH	CX
+						MOV		DX,DS
+						MOVZX	EDX,DX
+						SHL		EDX,4
+						MOVZX	EDI,DI
+						ADD		EDX,EDI
+						MOV		AL,DMA_CHANNEL_FD
+						MOV		CX,1024
+						CALL	INT93H_DMA_SETUP_READ
+						POP		CX
 
 						MOV		AL,CL
 						MOV		DX,IO_FDC_CYLINDER
