@@ -102,9 +102,6 @@ int main(void)
 	File files[]=
 	{
 		File("IOSYS.bin",   0),
-		File("CONDEV.bin",  0),
-		File("CLOCKDEV.bin",0),
-		File("DUMMYDEV.bin",0),
 		File("INT8EH.bin",  0x8E),
 		File("INT90H.bin",  0x90),
 		File("INT91H.bin",  0x91),

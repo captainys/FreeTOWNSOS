@@ -6,6 +6,9 @@
 						%INCLUDE "TOWNSDEF.NSM"
 
 
+BOOTSECT_SEG			EQU		8000h
+
+
 CODE					SEGMENT USE16
 ENTRY:
 						JE		SHORT REALENTRY
@@ -75,27 +78,39 @@ BOOT_FROM_FD:
 
 
 
-						; Test FD Read
-						; 1000h for 4 sectors
-						; 2000h for one track
-						; 4000h for one cylinder
-
-						; 0     Trk0 Side0
-						; 2000H Trk0 Side1
-						; 4000H Trk1 Side0
-						; 6000H Trk1 Side1
-						; 7000H Trk1 Side1 Sect5
-
-						MOV		AH,5
-						MOV		AL,020H
-						MOV		CX,1
-						MOV		DH,1
-						MOV		DL,5
-						MOV		BX,8
-						MOV		DI,8000H
+						; Read IPL Sector to get BPB
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+						MOV		CX,0		; Track 0
+						MOV		DX,0001h	; Head 0 Sector 1
+						MOV		BX,1		; 1 sector
+						MOV		DI,BOOTSECT_SEG
 						MOV		DS,DI
-						XOR		Di,Di
-						INT 	93H
+						XOR		DI,DI
+						INT		93H
+
+
+						; ; Test FD Read
+						; ; 1000h for 4 sectors
+						; ; 2000h for one track
+						; ; 4000h for one cylinder
+
+						; ; 0     Trk0 Side0
+						; ; 2000H Trk0 Side1
+						; ; 4000H Trk1 Side0
+						; ; 6000H Trk1 Side1
+						; ; 7000H Trk1 Side1 Sect5
+
+						; MOV		AH,5
+						; MOV		AL,020H
+						; MOV		CX,1
+						; MOV		DH,1
+						; MOV		DL,5
+						; MOV		BX,8
+						; MOV		DI,8000H
+						; MOV		DS,DI
+						; XOR		Di,Di
+						; INT 	93H
 
 
 						JMP		INFINITY
@@ -151,3 +166,8 @@ DEFAULT_INT_HANDLER:
 
 BOOT_DEVICE				DW		0
 DISKBIOS_BOOT_DEVICE	DB		0
+
+
+
+						%INCLUDE	"CONDEV.NSM"
+						%INCLUDE	"CLOCKDEV.NSM"

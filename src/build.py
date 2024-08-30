@@ -16,9 +16,6 @@ def Run(argv):
 	srcs=[
 		"FD_IPL",
 		"IOSYS",
-		"CONDEV",
-		"CLOCKDEV",
-		"DUMMYDEV",
 		"INT8EH",
 		"INT90H",
 		"INT91H",
