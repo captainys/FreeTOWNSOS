@@ -66,6 +66,8 @@ BOOT:
 						MOV		AX,CS
 						MOV		DS,AX
 						MOV		ES,AX
+						MOV		FS,AX
+						MOV		DI,BPB_POS_IN_IPL	; FS:DI is BPB
 
 						MOV		[BOOT_DEVICE],BX
 
@@ -75,38 +77,22 @@ BOOT:
 
 						; Read Directory from B100:0000
 
-						; Calculate number of sectors of the root directory
-						MOV		AX,[BPB_NUM_ROOT_DIR_ENT]
-						SHL		AX,DIRENT_SHIFT		; AX is number of bytes of the root directory entries.
-
-						ADD		AX,[BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
-						DEC		AX
-						CWD
-						DIV		WORD [BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
-
+						CALL	BPB_CALC_ROOTDIR_SECT_CT
 						MOV		BX,AX
-						MOV		[ROOTDIR_SECTOR],AX
+						MOV		[ROOTDIR_NUM_SECTORS],AX
+
 
 						; BX is the number of sectors.
 
 
-						; Calculate LBA of the root directory
-						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
-						; Skip FAT
-						MOVZX	AX,BYTE [BPB_NUM_FATS]
-						MOV		DX,[BPB_SECT_PER_FAT]
-						MUL		DX
+						CALL	BPB_CALC_ROOTDIR_LBA
+						MOV		[ROOTDIR_SECTOR],AX
 
-						; Skip IPL sector (reserved sector)
-						MOVZX	DX,BYTE [BPB_RESERVED_SECTOR_CT]
-						ADD		AX,DX
-						MOV		[ROOTDIR_NUM_SECTORS],AX
 
 						; AX is LBA of the root directory.
 
-						PUSH	BX
-						CALL	LBA_TO_CYLINDER_HEAD_SECTOR
-						POP		BX
+
+						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
 
 						MOV		DI,ROOTDIR_READ_OFFSET
 						MOV		AL,[DISKBIOS_DEVICE_CODE]
@@ -115,7 +101,7 @@ BOOT:
 
 						MOV		DI,ROOTDIR_READ_OFFSET
 						MOV		SI,IOSYS_FILENAME
-						MOV		DX,[BPB_NUM_ROOT_DIR_ENT]
+						MOV		DX,[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
 FIND_IOSYS_LOOP:
 						PUSH	SI
 						PUSH	DI
@@ -134,7 +120,7 @@ FIND_IOSYS_LOOP:
 
 FOUND_IOSYS:
 						MOV		EAX,[DI+DIRENT_FILE_SIZE]
-						MOVZX	ECX,WORD [BPB_BYTES_PER_SECTOR]
+						MOVZX	ECX,WORD [BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]
 
 						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
 						DEC		EAX
@@ -147,8 +133,11 @@ FOUND_IOSYS:
 						PUSH	BX
 						MOV		AX,[DI+DIRENT_FIRST_CLUSTER]
 
+						XCHG	DI,BX
+						MOV		DI,BPB_POS_IN_IPL
 						CALL	CLUSTER_TO_LBA
-						CALL	LBA_TO_CYLINDER_HEAD_SECTOR
+						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
+						XCHG	DI,BX
 
 						POP		BX
 
@@ -209,12 +198,12 @@ READ_SECTORS_LOOP:
 						POP		CX
 						POP		AX
 
-						ADD		DI,CS:[BPB_BYTES_PER_SECTOR]
+						ADD		DI,CS:[BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]
 						DEC		BX
 						JLE		READ_SECTOR_DONE
 
 						INC		DL		; Next Sector
-						CMP		DL,CS:[BPB_SECT_PER_TRACK]
+						CMP		DL,CS:[BPB_POS_IN_IPL+BPB_SECT_PER_TRACK]
 						JLE		READ_SECTORS_LOOP
 
 						MOV		DL,1
@@ -237,50 +226,83 @@ READ_SECTORS_ERROR:
 						RET
 
 
-; Input AX
-; Output   CX:Cylinder  DH:Head  DL:Sector  (Good for Disk BIOS input)
-LBA_TO_CYLINDER_HEAD_SECTOR:
-						PUSH	SI
-						PUSH	DI
-
-						PUSH	AX	; Save LBA
-
-						; Cylinder=LBA/(#ofHeads*#sectorsPerTrack)
-						; Sector=LBA%sectorsPerTrack
-						CWD
-						DIV		WORD [BPB_SECT_PER_TRACK]
-						MOV		DI,DX	; DI is Sector#
-
-						CWD
-						DIV		WORD [BPB_NUM_HEADS]
-						MOV		SI,AX	; SI is Cylinder, DX is head
-
-						AND		DL,1
-						MOV		DH,DL	; DL is Head
-
-						MOV		CX,SI	; CX is Cylinder
-
-						MOV		AX,DI
-						MOV		DL,AL	; DL is Sector#
-						INC		DL		; Secotr # starts with 1.
-
-						POP		AX
-						POP		DI
-						POP		SI
-						RET
 
 
-; Input AX
-; Output AX(LBA)
+; Input   AX Cluster
+; Output  AX LBA
 CLUSTER_TO_LBA:
 						PUSH	DX
 
 						SUB		AX,2	; In DOS, cluster 2 is the first cluster.
-						MOVZX	DX,BYTE [BPB_SECTOR_PER_CLUSTER]
+						MOVZX	DX,BYTE [BPB_POS_IN_IPL+BPB_SECTOR_PER_CLUSTER]
 						MUL		DX
 
 						ADD		AX,[ROOTDIR_SECTOR]
 						ADD		AX,[ROOTDIR_NUM_SECTORS]
 
 						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input FS:DI  BPB
+; Output AX  Number of sectors of ROOTDIR
+;        DX Destroyed
+BPB_CALC_ROOTDIR_SECT_CT:
+						; Calculated as (#RootDirEntries * DirEntSize + bytesPerSector -1)/bytesPerSector
+						; Number of bytes for root dir entries / bytes per sector, but must round up if some root dir entries are hanging.
+						MOV		AX,FS:[DI+BPB_NUM_ROOT_DIR_ENT]
+						SHL		AX,DIRENT_SHIFT		; AX is number of bytes of the root directory entries.
+
+						ADD		AX,FS:[DI+BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
+						DEC		AX
+						CWD
+						DIV		WORD FS:[DI+BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
+
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Input FS:DI  BPB
+; Output AX  LBA for the root dir
+;        DX Destroyed
+BPB_CALC_ROOTDIR_LBA:
+						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
+						; Skip FAT
+						MOVZX	AX,BYTE FS:[DI+BPB_NUM_FATS]
+						MUL		WORD FS:[DI+BPB_SECT_PER_FAT]
+
+						; Skip IPL sector (reserved sector)
+						MOVZX	DX,BYTE FS:[DI+BPB_RESERVED_SECTOR_CT]
+						ADD		AX,DX
+
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Input    AX LBA
+; Output   CX:Cylinder  DH:Head  DL:Sector  (Good for Disk BIOS input)
+;          AX Destroyed
+BPB_LBA_TO_CYLINDER_HEAD_SECTOR:
+						; Cylinder=LBA/(#ofHeads*#sectorsPerTrack)
+						; Sector=LBA%sectorsPerTrack
+						CWD
+						DIV		WORD FS:[DI+BPB_SECT_PER_TRACK]
+						PUSH	DX	; Save Sector#, AX=Cylinder*#Heads+Head
+
+						CWD
+						DIV		WORD FS:[DI+BPB_NUM_HEADS]
+						MOV		CX,AX	; CX is Cylinder, DX is head
+
+						AND		DL,1
+						MOV		DH,DL	; DL is Head
+
+						POP		AX	; Restore Sector#
+						MOV		DL,AL	; DL is Sector#
+						INC		DL		; Secotr # starts with 1.
+
 						RET
