@@ -95,15 +95,16 @@ INT93H_FD_RESTORE:
 						TSUGARU_DEBUG
 
 						MOV		AL,[BP+SAVED_EAX]
+						AND		AL,3
+
 						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
 						OR		AL,FDC_CTL_IRQEN
 						MOV		DX,IO_FDC_DRIVE_CONTROL
 						OUT		DX,AL
 
-						; Select Drive, Motor ON
+						; Select Drive
 						; Select Side
-						; Wait FDC Ready
-
+						CALL	INT93H_FD_WAIT_FDC_READY
 
 						MOV		AL,FDCCMD_RESTORE_HEAD_UNLOAD
 						MOV		DX,IO_FDC_COMMAND
@@ -151,6 +152,8 @@ INT93H_FD_WAIT_INT46:
 						RET
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Input AL drive 0,1,2, or 3
 ; Output AL Control Byte
@@ -200,4 +203,24 @@ INT93H_FD_CONTROL_BYTE_2D:
 
 INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT:
 						POP		EBX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+INT93H_FD_WAIT_FDC_READY:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,IO_FDC_STATUS
+INT93H_FD_WAIT_FDC_READY_LOOP:
+						IN		AL,DX
+						IN		AL,DX
+						IN		AL,DX
+
+						AND		AL,FDCSTA_BUSY
+						JNE		INT93H_FD_WAIT_FDC_READY_LOOP
+
+						POP		AX
+						POP		DX
 						RET
