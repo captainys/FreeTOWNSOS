@@ -1,0 +1,31 @@
+INT93H_ROMDISK:
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		WORD CS:[ERROR_DETAIL],0FFFFh
+
+						CMP		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						JE		INT93H_ROMDISK_READ
+
+						TSUGARU_DEBUG
+						JMP		INT93H_EXIT
+
+
+INT93H_ROMDISK_READ:
+						MOV		ES,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+
+						MOV		SI,[BP+SAVED_ECX]
+						SHL		SI,16
+						MOV		SI,[BP+SAVED_EDX]
+						SHL		ESI,9	; 512 bytes per sector
+						ADD		ESI,0C2000000h
+
+						MOVZX	ECX,WORD [BP+SAVED_EBX]
+						SHL		ECX,9	; 512 bytes per sector
+
+						; Input
+						;   ESI      Source Physical Address
+						;   ES:DI    Destination
+						;   CX       Transfer size
+						CALL	READ_HIGHB
+
+						JMP		INT93H_EXIT_NO_ERROR
