@@ -207,6 +207,14 @@ YSDOS_LOADED:
 						MOV		AH,0Eh
 						INT		21H
 
+
+						; Test FOPEN
+						MOV		AH,3Dh
+						MOV		AL,0
+						MOV		DX,DEFAULT_COMSPEC
+						INT		21H
+
+
 						HLT
 						HLT
 
@@ -317,6 +325,8 @@ BOOT_DRIVE				DB		0	; 0 means A drive
 DISKBIOS_BOOT_DEVICE	DB		0
 YSDOS_SYSVARS_OFFSET	DW		0
 YSDOS_SYSVARS_SEG		DW		0
+
+DEFAULT_COMSPEC			DB		"C:\COMMAND.COM",0
 
 CDS						DB		(CURRENT_DIR_STRUCT_size*MAX_NUM_CDS) dup (0)
 
