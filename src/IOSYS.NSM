@@ -192,8 +192,6 @@ YSDOS_LOADED:
 						PUSH	WORD 0
 						MOV		BP,SP
 
-						TSUGARU_DEBUG
-
 						CALL	FAR [BP]
 
 						; OUTPUT from YSDOS.SYS
@@ -201,6 +199,8 @@ YSDOS_LOADED:
 
 						MOV		CS:[YSDOS_SYSVARS_OFFSET],DI
 						MOV		CS:[YSDOS_SYSVARS_SEG],ES
+
+						CALL	CREATE_CDS
 
 						HLT
 						HLT
@@ -210,6 +210,7 @@ YSDOS_LOADED:
 
 
 CREATE_CDS:
+						TSUGARU_DEBUG
 						RET
 
 
