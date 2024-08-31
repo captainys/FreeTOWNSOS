@@ -215,7 +215,7 @@ YSDOS_LOADED:
 						MOV		CS:[SECTBUF_SEG],BX
 
 
-						; Test FOPEN
+						; Test FOPEN - FREAD
 						MOV		AH,3Dh
 						MOV		AL,0
 						MOV		DX,DEFAULT_COMSPEC
@@ -256,16 +256,27 @@ YSDOS_LOADED:
 						INT		21H
 
 
+
+						; TEST FOPEN from Floppy Disk
+						MOV		AH,3Dh
+						MOV		AL,0
+						MOV		DX,TEST_YAMANDCOM
+						PUSH	CS
+						POP		DS
+						INT		21H
+
+
+
 						HLT
 						HLT
+
+TEST_YAMANDCOM:			DB	"A:\YAMAND.COM"
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 CREATE_CDS:
-						TSUGARU_DEBUG
-
 						PUSH	CS
 						POP		DS
 
