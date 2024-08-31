@@ -47,8 +47,12 @@ BLKDEV_INTERRUPT:
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
 						MOV		BYTE ES:[BX+REQ_STATUS],0 ; Tentatively no error
 						MOV		AL,ES:[BX+REQ_COMMAND]
-						CMP		AL,0
+						CMP		AL,DEVREQ_CMD_INIT
 						JE		BLKDEV_INIT
+						CMP		AL,DEVREQ_CMD_MEDIA_CHECK
+						JE		BLKDEV_MEDIA_CHECK
+						CMP		AL,DEVREQ_CMD_READ
+						JE		BLKDEV_READ
 
 						TSUGARU_DEBUG
 
@@ -72,6 +76,44 @@ BLKDEV_INIT:
 						MOV		AX,INITIAL_BPB_ARRAY
 						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],AX
 
+						JMP		BLKDEV_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+BLKDEV_MEDIA_CHECK:
+						MOV		AH,ES:[BX+REQ_UNIT]
+						MOV		AL,ES:[BX+REQ_MEDIACHECK_MEDIA_DESC]
+
+						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						JE		BLKDEV_MEDIA_CHECK_ROMDRIVE
+
+						TSUGARU_DEBUG
+
+						JMP		BLKDEV_RETURN
+
+
+BLKDEV_MEDIA_CHECK_ROMDRIVE:
+						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_UNCHANGED
+						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this???
+						JMP		BLKDEV_RETURN
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+BLKDEV_READ:
+						MOV		AH,ES:[BX+REQ_UNIT]
+						MOV		AL,ES:[BX+REQ_READ_WRITE_MEDIA_DESC]
+
+						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						JE		BLKDEV_READ_ROMDRIVE
+
+						TSUGARU_DEBUG
+
+						JMP		BLKDEV_RETURN
+
+
+BLKDEV_READ_ROMDRIVE:
 						JMP		BLKDEV_RETURN
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
