@@ -174,12 +174,8 @@ FDBOOT_FOUND_YSDOS:
 
 						INT		93H
 
-						TSUGARU_DEBUG
-
 						JB		INFINITY
 						JMP		YSDOS_LOADED
-
-
 
 
 ; Stack Top is YSDOS Segment
@@ -195,12 +191,29 @@ YSDOS_LOADED:
 
 						PUSH	WORD 0
 						MOV		BP,SP
+
+						TSUGARU_DEBUG
+
 						CALL	FAR [BP]
 
 						; OUTPUT from YSDOS.SYS
 						;    ES:DI  Pointer to SYSVARS
+
+						MOV		CS:[YSDOS_SYSVARS_OFFSET],DI
+						MOV		CS:[YSDOS_SYSVARS_SEG],ES
+
+						HLT
 						HLT
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+CREATE_CDS:
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 SETUP_REALMODE_INT_HANDLER:
@@ -246,14 +259,22 @@ SETUP_REALMODE_INT_HANDLER:
 						RET
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 DEFAULT_INT_HANDLER:
 						JMP		DEFAULT_INT_HANDLER
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 BOOT_DEVICE				DW		0
 DISKBIOS_BOOT_DEVICE	DB		0
 YSDOS_SYSVARS_OFFSET	DW		0
 YSDOS_SYSVARS_SEG		DW		0
+
+CDS						DB		CURRENT_DIR_STRUCT_size*MAX_NUM_CDS
 
 						%INCLUDE	"DOSUTIL.NSM"
 						%INCLUDE	"CONDEV.NSM"

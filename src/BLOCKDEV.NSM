@@ -7,16 +7,56 @@ BLKDEV_HEADER_NAME				DB	"QUACK!!!"
 
 BLKDEV_REQHDR_PTR		DD	0
 
+INITIAL_BPB_ARRAY		DW		FD_BPB,FD_BPB,ROMDRIVE_BPB
+
+; I think BPS should be updated when disk is re-inserted
+FD_BPB:					DW		400H	; bytesPerSect
+						DB		1		; sectPerCluster
+						DB		1		; reservedSectors
+						DW		2		; #FATs
+						DW		00C0H	; #rootDirEntries
+						DW		04D0H	; #sectors including reserved sectors
+						DB		1		; mediaDesc
+						DW		2		; #sectPerFAT
+						DW		8		; #sectPerTrack
+						DW		2		; #heads
+						DW		0		; #hiddenSect
+						DD		0		; 32-bit #sectors
+
+ROMDRIVE_BPB:			DW		200H	; bytesPerSect
+						DB		2		; sectPerCluster
+						DB		1		; reservedSectors
+						DW		2		; #FATs
+						DW		0070H	; #rootDirEntries
+						DW		0500H	; #sectors including reserved sectors
+						DB		0FBh	; mediaDesc
+						DW		2		; #sectPerFAT
+						DW		8		; #sectPerTrack
+						DW		1		; #heads
+						DW		0		; #hiddenSect
+						DD		0		; 32-bit #sectors
+
 BLKDEV_STRATEGY:
 						MOV		CS:[BLKDEV_REQHDR_PTR],BX
 						MOV		CS:[BLKDEV_REQHDR_PTR+2],ES
 						RETF
 
 BLKDEV_INTERRUPT:
+						SAVE_WORLD
+
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						MOV		BYTE ES:[BX+REQ_STATUS],0 ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,0
+						JE		BLKDEV_INIT
+
 						TSUGARU_DEBUG
 
+BLKDEV_RETURN:
+						RESTORE_WORLD
 						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 BLKDEV_INIT:
 						; Need to return (ES:BX is the request header)
@@ -25,4 +65,15 @@ BLKDEV_INIT:
 						; Then,
 						;   xxxx:yyyy ptr0 ptr1 ptr2 ptr3 ... ptr(#unit-1)
 						; each pointer is a short pointer. xxxx:ptr0 is the first BPB.
-						RETF
+
+						TSUGARU_DEBUG
+
+						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],3 ; 3 units
+						MOV		AX,CS
+						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN+2],AX
+						MOV		AX,INITIAL_BPB_ARRAY
+						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],AX
+
+						JMP		BLKDEV_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

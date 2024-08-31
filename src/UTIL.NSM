@@ -55,8 +55,8 @@ ENDSTRUC
 %endmacro
 
 %macro					RESTORE_WORLD 0
-						POPAD
 						POPF
+						POPAD
 						POP		GS
 						POP		FS
 						POP		ES
