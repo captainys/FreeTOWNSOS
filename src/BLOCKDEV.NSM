@@ -66,8 +66,6 @@ BLKDEV_INIT:
 						;   xxxx:yyyy ptr0 ptr1 ptr2 ptr3 ... ptr(#unit-1)
 						; each pointer is a short pointer. xxxx:ptr0 is the first BPB.
 
-						TSUGARU_DEBUG
-
 						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],3 ; 3 units
 						MOV		AX,CS
 						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN+2],AX

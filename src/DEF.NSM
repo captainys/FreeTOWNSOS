@@ -1,6 +1,15 @@
 IOSYS_SEGMENT			EQU		0040h
 IOSYS_CS				EQU		0050h
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SYSVARS_FIRST_DPB		EQU		00h
+SYSVARS_FIRST_CDS		EQU		16H
+SYSVARS_NUM_DPB			EQU		20h
+SYSVARS_NUM_CDS			EQU		21h
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 BPB_POS_IN_IPL			EQU		000Bh
 
 STRUC					BIOS_PARAMETER_BLOCK
@@ -78,10 +87,6 @@ CDS_CURDIR_LEN_MAX		EQU		042h
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
 
 
 
