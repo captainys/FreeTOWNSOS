@@ -14,7 +14,7 @@ INT93H_ROMDISK_READ:
 						MOV		DI,[BP+SAVED_EDI]
 
 						MOV		SI,[BP+SAVED_ECX]
-						SHL		SI,16
+						SHL		ESI,16
 						MOV		SI,[BP+SAVED_EDX]
 						SHL		ESI,9	; 512 bytes per sector
 						ADD		ESI,0C2000000h
