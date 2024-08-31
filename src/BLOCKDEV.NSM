@@ -12,8 +12,8 @@ INITIAL_BPB_ARRAY		DW		FD_BPB,FD_BPB,ROMDRIVE_BPB
 ; I think BPS should be updated when disk is re-inserted
 FD_BPB:					DW		400H	; bytesPerSect
 						DB		1		; sectPerCluster
-						DB		1		; reservedSectors
-						DW		2		; #FATs
+						DW		1		; reservedSectors
+						DB		2		; #FATs
 						DW		00C0H	; #rootDirEntries
 						DW		04D0H	; #sectors including reserved sectors
 						DB		1		; mediaDesc
@@ -25,8 +25,8 @@ FD_BPB:					DW		400H	; bytesPerSect
 
 ROMDRIVE_BPB:			DW		200H	; bytesPerSect
 						DB		2		; sectPerCluster
-						DB		1		; reservedSectors
-						DW		2		; #FATs
+						DW		1		; reservedSectors
+						DB		2		; #FATs
 						DW		0070H	; #rootDirEntries
 						DW		0500H	; #sectors including reserved sectors
 						DB		0FBh	; mediaDesc
