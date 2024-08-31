@@ -71,6 +71,7 @@ INFINITY				JMP		INFINITY
 BOOT_FROM_FD:
 						MOV		AL,BH
 						AND		AL,0FH
+						MOV		CS:[BOOT_DRIVE],AL	; A or B.  If the 3rd FD, forget about it....
 						OR		AL,DISKBIOS_FDD_0
 						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
 
@@ -202,6 +203,10 @@ YSDOS_LOADED:
 
 						CALL	CREATE_CDS
 
+						MOV		DL,CS:[BOOT_DRIVE]
+						MOV		AH,0Eh
+						INT		21H
+
 						HLT
 						HLT
 
@@ -308,6 +313,7 @@ DEFAULT_INT_HANDLER:
 
 
 BOOT_DEVICE				DW		0
+BOOT_DRIVE				DB		0	; 0 means A drive
 DISKBIOS_BOOT_DEVICE	DB		0
 YSDOS_SYSVARS_OFFSET	DW		0
 YSDOS_SYSVARS_SEG		DW		0
