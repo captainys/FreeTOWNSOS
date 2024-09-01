@@ -2,6 +2,8 @@
 *.obj
 *.exe
 *.bin
+*.exp
+*.map
 HDIMG.h3
 FDIMG.bin
 IPL
