@@ -22,11 +22,17 @@ INT93_FD_MODE			DD		DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MO
 INT93_FD_CURRENT_CYL	DB		0,0,0,0
 INT93_FD_SEEK_STEP		DB		1,1,1,1
 
+; Must check FREADY flag every 1 second and set the flag if FREADY=0
+INT93_FD_DISKCHANGE		DB		0	; bit0 A drive changed  bit 1 B drive changed (detected FREADY=0)
+
 
 INT93H_FD:
 						MOV		BYTE CS:[ERROR_CODE],80H
 						MOV		WORD CS:[ERROR_DETAIL],0FFFFh
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0
+
+						CMP		AH,DISKBIOS_CMD_YS_CHECK_DISK_CHANGE
+						JE		INT93H_FD_CHECK_DISK_CHANGE
 
 						CMP		AH,0DH
 						JA		INT93H_EXIT
@@ -565,6 +571,49 @@ INT93H_FD_DRIVE_CONTROL_IRQDIS:
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;Input AH=74H
+;      AL=20H+drive
+;      BH=0 do not clear disk-change flag or non-zero clear disk-change flag
+;Return
+;      AH=0 -> AL=0 disk not changed  AL=1 disk changed  AL=2 drive not ready
+;      AH=2 -> Wrong device
+INT93H_FD_CHECK_DISK_CHANGE:
+						; AL high 4-bits have already been checked.
+						MOV		CL,AL
+						AND		CL,3
+
+						MOV		AL,1
+						SHL		AL,CL
+						MOV		AH,AL
+						OR		AL,040H ; HISPD flag
+						MOV		DX,IO_FDC_DRIVE_SELECT
+						OUT		DX,AL
+						OUT		DX,AL
+						OUT		DX,AL
+
+						MOV		DX,IO_FDC_DRIVE_STATUS
+						IN		AL,DX
+						AND		AL,DRIVE_STA_FREADY
+						JNE		INT93H_FD_24H_DRIVE_READY
+
+						OR		CS:[INT93_FD_DISKCHANGE],AH
+						MOV		BYTE [BP+SAVED_EAX],2
+						JMP		INT93H_EXIT_NO_ERROR
+
+INT93H_FD_24H_DRIVE_READY:
+						MOV		BYTE [BP+SAVED_EAX],0
+						TEST	AH,CS:[INT93_FD_DISKCHANGE]
+						JE		INT93H_FD_24H_NO_CHANGE
+						MOV		BYTE [BP+SAVED_EAX],1
+
+INT93H_FD_24H_NO_CHANGE:
+						JMP		INT93H_EXIT_NO_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 INT93H_FD_SEEK_ERROR:
 						MOV		BYTE CS:[ERROR_CODE],080H
