@@ -257,8 +257,6 @@ YSDOS_LOADED:
 
 
 
-						TSUGARU_DEBUG
-
 						; TEST FOPEN from Floppy Disk
 						MOV		AH,3Dh
 						MOV		AL,0
@@ -267,9 +265,9 @@ YSDOS_LOADED:
 						POP		DS
 						INT		21H
 
-						TSUGARU_DEBUG
-
 						MOV		BX,AX	; BX is file handle.
+
+						TSUGARU_DEBUG
 
 						MOV		AH,42h	; LSeek
 						MOV		AL,2	; End of File
@@ -283,7 +281,7 @@ YSDOS_LOADED:
 						HLT
 						HLT
 
-TEST_YAMANDCOM:			DB	"A:\YAMAND.COM"
+TEST_YAMANDCOM:			DB	"A:\YAMAND.COM",0
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
