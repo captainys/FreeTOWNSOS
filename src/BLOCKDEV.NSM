@@ -145,29 +145,28 @@ BLKDEV_BUILD_BPB:
 BLKDEV_BUILD_BPB_ROMDRIVE:
 						MOV		WORD ES:[BX+REQ_BUILDBPB_PTR_RETURN],ROMDRIVE_BPB
 						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN+2],CS
-						TSUGARU_DEBUG
 						JMP		BLKDEV_RETURN
 
 
 
-BLKDEV_BUILD_BPB_LBA:
-						MOV		AL,DISKBIOS_ROMDISK
-						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
-						XOR		CX,CX	; Sector LBA High=0
-						XOR		DX,DX	; Sector LBA Low=0
-						LDS		DI,CS:[SECTBUF_PTR]
-						MOV		BX,1	; Do BX last.  May need ES:BX for other parameters.
-						INT		93H
-
-						LES		BX,CS:[BLKDEV_REQHDR_PTR]
-
-						ADD		DI,BPB_POS_IN_IPL
-						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN],DI
-						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN+2],DS
-
-						TSUGARU_DEBUG
-
-						JMP		BLKDEV_RETURN
+;BLKDEV_BUILD_BPB_LBA:
+;						MOV		AL,
+;						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+;						XOR		CX,CX	; Sector LBA High=0
+;						XOR		DX,DX	; Sector LBA Low=0
+;						LDS		DI,CS:[SECTBUF_PTR]
+;						MOV		BX,1	; Do BX last.  May need ES:BX for other parameters.
+;						INT		93H
+;
+;						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+;
+;						ADD		DI,BPB_POS_IN_IPL
+;						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN],DI
+;						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN+2],DS
+;
+;						TSUGARU_DEBUG
+;
+;						JMP		BLKDEV_RETURN
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

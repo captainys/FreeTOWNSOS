@@ -215,23 +215,68 @@ YSDOS_LOADED:
 						MOV		CS:[SECTBUF_SEG],BX
 
 
-						; Test FOPEN
+						; Test FOPEN - FREAD
 						MOV		AH,3Dh
 						MOV		AL,0
 						MOV		DX,DEFAULT_COMSPEC
 						INT		21H
 
+						MOV		BX,AX	; BX is file handle.
+
+						MOV		AH,42h	; LSeek
+						MOV		AL,2	; End of File
+						XOR		CX,CX	; Offset zero
+						XOR		DX,DX
+						INT		21H
+
+						; DX:AX is the file position from the start.
+
+						SHL		EDX,16
+						MOV		DX,AX
+						PUSH	EDX
+
+						MOV		AH,42h	; LSeek
+						MOV		AL,0	; End of File
+						XOR		CX,CX	; Offset zero
+						XOR		DX,DX
+						INT		21H
+
+						; BX should stay the same
+
+						MOV		AH,3Fh  ; Read
+						POP		ECX		; Bytes to read
+						MOV		DX,05000h
+						MOV		DS,DX
+						XOR		DX,DX	; Read from 5000:0000
+						INT		21H
+
+						; BX should stay the same
+
+						MOV		AH,3DH	; Close
+						INT		21H
+
+
+
+						; TEST FOPEN from Floppy Disk
+						MOV		AH,3Dh
+						MOV		AL,0
+						MOV		DX,TEST_YAMANDCOM
+						PUSH	CS
+						POP		DS
+						INT		21H
+
+
 
 						HLT
 						HLT
+
+TEST_YAMANDCOM:			DB	"A:\YAMAND.COM"
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 CREATE_CDS:
-						TSUGARU_DEBUG
-
 						PUSH	CS
 						POP		DS
 

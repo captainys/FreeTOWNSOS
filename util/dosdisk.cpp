@@ -587,6 +587,7 @@ int main(int ac,char *av[])
 	{
 		"../resources/IO.SYS"   ,"IO      ","SYS",
 		"../resources/YSDOS.SYS","YSDOS   ","SYS",
+		"../resources/YAMAND.COM","YAMAND  ","COM",
 		"","",""
 	};
 
