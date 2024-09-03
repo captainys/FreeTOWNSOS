@@ -212,7 +212,7 @@ YSDOS_LOADED:
 						MOV		AH,48h	; ALLOC MEMORY
 						MOV		BX,SECTBUF_PAGES
 						INT		21H
-						MOV		CS:[SECTBUF_SEG],BX
+						MOV		CS:[SECTBUF_SEG],AX
 
 
 						; Test FOPEN - FREAD
@@ -252,10 +252,12 @@ YSDOS_LOADED:
 
 						; BX should stay the same
 
-						MOV		AH,3DH	; Close
+						MOV		AH,3EH	; Close
 						INT		21H
 
 
+
+						TSUGARU_DEBUG
 
 						; TEST FOPEN from Floppy Disk
 						MOV		AH,3Dh
@@ -265,6 +267,17 @@ YSDOS_LOADED:
 						POP		DS
 						INT		21H
 
+						TSUGARU_DEBUG
+
+						MOV		BX,AX	; BX is file handle.
+
+						MOV		AH,42h	; LSeek
+						MOV		AL,2	; End of File
+						XOR		CX,CX	; Offset zero
+						XOR		DX,DX
+						INT		21H
+
+						TSUGARU_DEBUG
 
 
 						HLT
