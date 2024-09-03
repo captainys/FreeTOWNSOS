@@ -45,7 +45,7 @@ BLKDEV_INTERRUPT:
 						SAVE_WORLD
 
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
-						MOV		BYTE ES:[BX+REQ_STATUS],0 ; Tentatively no error
+						MOV		BYTE ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
 						MOV		AL,ES:[BX+REQ_COMMAND]
 						CMP		AL,DEVREQ_CMD_INIT
 						JE		BLKDEV_INIT
@@ -89,6 +89,8 @@ BLKDEV_MEDIA_CHECK:
 
 						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
 						JE		BLKDEV_MEDIA_CHECK_ROMDRIVE
+						CMP		AH,2
+						JB		BLKDEV_MEDIA_CHECK_INTERNAL_FD ; Unit 0 or 1 Internal FD
 
 						TSUGARU_DEBUG
 
@@ -98,6 +100,36 @@ BLKDEV_MEDIA_CHECK:
 BLKDEV_MEDIA_CHECK_ROMDRIVE:
 						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_UNCHANGED
 						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this???
+						JMP		BLKDEV_RETURN
+
+BLKDEV_MEDIA_CHECK_INTERNAL_FD:
+						TSUGARU_DEBUG
+
+						OR		AH,20H
+						MOV		AL,AH
+						MOV		AH,DISKBIOS_CMD_YS_CHECK_DISK_CHANGE
+						MOV		BH,1	; Clear disk-change flag (if drive ready)
+						INT		93H
+
+						; Tentatively mark as no change
+						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_UNCHANGED
+						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this???
+
+						CMP		AL,2	; Drive Not Ready
+						JNE		BLKDEV_MEDIA_CHECK_INTERNAL_FD_DRVRDY
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_DRIVE_NOT_READY
+						JE		BLKDEV_RETURN
+
+BLKDEV_MEDIA_CHECK_INTERNAL_FD_DRVRDY:
+						OR		AL,AL
+						JE		BLKDEV_RETURN
+
+						; Probably it is a good place to try different media type and set Disk Drive Mode for the media.
+
+						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_CHANGED
+						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this??? The previous disk has gone already!
+
 						JMP		BLKDEV_RETURN
 
 

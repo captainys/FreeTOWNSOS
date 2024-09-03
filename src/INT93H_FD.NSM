@@ -575,7 +575,8 @@ INT93H_FD_DRIVE_CONTROL_IRQDIS:
 
 ;Input AH=74H
 ;      AL=20H+drive
-;      BH=0 do not clear disk-change flag or non-zero clear disk-change flag
+;      BH=0 do not clear disk-change flag or non-zero clear disk-change flag of the specified drive.
+;           If drive not ready, disk-change flag will always be set after this function regardless of the value of BH.
 ;Return
 ;      AH=0 -> AL=0 disk not changed  AL=1 disk changed  AL=2 drive not ready
 ;      AH=2 -> Wrong device
@@ -586,7 +587,15 @@ INT93H_FD_CHECK_DISK_CHANGE:
 
 						MOV		AL,1
 						SHL		AL,CL
-						MOV		AH,AL
+
+						MOV		BL,0FFh
+						OR		BH,BH
+						JE		INT93H_FD_24H_DO_NOT_CLEAR_FLAG
+						XOR		BL,AL
+
+INT93H_FD_24H_DO_NOT_CLEAR_FLAG:
+						MOV		AH,AL	; Save AL in AH
+
 						OR		AL,040H ; HISPD flag
 						MOV		DX,IO_FDC_DRIVE_SELECT
 						OUT		DX,AL
@@ -609,6 +618,7 @@ INT93H_FD_24H_DRIVE_READY:
 						MOV		BYTE [BP+SAVED_EAX],1
 
 INT93H_FD_24H_NO_CHANGE:
+						AND		CS:[INT93_FD_DISKCHANGE],BL
 						JMP		INT93H_EXIT_NO_ERROR
 
 
