@@ -103,8 +103,6 @@ BLKDEV_MEDIA_CHECK_ROMDRIVE:
 						JMP		BLKDEV_RETURN
 
 BLKDEV_MEDIA_CHECK_INTERNAL_FD:
-						TSUGARU_DEBUG
-
 						OR		AH,20H
 						MOV		AL,AH
 						MOV		AH,DISKBIOS_CMD_YS_CHECK_DISK_CHANGE
@@ -126,6 +124,7 @@ BLKDEV_MEDIA_CHECK_INTERNAL_FD_DRVRDY:
 						JE		BLKDEV_RETURN
 
 						; Probably it is a good place to try different media type and set Disk Drive Mode for the media.
+						; TODO: Check Media Type and Set Up Disk BIOS Accordingly
 
 						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_CHANGED
 						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this??? The previous disk has gone already!
@@ -141,6 +140,9 @@ BLKDEV_READ:
 
 						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
 						JE		BLKDEV_READ_ROMDRIVE
+						CMP		AH,2
+						JB		BLKDEV_READ_INTERNAL_FD ; Unit 0 or 1 Internal FD
+
 
 						TSUGARU_DEBUG
 
@@ -160,6 +162,13 @@ BLKDEV_READ_ROMDRIVE:
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
 
 						JMP		BLKDEV_RETURN
+
+
+BLKDEV_READ_INTERNAL_FD:
+						TSUGARU_DEBUG
+
+						JMP		BLKDEV_RETURN
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
