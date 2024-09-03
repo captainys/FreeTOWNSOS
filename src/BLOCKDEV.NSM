@@ -64,6 +64,44 @@ BLKDEV_RETURN:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+BLKDEV_BIOS_FD_HARDERROR:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						TEST	CL,DISKBIOS_HARDERROR_DRIVE_NOT_READY
+						JNE		BLKDEV_BIOS_DRIVE_NOT_READY
+
+						TEST	DL,DISKBIOS_HARDERROR_WRITE_PROTECTED
+						JNE		BLKDEV_BIOS_WRITE_PROTECTED
+
+						TEST	DL,DISKBIOS_HARDERROR_RECORD_NOT_FOUND+DISKBIOS_HARDERROR_CRC_ERROR
+						JNE		BLKDEV_BIOS_CRC_ERROR
+
+BLKDEV_BIOS_UNKNOWN_ERROR:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_UNDEFINED
+						JMP		BLKDEV_RETURN
+
+BLKDEV_BIOS_DRIVE_NOT_READY:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_DRIVE_NOT_READY
+						JMP		BLKDEV_RETURN
+
+BLKDEV_BIOS_WRITE_PROTECTED:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_WRITE_PROTECTED
+						JMP		BLKDEV_RETURN
+
+BLKDEV_BIOS_CRC_ERROR
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_CRC_ERROR
+						JMP		BLKDEV_RETURN
+
+BLKDEV_BIOS_DEVICE_CODE_ERROR:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_UNKNOWN_UNIT
+						JMP		BLKDEV_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 BLKDEV_INIT:
 						; Need to return (ES:BX is the request header)
 						; BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN]  Number of units, or drives under control of this driver
@@ -143,7 +181,6 @@ BLKDEV_READ:
 						CMP		AH,2
 						JB		BLKDEV_READ_INTERNAL_FD ; Unit 0 or 1 Internal FD
 
-
 						TSUGARU_DEBUG
 
 						JMP		BLKDEV_RETURN
@@ -166,6 +203,58 @@ BLKDEV_READ_ROMDRIVE:
 
 BLKDEV_READ_INTERNAL_FD:
 						TSUGARU_DEBUG
+
+						MOV		AH,DISKBIOS_CMD_01H_GET_DRV_MODE
+						MOV		AL,ES:[BX+REQ_UNIT]
+						OR		AL,20H
+						XOR		CH,CH
+						INT		93H
+
+						CMP		AH,80h
+						JE		BLKDEV_BIOS_FD_HARDERROR
+						CMP		AH,02H
+						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
+
+						; Now BH=number of heads, and BL=sectPerTrack
+						OR		BH,BH
+						JE		BLKDEV_BIOS_UNKNOWN_ERROR
+						OR		BL,BL
+						JE		BLKDEV_BIOS_UNKNOWN_ERROR
+
+						MOV		DX,BX	; DH is number of heads, DL is sectPerTrack
+
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]	; ES:BX is request header again.
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
+						DIV		DL
+
+						; AH is sector number.  AL is track (C*2+H)
+
+						INC		AH		; Sector number starts with 1, not 0.
+						MOV		DL,AH	; DL is sector number
+
+						MOVZX	AX,AL
+						DIV		DH
+
+						; AL is Cylinder,  AH is head
+
+						MOVZX	CX,AL	; CX is cylinder
+						MOV		DH,AH	; DH is head
+
+						MOV		DS,ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOV		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,ES:[BX+REQ_UNIT]
+						OR		AL,20H
+
+						MOV		BX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]	; Do BX last.  Need ES:BX for other parameters.
+						INT		93H
+
+						CMP		AH,80h
+						JE		BLKDEV_BIOS_FD_HARDERROR
+						CMP		AH,02H
+						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
 
 						JMP		BLKDEV_RETURN
 
