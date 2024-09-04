@@ -277,73 +277,27 @@ YSDOS_LOADED:
 						MOV		CS:[SECTBUF_SEG],AX
 
 
+						; Towns OS's IO.SYS seems to close file handle 0,1,2,3,4 (STDIN,STDOUT,STDERR,PRN,AUX), and then reopen CON, duplicate twice, and then reopen PRN, and AUX.
+						; Why?  I don't know.
+						MOV		BX,0
+CLOSE_DEFAULT_FILE_LOOP:
+						MOV		AH,3EH
+						INT		21H
+						INC		BX
+						CMP		BX,5
+						JBE		CLOSE_DEFAULT_FILE_LOOP
 
-						; Test >>
-						; Test FOPEN - FREAD
+						MOV 	AX,3D02H	; OPEN, Mode=02
+						MOV		DX,DEFAULT_CONDEV_NAME
 						PUSH	CS
 						POP		DS
+						INT		21H		; Will be assigned to file handle 0 (STDIN)
 
-						MOV		AH,3Dh
-						MOV		AL,0
-						MOV		DX,DEFAULT_COMSPEC
-						INT		21H
-
-						MOV		BX,AX	; BX is file handle.
-
-						MOV		AH,42h	; LSeek
-						MOV		AL,2	; End of File
-						XOR		CX,CX	; Offset zero
-						XOR		DX,DX
-						INT		21H
-
-						; DX:AX is the file position from the start.
-
-						SHL		EDX,16
-						MOV		DX,AX
-						PUSH	EDX
-
-						MOV		AH,42h	; LSeek
-						MOV		AL,0	; End of File
-						XOR		CX,CX	; Offset zero
-						XOR		DX,DX
-						INT		21H
-
-						; BX should stay the same
-
-						MOV		AH,3Fh  ; Read
-						POP		ECX		; Bytes to read
-						MOV		DX,05000h
-						MOV		DS,DX
-						XOR		DX,DX	; Read from 5000:0000
-						INT		21H
-
-						; BX should stay the same
-
-						MOV		AH,3EH	; Close
-						INT		21H
-
-
-
-						; TEST FOPEN from Floppy Disk
-						MOV		AH,3Dh
-						MOV		AL,0
-						MOV		DX,TEST_YAMANDCOM
-						PUSH	CS
-						POP		DS
-						INT		21H
-
-						MOV		BX,AX	; BX is file handle.
-
-						MOV		AH,42h	; LSeek
-						MOV		AL,2	; End of File
-						XOR		CX,CX	; Offset zero
-						XOR		DX,DX
-						INT		21H
-
-						; Test <<
-
-
-						TSUGARU_DEBUG
+						MOV		BX,AX
+						MOV		AH,45H
+						INT		21H		; Will be assigned to file handle 1 (STDOUT)
+						MOV		AH,45H
+						INT		21H		; Will be assigned to file handle 2 (STDERR)
 
 						MOV		AX,4B00H	; EXEC
 						PUSH	CS
@@ -357,8 +311,6 @@ YSDOS_LOADED:
 
 						HLT
 						HLT
-
-TEST_YAMANDCOM:			DB	"A:\YAMAND.COM",0
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -469,6 +421,7 @@ YSDOS_SYSVARS_SEG		DW		0
 SECTBUF_PTR				DW		0
 SECTBUF_SEG				DW		0
 
+DEFAULT_CONDEV_NAME		DB		"CON",0
 DEFAULT_COMSPEC			DB		"A:\YAMAND.COM",0
 
 COMMANDCOM_PARAMETER	DB		" /P",0
