@@ -205,6 +205,67 @@ YSDOS_LOADED:
 
 						CALL	CREATE_CDS
 
+
+						; Save Temporary PDB to a safe location.
+
+						MOV		AH,48h	; ALLOC MEMORY
+						MOV		BX,0FFFFh
+						INT		21H
+
+						; BX is largest available blocks.
+
+						PUSH	BX
+
+						MOV		AH,48h	; ALLOC MEMORY
+						INT		21H
+
+						POP		BX
+						PUSH	AX	; Save largest memory chunk
+
+						; AX is the largest memory chunk.
+
+						MOV		ES,AX
+						SUB		BX,11H
+						MOV		AH,4Ah	; RESIZE MEMORY
+						INT 	21H
+
+						MOV		AH,48H	; ALLOC MEMORY
+						MOV		BX,10H
+						INT		21H
+
+						; AX is 100h bytes memory chunk
+
+						POP		ES	; ES is the largest memory chunk.
+						PUSH	AX
+
+						MOV		AH,49H	; FREE MEMORY
+						INT		21H
+
+						; Must have 100h byte secure memory block at the end of the DOS memory.
+
+						MOV		AH,51H
+						INT		21H
+
+						; BX is PSP
+
+						MOV		DS,BX
+						XOR		SI,SI
+
+						POP		ES
+						XOR		DI,DI
+
+						CLD
+						MOV		CX,128
+						REP		MOVSW
+						MOV		ES:[0036H],ES	; Far Pointer to File Table.
+
+						MOV		BX,ES
+						MOV		AH,50H	; SetPSP
+						INT		21H
+
+						TSUGARU_DEBUG
+
+
 						MOV		DL,CS:[BOOT_DRIVE]
 						MOV		AH,0Eh
 						INT		21H
@@ -216,6 +277,9 @@ YSDOS_LOADED:
 
 
 						; Test FOPEN - FREAD
+						PUSH	CS
+						POP		DS
+
 						MOV		AH,3Dh
 						MOV		AL,0
 						MOV		DX,DEFAULT_COMSPEC
