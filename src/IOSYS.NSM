@@ -74,6 +74,10 @@ BOOT_FROM_FD:
 						MOV		AL,BH
 						AND		AL,0FH
 						MOV		CS:[BOOT_DRIVE],AL	; A or B.  If the 3rd FD, forget about it....
+						MOV		AH,AL
+						ADD		AH,'A'
+						MOV		CS:[DEFAULT_COMSPEC],AH
+
 						OR		AL,DISKBIOS_FDD_0
 						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
 
@@ -263,9 +267,6 @@ YSDOS_LOADED:
 						MOV		AH,50H	; SetPSP
 						INT		21H
 
-						TSUGARU_DEBUG
-
-
 						MOV		DL,CS:[BOOT_DRIVE]
 						MOV		AH,0Eh
 						INT		21H
@@ -276,6 +277,8 @@ YSDOS_LOADED:
 						MOV		CS:[SECTBUF_SEG],AX
 
 
+
+						; Test >>
 						; Test FOPEN - FREAD
 						PUSH	CS
 						POP		DS
@@ -331,15 +334,25 @@ YSDOS_LOADED:
 
 						MOV		BX,AX	; BX is file handle.
 
-						TSUGARU_DEBUG
-
 						MOV		AH,42h	; LSeek
 						MOV		AL,2	; End of File
 						XOR		CX,CX	; Offset zero
 						XOR		DX,DX
 						INT		21H
 
+						; Test <<
+
+
 						TSUGARU_DEBUG
+
+						MOV		AX,4B00H	; EXEC
+						PUSH	CS
+						POP		DS
+						MOV		DX,DEFAULT_COMSPEC
+						PUSH	CS
+						POP		ES
+						MOV		BX,COMMANDCOM_PARAMBLOCK
+						INT		21H
 
 
 						HLT
@@ -456,7 +469,15 @@ YSDOS_SYSVARS_SEG		DW		0
 SECTBUF_PTR				DW		0
 SECTBUF_SEG				DW		0
 
-DEFAULT_COMSPEC			DB		"C:\COMMAND.COM",0
+DEFAULT_COMSPEC			DB		"A:\YAMAND.COM",0
+
+COMMANDCOM_PARAMETER	DB		" /P",0
+COMMANDCOM_PARAMBLOCK	DW		0	; ENVSEG to copy from
+						DW		COMMANDCOM_PARAMETER	; Command Tail OFFSET
+						DW		IOSYS_CS				; Command Tail SEG
+						DD		0	; First FCB to be copied
+						DD		0	; Second FCB to be copied
+
 
 CDS						DB		(CURRENT_DIR_STRUCT_size*MAX_NUM_CDS) dup (0)
 

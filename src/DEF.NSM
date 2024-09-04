@@ -240,3 +240,21 @@ ENDSTRUC
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+STRUC					EXEC_PARAMBLOCK
+EXEC_ENVSEGSRC			RESW		1
+EXEC_PARAMETER_PTR		RESD		1
+EXEC_FIRST_FCB			RESD		1
+EXEC_SECOND_FCB			RESD		1
+EXEC_INITIALSSSP		RESD		1	; For AL=1 (Load but not exec)
+EXEC_INITIALCSIP		RESD		1	; For AL=1 (Load but not exec)
+ENDSTRUC
+
+STRUC					LOAD_OVERLAY_PARAMBLOCK
+LOAD_OVERLAY_SEG		RESW		1
+LOAD_OVERLAY_RELOCFACTOR	RESW		1
+ENDSTRUC
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

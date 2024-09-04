@@ -588,6 +588,8 @@ int main(int ac,char *av[])
 		"../resources/IO.SYS"   ,"IO      ","SYS",
 		"../resources/YSDOS.SYS","YSDOS   ","SYS",
 		"../resources/YAMAND.COM","YAMAND  ","COM",
+		"../resources/CONFIG.SYS","CONFIG  ","SYS",
+		"../resources/AUTOEXEC.BAT","AUTOEXEC","BAT",
 		"","",""
 	};
 
