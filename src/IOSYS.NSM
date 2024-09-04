@@ -44,6 +44,9 @@ REALENTRY:
 						MOV		CS:[BOOT_DEVICE],BX	; Sent from the IPL
 						CALL	SETUP_REALMODE_INT_HANDLER
 
+						XOR		AH,AH
+						INT		90H
+
 						MOV		AH,BIOSCMD_COMMON_INIT
 						INT		93H
 

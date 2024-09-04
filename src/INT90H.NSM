@@ -4,11 +4,163 @@
 						BITS	16
 
 						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
 
 
 CODE					SEGMENT USE16
 
 INT90H:
+						SAVE_WORLD
+						MOV		BP,SP
+
+						MOV		BYTE CS:[ERROR_CODE],0ffh	; Tentatively error
+
+						CMP		AH,0FH
+						JA		INT90H_EXIT
+
+						MOV		BYTE CS:[ERROR_CODE],0		; Tentatively no error
+
+						MOVZX	BX,AH
+						SHL		BX,1
+						JMP		[CS:BX+INT90H_JUMPTABLE]
+
+
+
+INT90H_EXIT:
+						RESTORE_WORLD
+
+						MOV		AH,CS:[ERROR_CODE]
+						MOV		CX,CS:[ERROR_DETAIL]
+INT90H_NOT_HARD_ERROR:
+						AND		AH,AH
 						CLC
+						JE		INT90H_IRET
+						STC
+INT90H_IRET:
 						IRET
+
+INT90H_JUMPTABLE:
+						DW		INT90H_INIT
+						DW		INT90H_SET_BUFFERING
+						DW		INT90H_SET_CODE_SYSTEM
+						DW		INT90H_GET_CODE_SYTEM
+						DW		INT90H_CONTROL_KEYBOARD_LOCK
+						DW		INT90H_CONTROL_CLICK_SOUND
+						DW		INT90H_CLEAR_BUFFER
+						DW		INT90H_CHECK_INPUT
+						DW		INT90H_READ_SHIFT_KEY
+						DW		INT90H_READ
+						DW		INT90H_MATRIX_INPUT
+						DW		INT90H_ADD_INPUT_STRING
+						DW		INT90H_REGISTER_PFKEY_INT_HANDLER
+						DW		INT90H_GET_PFKEY_INT_HANDLER
+						DW		INT90H_KEY_ASSIGNMENT
+						DW		INT90H_READ_KEY_STATE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT41H_HANDLER:
+						IRET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ERROR_CODE				DB		0
+ERROR_DETAIL			DW		0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_INIT:
+						XOR		AX,AX
+						MOV		DS,AX
+
+						MOV		AX,CS
+						SHL		EAX,16
+
+						MOV		AX,INT41H_HANDLER
+						MOV		[041H*4],EAX
+
+						IN		AL,IO_PIC_PRIMARY_MASK
+						AND		AL,11111101b
+						OUT		IO_PIC_PRIMARY_MASK,AL
+
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_SET_BUFFERING:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_SET_CODE_SYSTEM:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_GET_CODE_SYTEM:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_CONTROL_KEYBOARD_LOCK:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_CONTROL_CLICK_SOUND:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_CLEAR_BUFFER:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_CHECK_INPUT:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_READ_SHIFT_KEY:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_READ:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_MATRIX_INPUT:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_ADD_INPUT_STRING:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_REGISTER_PFKEY_INT_HANDLER:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_GET_PFKEY_INT_HANDLER:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_KEY_ASSIGNMENT:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_READ_KEY_STATE:
+						JMP		INT90H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
