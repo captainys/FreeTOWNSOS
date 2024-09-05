@@ -42,27 +42,106 @@ INT90H_IRET:
 						IRET
 
 INT90H_JUMPTABLE:
-						DW		INT90H_INIT
-						DW		INT90H_SET_BUFFERING
-						DW		INT90H_SET_CODE_SYSTEM
-						DW		INT90H_GET_CODE_SYTEM
-						DW		INT90H_CONTROL_KEYBOARD_LOCK
-						DW		INT90H_CONTROL_CLICK_SOUND
-						DW		INT90H_CLEAR_BUFFER
-						DW		INT90H_CHECK_INPUT
-						DW		INT90H_READ_SHIFT_KEY
-						DW		INT90H_READ
-						DW		INT90H_MATRIX_INPUT
-						DW		INT90H_ADD_INPUT_STRING
-						DW		INT90H_REGISTER_PFKEY_INT_HANDLER
-						DW		INT90H_GET_PFKEY_INT_HANDLER
-						DW		INT90H_KEY_ASSIGNMENT
-						DW		INT90H_READ_KEY_STATE
+						DW		INT90H_00H_INIT
+						DW		INT90H_01H_SET_BUFFERING
+						DW		INT90H_02H_SET_CODE_SYSTEM
+						DW		INT90H_03H_GET_CODE_SYTEM
+						DW		INT90H_04H_CONTROL_KEYBOARD_LOCK
+						DW		INT90H_05H_CONTROL_CLICK_SOUND
+						DW		INT90H_06H_CLEAR_BUFFER
+						DW		INT90H_07H_CHECK_INPUT
+						DW		INT90H_08H_READ_SHIFT_KEY
+						DW		INT90H_09H_READ
+						DW		INT90H_0AH_MATRIX_INPUT
+						DW		INT90H_0BH_ADD_INPUT_STRING
+						DW		INT90H_0CH_REGISTER_PFKEY_INT_HANDLER
+						DW		INT90H_0DH_GET_PFKEY_INT_HANDLER
+						DW		INT90H_0EH_KEY_ASSIGNMENT
+						DW		INT90H_0FH_READ_KEY_STATE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+KEYBUF_LEN				EQU		16
+KEYBUF_LEN_MASK			EQU		(KEYBUF_LEN-1)
+KEYBUF					DB		KEYBUF_LEN dup(0)
+KEYBUF_WRITEPTR			DW		0
+KEYBUF_READPTR			DW		0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT41H_HANDLER:
+						PUSH	AX
+						PUSH	DX
+						PUSH	BX
+
+						MOV		DX,IO_KEYBOARD_INT_REASON
+						IN		AL,DX
+						TEST	AL,1	; KBINT otherwise NMI
+						JE		INT41H_HANDLER_EXIT
+
+						MOV		AX,CS:[KEYBUF_WRITEPTR]
+						INC		AX
+						AND		AX,KEYBUF_LEN_MASK
+						CMP		AX,CS:[KEYBUF_READPTR]
+						JE		INT41H_HANDLER_EXIT		; Jump if buffer is full
+
+						MOV		DX,IO_KEYBOARD_DATA
+						IN		AL,DX
+						MOV		BX,CS:[KEYBUF_WRITEPTR]
+						MOV		CS:[KEYBUF+BX],AL
+
+						INC		BX
+						AND		BX,KEYBUF_LEN_MASK
+						MOV		CS:[KEYBUF_WRITEPTR],BX
+
+INT41H_HANDLER_EXIT:
+						MOV		AL,061H	; Specific EOI(060H)|INT 1(001H)
+						OUT		IO_PIC0_OCW2,AL
+
+						POP		BX
+						POP		DX
+						POP		AX
 						IRET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Return
+;   CF=0  AX key code
+;   CF=1  Key buf empty  AX random
+READ_KEYBUF:
+						PUSH	BX
+						PUSHF
+						CLI
+
+						MOV		BX,CS:[KEYBUF_READPTR]
+						MOV		AX,CS:[KEYBUF_WRITEPTR]
+
+						CMP		BX,AX
+						JE		READ_KEYBUF_NOT_FILLED
+
+						INC		BX
+						AND		BX,KEYBUF_LEN_MASK
+						CMP		BX,AX
+						JE		READ_KEYBUF_NOT_FILLED
+
+						; Have at least two bytes to read.
+
+						MOV		BX,CS:[KEYBUF_READPTR]
+						MOV		AX,CS:[KEYBUF+BX]
+						ADD		BX,2
+						AND		BX,KEYBUF_LEN_MASK
+						MOV		CS:[KEYBUF_READPTR],BX
+
+						POPF
+						POP		BX
+						CLC
+						RET
+
+READ_KEYBUF_NOT_FILLED:
+						POPF
+						POP		BX
+						STC
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -71,7 +150,7 @@ ERROR_DETAIL			DW		0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_INIT:
+INT90H_00H_INIT:
 						XOR		AX,AX
 						MOV		DS,AX
 
@@ -81,6 +160,10 @@ INT90H_INIT:
 						MOV		AX,INT41H_HANDLER
 						MOV		[041H*4],EAX
 
+						MOV		AL,1
+						MOV		DX,IO_KEYBOARD_INT_CONTROL
+						OUT		DX,AL
+
 						IN		AL,IO_PIC_PRIMARY_MASK
 						AND		AL,11111101b
 						OUT		IO_PIC_PRIMARY_MASK,AL
@@ -89,77 +172,102 @@ INT90H_INIT:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_SET_BUFFERING:
+INT90H_01H_SET_BUFFERING:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_SET_CODE_SYSTEM:
+INT90H_02H_SET_CODE_SYSTEM:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_GET_CODE_SYTEM:
+INT90H_03H_GET_CODE_SYTEM:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_CONTROL_KEYBOARD_LOCK:
+INT90H_04H_CONTROL_KEYBOARD_LOCK:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_CONTROL_CLICK_SOUND:
+INT90H_05H_CONTROL_CLICK_SOUND:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_CLEAR_BUFFER:
+INT90H_06H_CLEAR_BUFFER:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_CHECK_INPUT:
+INT90H_07H_CHECK_INPUT:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_READ_SHIFT_KEY:
+INT90H_08H_READ_SHIFT_KEY:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_READ:
+INT90H_09H_READ:
+						STI
+						MOV		AX,[BP+SAVED_EAX]
+						OR		AL,AL
+						JNE		INT90H_09H_READ_NONBLOCKING
+
+INT90H_09H_READ_BLOCKING:
+						CALL	READ_KEYBUF
+						JC		INT90H_09H_READ_BLOCKING
+						JMP		INT90H_09H_HAVE_KEY
+
+INT90H_09H_READ_NONBLOCKING:
+						CALL	READ_KEYBUF
+						MOV		BYTE [BP+SAVED_EDX+1],0FFH	; Tentatively no input
+						JC		INT90H_EXIT
+
+INT90H_09H_HAVE_KEY:
+						MOV		BYTE [BP+SAVED_EDX],AL
+						MOV		BYTE [BP+SAVED_EDX+1],0	; Indicate there is key input
+
+						MOV		WORD [BP+SAVED_EBX],0
+						; Supposed to be  BH=Key Address (0 to 7Fh), b0 CAPs lock, b1 Kana lock, b2 Shift, b3 Graph(always 0 in towns)
+						;                 b4 Ctrl, b5 Right Thumb Shift,  b6 Left Thumb Shift
+						; BH is zero if the key code was programatically added.
+
+						JMP		INT90H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT90H_0AH_MATRIX_INPUT:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_MATRIX_INPUT:
+INT90H_0BH_ADD_INPUT_STRING:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_ADD_INPUT_STRING:
+INT90H_0CH_REGISTER_PFKEY_INT_HANDLER:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_REGISTER_PFKEY_INT_HANDLER:
+INT90H_0DH_GET_PFKEY_INT_HANDLER:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_GET_PFKEY_INT_HANDLER:
+INT90H_0EH_KEY_ASSIGNMENT:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT90H_KEY_ASSIGNMENT:
-						JMP		INT90H_EXIT
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-INT90H_READ_KEY_STATE:
+INT90H_0FH_READ_KEY_STATE:
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

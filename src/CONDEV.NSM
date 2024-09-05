@@ -34,18 +34,35 @@ CONDEV_INTERRUPT_RETURN:
 						RESTORE_WORLD
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 CONDEV_INIT:
 
 						JMP		CONDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 CONDEV_READ:
-						MOV		WORD ES:[BX+REQ_READ_WRITE_SECTOR_COUNT],0
+						MOV		CX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						STI
+CONDEV_READ_LOOP:
+						MOV		AX,0900H	; READ (AH=09H) with Blocking (AL=00H)
+						INT		90H
+						MOV		[DI],DL
+						INC		DI
+						LOOP	CONDEV_READ_LOOP
 
 						JMP		CONDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONDEV_NON_DESTRUCTIVE_READ:
 						MOV		WORD ES:[BX+REQ_STATUS],CONSDEV_FLAG_BUSY
 						TSUGARU_DEBUG
 						JMP		CONDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONDEV_WRITE:
 						JMP		CONDEV_INTERRUPT_RETURN
