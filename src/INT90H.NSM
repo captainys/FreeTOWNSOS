@@ -117,6 +117,7 @@ INT41H_DATA_IS_KEY_MAKE_CODE:
 
 						; Update key bitmap
 
+						SHR		BX,1
 						INC		BX
 						AND		BX,KEYBUF_LEN_MASK
 						MOV		CS:[KEYBUF_WRITEPTR],BX
@@ -139,28 +140,20 @@ INT41H_HANDLER_DUMMY_READ_AND_EXIT:
 
 ; Return
 ;   CF=0  AX key code
-;   CF=1  Key buf empty  AX random
+;   CF=1  Key buf empty
 READ_KEYBUF:
 						PUSH	BX
 						PUSHF
 						CLI
 
 						MOV		BX,CS:[KEYBUF_READPTR]
-						MOV		AX,CS:[KEYBUF_WRITEPTR]
-
-						CMP		BX,AX
+						CMP		BX,CS:[KEYBUF_WRITEPTR]
 						JE		READ_KEYBUF_NOT_FILLED
 
-						INC		BX
-						AND		BX,KEYBUF_LEN_MASK
-						CMP		BX,AX
-						JE		READ_KEYBUF_NOT_FILLED
-
-						; Have at least two bytes to read.
-
-						MOV		BX,CS:[KEYBUF_READPTR]
+						SHL		BX,1
 						MOV		AX,CS:[KEYBUF+BX]
-						ADD		BX,2
+						SHR		BX,1
+						INC		BX
 						AND		BX,KEYBUF_LEN_MASK
 						MOV		CS:[KEYBUF_READPTR],BX
 
@@ -276,6 +269,10 @@ INT90H_09H_READ_NONBLOCKING:
 						JC		INT90H_EXIT
 
 INT90H_09H_HAVE_KEY:
+						; AL is key-address (b7 is always 0)
+						; AH b0 Right Thumb Shift   b1 Left Thumb Shift  b2 SHIFT  b3 CTRL  b4 0 Make or 1 Break  b5,b6 Keyboard Type
+						; Key-Break code is not buffered.
+
 						MOV		BYTE [BP+SAVED_EDX],AL
 						MOV		BYTE [BP+SAVED_EDX+1],0	; Indicate there is key input
 
