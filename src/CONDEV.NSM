@@ -70,7 +70,26 @@ CONDEV_READ_LOOP:
 						MOV		AX,0900H	; READ (AH=09H) with Blocking (AL=00H)
 						INT		90H
 
-						MOV		[DI],DL
+						CMP		DH,0FFH
+						JE		CONDEV_READ_LOOP
+
+						TEST	DL,80H
+						JNE		CONDEV_READ_LOOP
+
+						MOV		DH,BL
+						SHL		DH,6
+						AND		DH,80H
+
+						AND		DL,7FH
+						OR		DL,DH
+
+						MOVZX	SI,DL
+						MOV		DH,CS:[KEYCODE_TO_ASCII+SI]
+						OR		DH,DH
+
+						JE		CONDEV_READ_LOOP
+
+						MOV		[DI],DH
 						INC		DI
 						LOOP	CONDEV_READ_LOOP
 

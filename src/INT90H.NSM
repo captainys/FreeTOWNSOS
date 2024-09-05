@@ -276,10 +276,25 @@ INT90H_09H_HAVE_KEY:
 						OR		[BP+SAVED_EDX],CH	; DL will be Key address plus make/break information
 
 
+						MOV		CL,AH
+						AND		CL,3	; Thumb-Shift Flags
+						SHL		CL,5	; Move Thumb-Shift Flags to b5 and b6
+
+						MOV		CH,AH
+						AND		CH,8	; CTRL
+						SHL		CH,1
+						OR		CL,CH
+
+						MOV		CH,AH
+						AND		CH,4	; SHIFT
+						OR		CL,CH
+
+						; How can I get CAPS and KANA?
+
+						MOV		[BP+SAVED_EBX],CL
 
 						MOV		BYTE [BP+SAVED_EDX+1],0	; Indicate there is key input
 
-						MOV		WORD [BP+SAVED_EBX],0
 						; Supposed to be  BH=Key Address (0 to 7Fh), b0 CAPs lock, b1 Kana lock, b2 Shift, b3 Graph(always 0 in towns)
 						;                 b4 Ctrl, b5 Right Thumb Shift,  b6 Left Thumb Shift
 						; BH is zero if the key code was programatically added.
