@@ -63,9 +63,13 @@ INT90H_JUMPTABLE:
 
 KEYBUF_LEN				EQU		16
 KEYBUF_LEN_MASK			EQU		(KEYBUF_LEN-1)
-KEYBUF					DB		KEYBUF_LEN dup(0)
+KEYBUF					DW		KEYBUF_LEN dup(0)
 KEYBUF_WRITEPTR			DW		0
 KEYBUF_READPTR			DW		0
+KEYBUF_DATA_FIRST_BYTE	DB		0
+
+KEY_STATE_MAP_LEN		EQU		16
+KEY_STATE_MAP			DB		KEY_STATE_MAP_LEN dup(0)	; 128 bits.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -77,18 +81,41 @@ INT41H_HANDLER:
 						MOV		DX,IO_KEYBOARD_INT_REASON
 						IN		AL,DX
 						TEST	AL,1	; KBINT otherwise NMI
-						JE		INT41H_HANDLER_EXIT
-
-						MOV		AX,CS:[KEYBUF_WRITEPTR]
-						INC		AX
-						AND		AX,KEYBUF_LEN_MASK
-						CMP		AX,CS:[KEYBUF_READPTR]
-						JE		INT41H_HANDLER_EXIT		; Jump if buffer is full
+						JE		INT41H_HANDLER_DUMMY_READ_AND_EXIT
 
 						MOV		DX,IO_KEYBOARD_DATA
 						IN		AL,DX
+						TEST	AL,80h
+						JE		INT41H_DATA_IS_SECOND_BYTE
+
+						MOV		CS:[KEYBUF_DATA_FIRST_BYTE],AL
+						JMP		INT41H_HANDLER_EXIT
+
+INT41H_DATA_IS_SECOND_BYTE:
+						MOV		AH,CS:[KEYBUF_DATA_FIRST_BYTE]	; AX is 2-byte key data.
+						TEST	AH,80H
+						JE		INT41H_HANDLER_EXIT				; Something is wrong.  Discard the data.
+
+						TEST	AH,010H	; Is it a BREAK (Key-Release) code?
+						JNE		INT41H_DATA_IS_KEY_MAKE_CODE	; Only add make-code in the buffer.
+
+						; Update key bitmap
+
+						JMP		INT41H_HANDLER_EXIT
+
+INT41H_DATA_IS_KEY_MAKE_CODE:
+
 						MOV		BX,CS:[KEYBUF_WRITEPTR]
-						MOV		CS:[KEYBUF+BX],AL
+						INC		BX
+						AND		BX,KEYBUF_LEN_MASK
+						CMP		BX,CS:[KEYBUF_READPTR]
+						JE		INT41H_HANDLER_DUMMY_READ_AND_EXIT		; Jump if buffer is full
+
+						MOV		BX,CS:[KEYBUF_WRITEPTR]
+						SHL		BX,1
+						MOV		CS:[KEYBUF+BX],AX
+
+						; Update key bitmap
 
 						INC		BX
 						AND		BX,KEYBUF_LEN_MASK
@@ -102,6 +129,11 @@ INT41H_HANDLER_EXIT:
 						POP		DX
 						POP		AX
 						IRET
+
+INT41H_HANDLER_DUMMY_READ_AND_EXIT:
+						MOV		DX,IO_KEYBOARD_DATA
+						IN		AL,DX
+						JMP		INT41H_HANDLER_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -151,12 +183,27 @@ ERROR_DETAIL			DW		0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_00H_INIT:
-						XOR		AX,AX
-						MOV		DS,AX
+						CLD
 
+						XOR		AX,AX
+
+						PUSH	CS
+						POP		ES
+						MOV		DI,KEYBUF
+						MOV		CX,KEYBUF_LEN
+						REP		STOSB
+
+						MOV		DI,KEY_STATE_MAP
+						MOV		CX,KEY_STATE_MAP_LEN
+						REP		STOSB
+
+						MOV		CS:[KEYBUF_WRITEPTR],AX
+						MOV		CS:[KEYBUF_READPTR],AX
+						MOV		CS:[KEYBUF_DATA_FIRST_BYTE],AL
+
+						MOV		DS,AX
 						MOV		AX,CS
 						SHL		EAX,16
-
 						MOV		AX,INT41H_HANDLER
 						MOV		[041H*4],EAX
 
