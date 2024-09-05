@@ -35,7 +35,7 @@ CONDEV_INTERRUPT_RETURN:
 						RETF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+p
 KEYCODE_TO_ASCII:
 						DB		00H,00H,31H,32H,33H,34H,35H,36H,37H,38H,39H,30H,2dH,5eH,5cH,08H
 						DB		09H,71H,77H,65H,72H,74H,79H,75H,69H,6fH,70H,40H,5bH,0dH,61H,73H
@@ -63,6 +63,8 @@ CONDEV_INIT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONDEV_READ:
+						MOV		WORD ES:[BX+REQ_READ_WRITE_SECTOR_COUNT],1 ; Is it always one byte at a time?
+
 						MOV		CX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
 						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
 						STI
@@ -98,8 +100,37 @@ CONDEV_READ_LOOP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONDEV_NON_DESTRUCTIVE_READ:
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						STI
+
+						MOV		AH,07H
+						INT		90H
+
+						CMP		DH,0FFH
+						JE		CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT
+
+						TEST	DL,80H	; Key-Break (Release)?
+						JNE		CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT
+
+						MOV		DH,BL
+						SHL		DH,6
+						AND		DH,80H	; Shift
+
+						AND		DL,7FH
+						OR		DL,DH
+
+						MOVZX	SI,DL
+						MOV		DH,CS:[KEYCODE_TO_ASCII+SI]
+						OR		DH,DH
+
+						JE		CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT
+
+						MOV		ES:[BX+0DH],DH
+						JMP		CONDEV_INTERRUPT_RETURN
+
+
+CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT:
 						MOV		WORD ES:[BX+REQ_STATUS],CONSDEV_FLAG_BUSY
-						TSUGARU_DEBUG
 						JMP		CONDEV_INTERRUPT_RETURN
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
