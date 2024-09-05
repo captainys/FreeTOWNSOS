@@ -375,6 +375,9 @@ SETUP_REALMODE_INT_HANDLER:
 						MOV		DI,0
 						REP		STOSD
 
+						MOV		AX,NOP_INT_HANDLER
+						MOV		ES:[0EEH*4],EAX
+
 						MOV		AX,CS:[SEG_INT8EH]
 						SHL		EAX,16
 						MOV		ES:[08EH*4],EAX
@@ -410,6 +413,13 @@ SETUP_REALMODE_INT_HANDLER:
 
 DEFAULT_INT_HANDLER:
 						JMP		DEFAULT_INT_HANDLER
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+NOP_INT_HANDLER:
+						IRET
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

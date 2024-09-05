@@ -18,6 +18,7 @@ proc=subprocess.Popen([
 	FDIMG,
 	"-DEBUG",
 	"-INITCMD","ENA FDCMON",
+	"-SHAREDDIR",os.path.join(THISDIR,"..","tgdrv")
 ]+sys.argv[1:])
 
 proc.wait()

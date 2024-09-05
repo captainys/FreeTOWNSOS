@@ -35,7 +35,7 @@ CONDEV_INTERRUPT_RETURN:
 						RETF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-p
+
 KEYCODE_TO_ASCII:
 						DB		00H,00H,31H,32H,33H,34H,35H,36H,37H,38H,39H,30H,2dH,5eH,5cH,08H
 						DB		09H,71H,77H,65H,72H,74H,79H,75H,69H,6fH,70H,40H,5bH,0dH,61H,73H
