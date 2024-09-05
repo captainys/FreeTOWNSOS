@@ -96,14 +96,9 @@ INT41H_DATA_IS_SECOND_BYTE:
 						TEST	AH,80H
 						JE		INT41H_HANDLER_EXIT				; Something is wrong.  Discard the data.
 
-						TEST	AH,010H	; Is it a BREAK (Key-Release) code?
-						JNE		INT41H_DATA_IS_KEY_MAKE_CODE	; Only add make-code in the buffer.
-
+						; TEST	AH,010H	; Is it a BREAK (Key-Release) code?
+						; JNE		INT41H_DATA_IS_KEY_MAKE_CODE
 						; Update key bitmap
-
-						JMP		INT41H_HANDLER_EXIT
-
-INT41H_DATA_IS_KEY_MAKE_CODE:
 
 						MOV		BX,CS:[KEYBUF_WRITEPTR]
 						INC		BX
@@ -271,9 +266,17 @@ INT90H_09H_READ_NONBLOCKING:
 INT90H_09H_HAVE_KEY:
 						; AL is key-address (b7 is always 0)
 						; AH b0 Right Thumb Shift   b1 Left Thumb Shift  b2 SHIFT  b3 CTRL  b4 0 Make or 1 Break  b5,b6 Keyboard Type
-						; Key-Break code is not buffered.
 
-						MOV		BYTE [BP+SAVED_EDX],AL
+						MOV		[BP+SAVED_EBX+1],AL  ; BH is key address
+
+						MOV		[BP+SAVED_EDX],AL
+						MOV		CH,AH
+						SHL		CH,3
+						AND		CH,80H
+						OR		[BP+SAVED_EDX],CH	; DL will be Key address plus make/break information
+
+
+
 						MOV		BYTE [BP+SAVED_EDX+1],0	; Indicate there is key input
 
 						MOV		WORD [BP+SAVED_EBX],0
