@@ -136,5 +136,10 @@ CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONDEV_WRITE:
+						; Just for test. Always write "A\n"
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						MOV		AL,DS:[DI]
+						MOV		AH,1DH	; Console BIOS 1-char Output
+						INT		91H
 						JMP		CONDEV_INTERRUPT_RETURN
 
