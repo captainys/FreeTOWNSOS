@@ -261,8 +261,23 @@ CREATE_ADDITIONAL_SFT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONFIGSYS_FILENAME		DB		"A:\CONFIG.SYS"
+CONFIGSYS_LENGTH		DW		0
 
 DO_CONFIG_SYS:
+						CALL	LOAD_CONFIG_SYS
+						JC		DO_CONFIG_SYS_EXIT
+
+
+						TSUGARU_DEBUG
+
+DO_CONFIG_SYS_EXIT:
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+LOAD_CONFIG_SYS:
 						MOV		DX,CONFIGSYS_SEG
 						MOV		ES,DX
 						CLD
@@ -274,45 +289,32 @@ DO_CONFIG_SYS:
 						ADD		AL,'A'
 						MOV		CS:[CONFIGSYS_FILENAME],AL
 
-						MOV		AX,3D00h
+						MOV		AX,3D00h	; FOPEN Normal Mode
 						PUSH	CS
 						POP		DS
 						MOV		DX,CONFIGSYS_FILENAME
 						INT		21H
-						JB		DO_CONFIG_SYS_EXIT
-
-						; AX is file handle
+						JB		LOAD_CONFIG_SYS_EXIT
 
 						MOV		BX,AX
-						MOV		AX,4202h	; LSEEK End of File
-						XOR		CX,CX
-						XOR		DX,DX
-						INT		21H
-						JB		DO_CONFIG_SYS_EXIT
 
-						; DX:AX is the file position
-						; Can drop AX.  I don't support CONFIG.SYS greater than 64KB
-						PUSH	AX
+						; BX is file handle
 
-						MOV		AX,4200h	; LSEEK Start of File
-						XOR		CX,CX
-						XOR		DX,DX
-						INT		21H
-						JB		DO_CONFIG_SYS_EXIT
-
-						; SS:[SP] is the file size
-
-						MOV		AX,3FH
-						POP		CX
-						PUSh	CX
+						MOV		AH,3FH	; FREAD
+						MOV		CX,CONFIGSYS_SIZE_LIMIT
 						MOV		DX,CONFIGSYS_SEG
 						MOV		DS,DX
 						XOR		DX,DX
 						INT		21H
-						JB		DO_CONFIG_SYS_EXIT
+						JB		LOAD_CONFIG_SYS_EXIT
 
-						; 
+						; AX is the number of bytes actually read.
+						MOV		CS:[CONFIGSYS_LENGTH],AX
 
+						; BX is still the file handle
 
-DO_CONFIG_SYS_EXIT:
+						MOV		AH,3EH	; FCLOSE
+						INT		21H
+
+LOAD_CONFIG_SYS_EXIT:
 						RET
