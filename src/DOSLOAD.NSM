@@ -149,6 +149,32 @@ COMMANDCOM_PARAM_SEG	DW		IOSYS_CS				; Command Tail SEG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Input AX    = number of pages to push
+;       FS:BX = DOS SYSVARS
+;
+; Preserves FS,BX  No guarantee for other regs
+; Destroys DS,ES,SI,DI,DX for sure.
+PUSH_MCB:
+						MOV		ES,FS:[BX-2]
+						PUSH	ES
+						POP		DS
+						XOR		SI,SI
+						MOV		DI,AX
+						SHL		DI,4
+						MOVSD
+						MOVSD
+						MOVSD
+						MOVSD
+						SUB		DI,16
+
+						SUB		ES:[DI+MCB_BLOCK_SIZE],AX
+						ADD		FS:[BX-2],AX
+
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 CREATE_CDS:
 						MOV		AX,IOSYS_CS
@@ -202,29 +228,16 @@ CREATE_ADDITIONAL_SFT:
 						MOV		DX,SFT_ENTRY_SIZE
 						MUL		DX
 						ADD		AX,SFT_HEADER_size+15
+						SHR		AX,4
 
-						MOV		DX,AX
-						AND		DX,0FFF0H
+						PUSH	AX
+						CALL	PUSH_MCB
+						POP		AX
 
-						PUSH	ES
-						POP		DS
-						XOR		SI,SI
-						MOV		DI,DX
-						MOVSD
-						MOVSD
-						MOVSD
-						MOVSD
-						SUB		DI,16
-
-						SHR		DX,4
-
-						SUB		ES:[DI+MCB_BLOCK_SIZE],DX
-						ADD		FS:[BX-2],DX
-
-						SHL		DX,4	; DX is the number of bytes aligned to the page border.
+						SHL		AX,4	; DX is the number of bytes aligned to the page border.
 
 						XOR		DI,DI
-						MOV		CX,DX
+						MOV		CX,AX
 						XOR		AX,AX
 						CLD
 						REP		STOSB
