@@ -26,6 +26,7 @@ const unsigned int SEG_INTECH=0x1E;// Reserved for FM-R OAK BIOS
 const unsigned int SEG_INTEDH=0x20;// Reserved for FM-R OAK BIOS
 const unsigned int SEG_INTFDH=0x22;// Reserved for FM-R Software Timer BIOS
 
+const unsigned int SEG_DOSLOADER=0x28;
 
 
 class PositionAndSize
@@ -97,7 +98,8 @@ int main(void)
 	INTtoOFFSET[0xEC]=0x1E;// Reserved for FM-R OAK BIOS
 	INTtoOFFSET[0xED]=0x20;// Reserved for FM-R OAK BIOS
 	INTtoOFFSET[0xFD]=0x22;
-	
+
+	INTtoOFFSET[0x01]=0x28;
 
 	File files[]=
 	{
@@ -112,6 +114,7 @@ int main(void)
 		File("INTAEH.bin",  0xAE),
 		File("INTAFH.bin",  0xAF),
 		File("INTFDH.bin",  0xFD),
+		File("DOSLOAD.bin", 0x01)
 	};
 
 	memset(data,0,sizeof(data));

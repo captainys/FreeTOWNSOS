@@ -1,0 +1,248 @@
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+						CPU		386
+						BITS	16
+
+
+CODE					SEGMENT	USE16
+						JMP		SHORT REALENTRY
+
+BOOT_DEVICE:			DW		0	; +02h
+DOSSEG:					DW		0	; +04h Segment YSDOS.SYS is loaded
+BOOT_DRIVE:				DB		0	; +06h
+						DB		0
+SYSVARS_PTR				DW		0	; +08h
+SYSVARS_SEG				DW		0	; +0Ah
+CDS_OFFSET				DW		0	; +0Ch
+
+NUM_FILES				DW		15
+
+REALENTRY:
+						CALL	CREATE_CDS
+
+						; Save Temporary PDB to a safe location.
+
+						MOV		AH,48h	; ALLOC MEMORY
+						MOV		BX,0FFFFh
+						INT		21H
+
+						; BX is largest available blocks.
+
+						PUSH	BX
+
+						MOV		AH,48h	; ALLOC MEMORY
+						INT		21H
+
+						POP		BX
+						PUSH	AX	; Save largest memory chunk
+
+						; AX is the largest memory chunk.
+
+						MOV		ES,AX
+						SUB		BX,11H
+						MOV		AH,4Ah	; RESIZE MEMORY
+						INT 	21H
+
+						MOV		AH,48H	; ALLOC MEMORY
+						MOV		BX,10H
+						INT		21H
+
+						; AX is 100h bytes memory chunk
+
+						POP		ES	; ES is the largest memory chunk.
+						PUSH	AX	; AX is the last 100h bytes before 0C0000h
+
+						MOV		AH,49H	; FREE MEMORY
+						INT		21H
+
+						; Must have 100h byte secure memory block at the end of the DOS memory.
+
+						MOV		AH,51H
+						INT		21H
+
+						; BX is PSP
+
+						MOV		DS,BX
+						XOR		SI,SI
+
+						POP		ES
+						PUSH	ES
+
+						XOR		DI,DI
+
+						CLD
+						MOV		CX,128
+						REP		MOVSW
+						MOV		ES:[0036H],ES	; Far Pointer to File Table.
+
+						MOV		BX,ES
+						MOV		AH,50H	; SetPSP
+						INT		21H
+
+						MOV		DL,CS:[BOOT_DRIVE]
+						MOV		AH,0Eh
+						INT		21H
+
+
+
+						; Towns OS's IO.SYS seems to close file handle 0,1,2,3,4 (STDIN,STDOUT,STDERR,PRN,AUX), and then reopen CON, duplicate twice, and then reopen PRN, and AUX.
+						; Why?  I don't know.
+						MOV		BX,0
+CLOSE_DEFAULT_FILE_LOOP:
+						MOV		AH,3EH
+						INT		21H
+						INC		BX
+						CMP		BX,5
+						JBE		CLOSE_DEFAULT_FILE_LOOP
+
+						MOV 	AX,3D02H	; OPEN, Mode=02
+						MOV		DX,DEFAULT_CONDEV_NAME
+						PUSH	CS
+						POP		DS
+						INT		21H		; Will be assigned to file handle 0 (STDIN)
+
+						MOV		BX,AX
+						MOV		AH,45H
+						INT		21H		; Will be assigned to file handle 1 (STDOUT)
+						MOV		AH,45H
+						INT		21H		; Will be assigned to file handle 2 (STDERR)
+
+						MOV		AL,CS:[BOOT_DRIVE]
+						ADD		AL,'A'
+						MOV		CS:[DEFAULT_COMSPEC],AL
+
+						MOV		CS:[COMMANDCOM_PARAM_SEG],CS
+
+						POP		ES
+						MOV		AH,49H	; FREE MEMORY
+						INT		21H
+
+						CALL	DO_CONFIG_SYS
+
+						CALL	CREATE_ADDITIONAL_SFT	; Make sure to do it after the preliminary PSP is copied.
+
+						MOV		AX,4B00H	; EXEC
+						PUSH	CS
+						POP		DS
+						MOV		DX,DEFAULT_COMSPEC
+						PUSH	CS
+						POP		ES
+						MOV		BX,COMMANDCOM_PARAMBLOCK
+						INT		21H
+
+						HLT
+						HLT
+
+
+DEFAULT_CONDEV_NAME		DB		"CON",0
+DEFAULT_COMSPEC			DB		"A:\YAMAND.COM",0
+
+COMMANDCOM_PARAMETER	DB		" /P",0
+COMMANDCOM_PARAMBLOCK	DW		0	; ENVSEG to copy from
+						DW		COMMANDCOM_PARAMETER	; Command Tail OFFSET
+COMMANDCOM_PARAM_SEG	DW		IOSYS_CS				; Command Tail SEG
+						DD		0	; First FCB to be copied
+						DD		0	; Second FCB to be copied
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+CREATE_CDS:
+						MOV		AX,IOSYS_CS
+						MOV		DS,AX
+
+						LGS		BX,CS:[SYSVARS_PTR]
+
+						LFS		SI,GS:[BX+SYSVARS_FIRST_DPB]
+
+						MOV		DI,CS:[CDS_OFFSET]
+						XOR		CL,CL
+						MOV		CH,GS:[BX+SYSVARS_NUM_DPB]
+CREATE_CDS_LOOP:
+						MOV		EAX,05C3A41h	; 41H='A'  3A=':'  5C='\'
+						ADD		AL,CL
+						MOV		[DI+CDS_CURDIR],EAX
+						MOV		WORD [DI+CDS_CURDIR_CLUSTER],0xFFFF
+						MOV		WORD [DI+CDS_CURDIR_ROOTLEN],2
+
+						CMP		CL,CH
+						JGE		CREATE_CDS_NO_MORE_DPB
+
+						MOV		WORD [DI+CDS_DRIVE_TYPE],CDS_TYPE_VALID
+						MOV		[DI+CDS_DRIVE_PARAM_BLOCK],SI
+						MOV		[DI+CDS_DRIVE_PARAM_BLOCK+2],FS
+						LFS		SI,FS:[SI+DPB_PTR_TO_NEXT_DPB]
+
+CREATE_CDS_NO_MORE_DPB:
+						ADD		DI,CURRENT_DIR_STRUCT_size
+						INC		CL
+						CMP		CL,MAX_NUM_CDS
+						JB		CREATE_CDS_LOOP
+
+						MOV		AX,CS:[CDS_OFFSET]
+						MOV		WORD GS:[BX+SYSVARS_FIRST_CDS],AX
+						MOV		WORD GS:[BX+SYSVARS_FIRST_CDS+2],IOSYS_CS
+						MOV		BYTE GS:[BX+SYSVARS_NUM_CDS],MAX_NUM_CDS
+
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+CREATE_ADDITIONAL_SFT:
+						; Push FIRST_MCB and make FCB there.
+						LFS		BX,CS:[SYSVARS_PTR]	; FS:BX is SYSVARS
+						MOV		ES,FS:[BX-2]		; ES is First MCB
+
+						MOV		AX,CS:[NUM_FILES]
+						MOV		DX,SFT_ENTRY_SIZE
+						MUL		DX
+						ADD		AX,SFT_HEADER_size+15
+
+						MOV		DX,AX
+						AND		DX,0FFF0H
+
+						PUSH	ES
+						POP		DS
+						XOR		SI,SI
+						MOV		DI,DX
+						MOVSD
+						MOVSD
+						MOVSD
+						MOVSD
+						SUB		DI,16
+
+						SHR		DX,4
+
+						SUB		ES:[DI+MCB_BLOCK_SIZE],DX
+						ADD		FS:[BX-2],DX
+
+						SHL		DX,4	; DX is the number of bytes aligned to the page border.
+
+						XOR		DI,DI
+						MOV		CX,DX
+						XOR		AX,AX
+						CLD
+						REP		STOSB
+
+						MOV		DWORD ES:[0],0FFFFFFFFh
+						MOV		AX,CS:[NUM_FILES]
+						MOV		ES:[4],AX
+
+						XOR		AX,AX
+						MOV		FS:[BX+SYSVARS_SFT],AX
+						MOV		FS:[BX+SYSVARS_SFT+2],ES
+
+
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+DO_CONFIG_SYS:
+						RET

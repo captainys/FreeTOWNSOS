@@ -26,6 +26,7 @@ def Run(argv):
 		"INTAEH",
 		"INTAFH",
 		"INTFDH",
+		"DOSLOAD",
 	]
 
 	for src in srcs:

@@ -7,6 +7,7 @@ SYSVARS_FIRST_DPB		EQU		00h
 SYSVARS_FIRST_CDS		EQU		16H
 SYSVARS_NUM_DPB			EQU		20h
 SYSVARS_NUM_CDS			EQU		21h
+SYSVARS_SFT				EQU		72h
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -258,3 +259,18 @@ ENDSTRUC
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SFT_ENTRY_SIZE			EQU		035h
+STRUC					SFT_HEADER
+SFT_NEXT				RESD	1
+SFT_COUNT				RESW	1
+ENDSTRUC
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+STRUC					MEM_CTL_BLOCK
+MCB_CHAIN_ID			RESB		1		; MS-DOS 2.0 source calls it as ARENA_SIGNATURE
+MCB_PID					RESW		1
+MCB_BLOCK_SIZE			RESW		1
+						RESB		11
+ENDSTRUC
