@@ -73,11 +73,12 @@ KEY_STATE_MAP			DB		KEY_STATE_MAP_LEN dup(0)	; 128 bits.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT41H_HANDLER:
-						PUSH	AX
-						PUSH	DX
-						PUSH	BX
+INT41H_INT_DATABLOCK:
+						DB		0,0
+						DW		INT41H_HANDLER
+						DW		0
 
+INT41H_HANDLER:
 						MOV		DX,IO_KEYBOARD_INT_REASON
 						IN		AL,DX
 						TEST	AL,1	; KBINT otherwise NMI
@@ -121,10 +122,7 @@ INT41H_HANDLER_EXIT:
 						MOV		AL,061H	; Specific EOI(060H)|INT 1(001H)
 						OUT		IO_PIC0_OCW2,AL
 
-						POP		BX
-						POP		DX
-						POP		AX
-						IRET
+						RETF
 
 INT41H_HANDLER_DUMMY_READ_AND_EXIT:
 						MOV		DX,IO_KEYBOARD_DATA
@@ -210,19 +208,33 @@ INT90H_00H_INIT:
 						MOV		CS:[KEYBUF_READPTR],AX
 						MOV		CS:[KEYBUF_DATA_FIRST_BYTE],AL
 
-						MOV		DS,AX
-						MOV		AX,CS
-						SHL		EAX,16
-						MOV		AX,INT41H_HANDLER
-						MOV		[041H*4],EAX
+						MOV		CS:[INT41H_INT_DATABLOCK+4],CS
+						PUSH	CS
+						POP		DS
+						MOV		DI,INT41H_INT_DATABLOCK
+						; AH is still zero
+						MOV		DL,1
+						INT		0AEH
+
+						PUSH	EAX
+						MOV		DI,SS
+						MOV		DS,DI
+						MOV		DI,SP
+						MOV		AH,03H	; Get INT-Enabled Flags
+						INT		0AEH
+
+						MOV		EAX,DS:[DI]
+						OR		EAX,INTMANBIOS_INT01_FLAG
+						MOV		DS:[DI],EAX
+
+						MOV		AH,02H	; Set INT-Enabled Flags
+						INT		0AEH
+
+						POP		EAX
 
 						MOV		AL,1
 						MOV		DX,IO_KEYBOARD_INT_CONTROL
 						OUT		DX,AL
-
-						IN		AL,IO_PIC_PRIMARY_MASK
-						AND		AL,11111101b
-						OUT		IO_PIC_PRIMARY_MASK,AL
 
 						JMP		INT90H_EXIT
 

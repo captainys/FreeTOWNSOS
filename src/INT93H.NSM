@@ -65,37 +65,54 @@ INT93H_INIT:
 						XOR		AX,AX
 						MOV		DS,AX
 
-						MOV		AX,CS
-						SHL		EAX,16
+						MOV		CS:[INT46H_FD_INT_DATA_BLOCK+4],CS
+						MOV		CS:[INT48H_SCSI_INT_DATA_BLOCK+4],CS
+						MOV		CS:[INT49H_CD_INT_DATA_BLOCK+4],CS
 
-						MOV		AX,INT46H_FD_INT_HANDLER
-						MOV		[046H*4],EAX
+						PUSH	CS
+						POP		DS
+						MOV		DI,INT46H_FD_INT_DATA_BLOCK
+						MOV		DL,6
+						XOR		AH,AH
+						INT		0AEH
 
-						MOV		AX,INT48H_SCSI_INT_HANDLER
-						MOV		[048H*4],EAX
+						MOV		DI,INT48H_SCSI_INT_DATA_BLOCK
+						MOV		DL,8
+						XOR		AH,AH
+						INT		0AEH
 
-						MOV		AX,INT49H_CD_INT_HANDLER
-						MOV		[049H*4],EAX
+						MOV		DI,INT49H_CD_INT_DATA_BLOCK
+						MOV		DL,9
+						XOR		AH,AH
+						INT		0AEH
 
-						; Hope PIC is in general set up by the IPL.
+						PUSH	EAX
+						MOV		DI,SS
+						MOV		DS,DI
+						MOV		DI,SP
+						MOV		AH,03H	; Get INT-Enabled Flags
+						INT		0AEH
 
-						IN		AL,IO_PIC_PRIMARY_MASK
-						AND		AL,10111111b
-						OUT		IO_PIC_PRIMARY_MASK,AL
+						MOV		EAX,DS:[DI]
+						OR		EAX,INTMANBIOS_INT06_FLAG+INTMANBIOS_INT08_FLAG+INTMANBIOS_INT09_FLAG
+						MOV		DS:[DI],EAX
 
-						IN		AL,IO_PIC_SECONDARY_MASK
-						AND		AL,11111100b
-						OUT		IO_PIC_SECONDARY_MASK,AL
+						MOV		AH,02H	; Set INT-Enabled Flags
+						INT		0AEH
+
+						POP		EAX
 
 						JMP		INT93H_EXIT_NO_ERROR
 
+INT46H_FD_INT_DATA_BLOCK:
+						DB		0,0
+						DW		INT46H_FD_INT_HANDLER
+						DW		0
 
 INT46H_FD_INT_HANDLER:
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0FFh
 
 						; Clear IRR
-						PUSH	DX
-						PUSH	AX
 						MOV		DX,IO_FDC_STATUS
 						IN		AL,DX
 						MOV		DX,IO_DMA_STATUS ; Do I have to do it?
@@ -104,16 +121,23 @@ INT46H_FD_INT_HANDLER:
 						MOV		AL,066H	; Specific EOI(060H)|INT 6(006H)
 						OUT		IO_PIC0_OCW2,AL
 
-						POP		AX
-						POP		DX
+						RETF
 
-						IRET
+INT48H_SCSI_INT_DATA_BLOCK:
+						DB		0,0
+						DW		INT48H_SCSI_INT_HANDLER
+						DW		0
 
 INT48H_SCSI_INT_HANDLER:
-						IRET
+						RETF
+
+INT49H_CD_INT_DATA_BLOCK:
+						DB		0,0
+						DW		INT49H_CD_INT_HANDLER
+						DW		0
 
 INT49H_CD_INT_HANDLER:
-						IRET
+						RETF
 
 						%INCLUDE "INT93H_FD.NSM"
 						%INCLUDE "INT93H_HD.NSM"
