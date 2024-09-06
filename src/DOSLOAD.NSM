@@ -6,6 +6,10 @@
 						BITS	16
 
 
+CONFIGSYS_SEG			EQU		0A800h
+CONFIGSYS_SIZE_LIMIT	EQU		8000h
+
+
 CODE					SEGMENT	USE16
 						JMP		SHORT REALENTRY
 
@@ -256,6 +260,59 @@ CREATE_ADDITIONAL_SFT:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+CONFIGSYS_FILENAME		DB		"A:\CONFIG.SYS"
 
 DO_CONFIG_SYS:
+						MOV		DX,CONFIGSYS_SEG
+						MOV		ES,DX
+						CLD
+						MOV		CX,CONFIGSYS_SIZE_LIMIT
+						XOR		AX,AX
+						REP		STOSB
+
+						MOV		AL,CS:[BOOT_DRIVE]
+						ADD		AL,'A'
+						MOV		CS:[CONFIGSYS_FILENAME],AL
+
+						MOV		AX,3D00h
+						PUSH	CS
+						POP		DS
+						MOV		DX,CONFIGSYS_FILENAME
+						INT		21H
+						JB		DO_CONFIG_SYS_EXIT
+
+						; AX is file handle
+
+						MOV		BX,AX
+						MOV		AX,4202h	; LSEEK End of File
+						XOR		CX,CX
+						XOR		DX,DX
+						INT		21H
+						JB		DO_CONFIG_SYS_EXIT
+
+						; DX:AX is the file position
+						; Can drop AX.  I don't support CONFIG.SYS greater than 64KB
+						PUSH	AX
+
+						MOV		AX,4200h	; LSEEK Start of File
+						XOR		CX,CX
+						XOR		DX,DX
+						INT		21H
+						JB		DO_CONFIG_SYS_EXIT
+
+						; SS:[SP] is the file size
+
+						MOV		AX,3FH
+						POP		CX
+						PUSh	CX
+						MOV		DX,CONFIGSYS_SEG
+						MOV		DS,DX
+						XOR		DX,DX
+						INT		21H
+						JB		DO_CONFIG_SYS_EXIT
+
+						; 
+
+
+DO_CONFIG_SYS_EXIT:
 						RET
