@@ -4,11 +4,248 @@
 						BITS	16
 
 						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
 
 
 CODE					SEGMENT USE16
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 INTAEH:
-						CLC
+						SAVE_WORLD
+						MOV		BYTE CS:[INTAEH_ERROR_CODE],0
+
+						CMP		AH,BIOSCMD_COMMON_INIT
+						JE		INTAEH_INIT
+						CMP		AH,00H
+						JE		INTAEH_00H_SET_HANDLER
+						CMP		AH,01H
+						JE		INTAEH_01H_GET_HANDLER
+						CMP		AH,02H
+						JE		INTAEH_02H_SET_ENABLE_FLAGS
+						CMP		AH,03H
+						JE		INTAEH_03H_GET_ENABLE_FLAGS
+						CMP		AH,04H
+						JE		INTAEH_04H_GET_HANDLER_TABLE
+
+						MOV		BYTE CS:[INTAEH_ERROR_CODE],0FFH
+INTAEH_ERROR_EXIT:
+						RESTORE_WORLD
+						MOV		AH,CS:[INTAEH_ERROR_CODE]
 						IRET
 
+INTAEH_EXIT:
+						RESTORE_WORLD
+						XOR		AH,AH
+						IRET
+
+
+INTAEH_ERROR_CODE:		DB		0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTERCEPT_INT40H:
+						PUSHAD
+						MOV		BX,0*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT41H:
+						PUSHAD
+						MOV		BX,1*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT42H:
+						PUSHAD
+						MOV		BX,2*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT43H:
+						PUSHAD
+						MOV		BX,3*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT44H:
+						PUSHAD
+						MOV		BX,4*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT45H:
+						PUSHAD
+						MOV		BX,5*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT46H:
+						PUSHAD
+						MOV		BX,6*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT47H:
+						PUSHAD
+						MOV		BX,7*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT48H:
+						PUSHAD
+						MOV		BX,8*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT49H:
+						PUSHAD
+						MOV		BX,9*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT4AH:
+						PUSHAD
+						MOV		BX,10*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT4BH:
+						PUSHAD
+						MOV		BX,11*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT4CH:
+						PUSHAD
+						MOV		BX,12*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT4DH:
+						PUSHAD
+						MOV		BX,13*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT4EH:
+						PUSHAD
+						MOV		BX,14*4
+						JMP		SHORT INTERCEPT_INT
+INTERCEPT_INT4FH:
+						PUSHAD
+						MOV		BX,15*4
+						JMP		SHORT INTERCEPT_INT
+
+INTERCEPT_INT:
+						PUSH	DS
+						PUSH	ES
+						PUSH	FS
+						PUSH	GS
+						LDS		BX,CS:[INT_DATA_BLOCKS+BX]
+						CALL	FAR [BX+2]
+						POP		GS
+						POP		FS
+						POP		ES
+						POP		DS
+						POPAD
+						IRET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT_NOP:				RETF
+
+DEFAULT_INT_DATA_BLOCK:	DB		0,0
+						DW		INT_NOP
+						DW		0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+NUM_INTS				EQU		32
+INT_DATA_BLOCKS:		DD		NUM_INTS dup (0)
+
+INT_ENABLE_FLAGS:		DD		0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTAEH_INIT:
+						; IF=0 because it is called from INT AEH handler.
+
+						MOV		AX,CS
+						MOV		CS:[DEFAULT_INT_DATA_BLOCK+4],AX
+
+						SHL		EAX,16
+						MOV		AX,DEFAULT_INT_DATA_BLOCK
+
+						PUSH	CS
+						POP		ES
+						CLD
+						MOV		CX,NUM_INTS
+
+						MOV		DI,INT_DATA_BLOCKS
+						REP		STOSD
+
+
+						XOR		AX,AX
+						MOV		ES,AX
+
+						MOV		AX,INTERCEPT_INT40H
+						MOV		DI,40H*4
+						MOV		CX,16
+INTAEH_INIT_RIDT_LOOP:
+						STOSD
+						ADD		AX,(INTERCEPT_INT41H-INTERCEPT_INT40H)
+						LOOP	INTAEH_INIT_RIDT_LOOP
+
+
+						XOR		EAX,EAX
+						MOV		CS:[INT_ENABLE_FLAGS],EAX
+
+						MOV		AL,0FFH
+						OUT		02H,AL
+						OUT		12H,AL
+
+						JMP		INTAEH_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTAEH_00H_SET_HANDLER:
+						MOV		BYTE CS:[INTAEH_ERROR_CODE],2
+						CMP		DL,0FH
+						JA		INTAEH_ERROR_EXIT
+
+						ROL		EDI,16
+						MOV		DI,DS
+						ROL		EDI,16
+
+						MOVZX	BX,DL
+						ADD		BX,BX
+						ADD		BX,BX
+						MOV		CS:[INT_DATA_BLOCKS+BX],EDI
+
+						JMP		INTAEH_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTAEH_01H_GET_HANDLER:
+						MOV		BYTE CS:[INTAEH_ERROR_CODE],2
+						CMP		DL,0FH
+						JA		INTAEH_ERROR_EXIT
+
+						MOVZX	BX,DL
+						ADD		BX,BX
+						ADD		BX,BX
+						MOV		DI,CS:[INT_DATA_BLOCKS+BX]
+						MOV		DS,CS:[INT_DATA_BLOCKS+2+BX]
+
+						JMP		INTAEH_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTAEH_02H_SET_ENABLE_FLAGS:
+						MOV		EAX,DS:[DI]
+						MOV		CS:[INT_ENABLE_FLAGS],EAX
+
+						NOT		EAX
+
+						ROL		EAX,8	; Shift the highest byte into AL
+						OUT		02H,AL
+
+						ROL		EAX,8	; Shift the 2nd highest byte into AL
+						OUT		12H,AL
+
+						JMP		INTAEH_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTAEH_03H_GET_ENABLE_FLAGS:
+						MOV		EAX,CS:[INT_ENABLE_FLAGS]
+						MOV		DS:[DI],EAX
+						JMP		INTAEH_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INTAEH_04H_GET_HANDLER_TABLE:
+						PUSH	CS
+						POP		DS
+						MOV		DI,INT_DATA_BLOCKS
+						JMP		INTAEH_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
