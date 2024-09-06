@@ -6,6 +6,7 @@
 						%INCLUDE "UTIL.NSM"
 						%INCLUDE "DEF.NSM"
 						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
 
 
 CODE					SEGMENT USE16
@@ -111,15 +112,28 @@ INTERCEPT_INT4EH:
 INTERCEPT_INT4FH:
 						PUSHAD
 						MOV		BX,15*4
-						JMP		SHORT INTERCEPT_INT
 
 INTERCEPT_INT:
 						PUSH	DS
 						PUSH	ES
 						PUSH	FS
 						PUSH	GS
+
+						PUSH	BX
 						LDS		BX,CS:[INT_DATA_BLOCKS+BX]
 						CALL	FAR [BX+2]
+						POP		BX
+
+						MOV		AL,60H
+						SHR		BX,1
+						MOV		DX,BX
+						AND		DX,10H	; This nicely makes 00H or 10H (OCW2 I/O)
+						SHR		BX,1
+
+						AND		BL,7
+						OR		AL,BL
+						OUT		DX,AL
+
 						POP		GS
 						POP		FS
 						POP		ES
@@ -226,6 +240,7 @@ INTAEH_02H_SET_ENABLE_FLAGS:
 						NOT		EAX
 
 						ROL		EAX,8	; Shift the highest byte into AL
+						AND		AL,7FH	; bit 7 (Cascade) is always ON.
 						OUT		02H,AL
 
 						ROL		EAX,8	; Shift the 2nd highest byte into AL

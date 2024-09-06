@@ -118,9 +118,6 @@ INT46H_FD_INT_HANDLER:
 						MOV		DX,IO_DMA_STATUS ; Do I have to do it?
 						IN		AL,DX
 
-						MOV		AL,066H	; Specific EOI(060H)|INT 6(006H)
-						OUT		IO_PIC0_OCW2,AL
-
 						RETF
 
 INT48H_SCSI_INT_DATA_BLOCK:
