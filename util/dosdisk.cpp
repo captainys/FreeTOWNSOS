@@ -591,6 +591,7 @@ int main(int ac,char *av[])
 		"../resources/CONFIG.SYS",  "CONFIG  ","SYS",
 		"../resources/AUTOEXEC.BAT","AUTOEXEC","BAT",
 		"../resources/TGDRV.COM",   "TGDRV   ","COM",
+		"../externals/ORICON/ORICON.COM",   "ORICON  ","COM",
 		"","",""
 	};
 

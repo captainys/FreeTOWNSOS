@@ -1,0 +1,5 @@
+if 全ソ－スファイルもコピ－しますか？
+    COPY SOURCE\*.* SOURCE
+ENDIF
+COPY *.*
+

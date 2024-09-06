@@ -1,0 +1,30 @@
+oricon.com : main.obj his.obj consol.obj vdb.obj bios.obj \
+	     inp.obj file.obj oak.obj
+    link main+his+consol+vdb+bios+inp+file+oak,oricon/NOI,oricon/M;
+    exe2bin oricon.exe oricon.com
+    del oricon.exe
+
+consol.obj : consol.c
+    cl /Asnw /Ox /G2 /c consol.c
+
+vdb.obj : vdb.c
+    cl /Asnw /Ox /G2 /c vdb.c
+
+inp.obj : inp.c
+    cl /Asnw /Ox /G2 /c inp.c
+
+file.obj : file.c
+    cl /Asnw /Ox /G2 /c file.c
+
+main.obj : main.asm
+    masm /Mx main;
+
+bios.obj : bios.asm
+    masm /Mx bios;
+
+his.obj : his.asm
+    masm /Mx his;
+
+oak.obj : oak.asm
+    masm /Mx oak;
+
