@@ -599,6 +599,10 @@ int main(int ac,char *av[])
 	{
 		auto dirEnt=disk.FindAvailableDirEnt();
 		auto file=ReadBinaryFile(srcFile[i]);
+		if(0==file.size())
+		{
+			continue;
+		}
 		auto firstCluster=disk.WriteData(file);
 		if(nullptr!=dirEnt)
 		{

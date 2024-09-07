@@ -274,3 +274,7 @@ MCB_PID					RESW		1
 MCB_BLOCK_SIZE			RESW		1
 						RESB		11
 ENDSTRUC
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TAB						EQU		9

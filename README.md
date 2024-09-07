@@ -23,6 +23,6 @@ ORICON was a console emulator and included in this program by courtesy of the de
 
 
 # History
-09/06/2024  Can start TGDRV and ORICON.  Support INT AEH, limited functions of INT 93H, and DOS devices.
+09/06/2024  Can start TGDRV and ORICON.  Support INT AEH, limited functions of INT 90H, INT 93H, and DOS devices.
 
 08/27/2024  Started.

@@ -264,19 +264,26 @@ CREATE_ADDITIONAL_SFT:
 CONFIGSYS_FILENAME		DB		"A:\CONFIG.SYS",0
 CONFIGSYS_LENGTH		DW		0
 
-KEYWORD_COMSPEC			DB		"COMSPEC"
-KEYWORD_COMSPEC_LENGTH	EQU		7
+KEYWORD_SHELL			DB		"SHELL"
+KEYWORD_SHELL_LENGTH	EQU		7
 KEYWORD_DEVICE			DB		"DEVICE"
 KEYWORD_DEVICE_LENGTH	EQU		6
 KEYWORD_FILES			DB		"FILES"
 KEYWORD_FILES_LENGTH	EQU		5
+
+DEVICE_LOAD_POINT		DW		0
+						DW		0
 
 DO_CONFIG_SYS:
 						CALL	LOAD_CONFIG_SYS
 						JC		DO_CONFIG_SYS_EXIT
 
 
-						TSUGARU_DEBUG
+						LDS		SI,CS:[SYSVARS_PTR]
+						MOV		BX,DS:[SI-2]	; First MCB
+						INC		BX				; Protect the current MCB.  I waste 16 bytes.
+						MOV		CS:[DEVICE_LOAD_POINT],BX
+						MOV		CS:[DEVICE_LOAD_POINT+2],BX
 
 						MOV		SI,CONFIGSYS_SEG
 						MOV		DS,SI
@@ -298,15 +305,15 @@ DO_CONFIG_SYS_LOOP:
 						CALL	CONFIGSYS_CAPITALIZE_BEFORE_EQUAL
 
 						PUSH	SI
-						MOV		DI,KEYWORD_COMSPEC
-						MOV		CX,KEYWORD_COMSPEC_LENGTH
+						MOV		DI,KEYWORD_SHELL
+						MOV		CX,KEYWORD_SHELL_LENGTH
 						REPE	CMPSB
 						POP		SI
-						JNE		DO_CONFIG_NOT_COMSPEC
-						CALL	DO_CONFIG_COMSPEC
+						JNE		DO_CONFIG_NOT_SHELL
+						CALL	DO_CONFIG_SHELL
 						JMP		DO_CONFIG_SYS_NEXT
 
-DO_CONFIG_NOT_COMSPEC:
+DO_CONFIG_NOT_SHELL:
 						PUSH	SI
 						MOV		DI,KEYWORD_DEVICE
 						MOV		CX,KEYWORD_DEVICE_LENGTH
@@ -341,7 +348,7 @@ DO_CONFIG_SYS_EXIT:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-DO_CONFIG_COMSPEC:
+DO_CONFIG_SHELL:
 						PUSH	DS
 						PUSH	SI
 
@@ -352,9 +359,33 @@ DO_CONFIG_COMSPEC:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 DO_CONFIG_DEVICE:
+						TSUGARU_DEBUG
+
 						PUSH	DS
 						PUSH	SI
 
+						MOV		AX,CS
+						MOV		ES,AX
+
+						CALL	CONFIG_SYS_SKIP_EQUAL
+						CMP		BYTE [SI-1],'='
+						JNE		DO_CONFIG_DEVICE_EXIT
+
+						CALL	CONFIG_SYS_SKIP_SPACE_AND_TAB
+
+						; DS:SI points to the command line.
+						MOV		DX,SI	; DS:DX points to the file name.
+
+						CALL	CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB
+						MOV		BYTE [SI],0
+
+						MOV		AX,4B03H ; LOAD Overlay
+						MOV		BX,DEVICE_LOAD_POINT	; Pointer to the device load point and relocation factor
+
+						INT		21H
+
+
+DO_CONFIG_DEVICE_EXIT:
 						POP		SI
 						POP		DS
 						RET
@@ -388,6 +419,85 @@ CONFIG_SYS_COUNT_LINE_LENGTH_LOOP:
 						JMP		CONFIG_SYS_COUNT_LINE_LENGTH_LOOP
 
 CONFIG_SYS_COUNT_LINE_LENGTH_EXIT:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input DS:SI=Pointer to the line
+; Output DS:SI=Pointer to after the first '='.  Or, can be end of the command line.
+;        AL=Destroyed
+CONFIG_SYS_SKIP_EQUAL:
+						MOV		AL,[SI]
+						CALL	AL_IS_ZERO_CR_OR_LF
+						JE		CONFIG_SYS_SKIP_EQUAL_EXIT
+
+						INC		SI
+						CMP		AL,'='
+						JNE		CONFIG_SYS_SKIP_EQUAL
+
+CONFIG_SYS_SKIP_EQUAL_EXIT:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input DS:SI=Pointer to a string.
+; Output DS:SI=Pointer to after skipping SPACEs and TABs.  Or, can be end of the command line.
+;        AL=Destroyed
+CONFIG_SYS_SKIP_SPACE_AND_TAB:
+						MOV		AL,[SI]
+						CALL	AL_IS_SPACE_OR_TAB
+						JNE		CONFIG_SYS_SKIP_SPACE_AND_TAB_EXIT
+
+						INC		SI
+						JMP		CONFIG_SYS_SKIP_SPACE_AND_TAB
+
+CONFIG_SYS_SKIP_SPACE_AND_TAB_EXIT:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input DS:SI=Pointer to a string.
+; Output DS:SI=Pointer to first ' '.  Or, can be end of the command line.
+;        AL=Destroyed
+CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB:
+						MOV		AL,[SI]
+						CALL	AL_IS_SPACE_OR_TAB
+						JE		CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB_EXIT
+
+						CALL	AL_IS_ZERO_CR_OR_LF
+						JE		CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB_EXIT
+
+						INC		SI
+						JMP		CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB
+
+CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB_EXIT:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input  AL=ASCII Code
+; Output ZF is set if AL is space or tab.
+AL_IS_SPACE_OR_TAB:
+						CMP		AL,' '
+						JE		AL_IS_SPACE_OR_TAB_EXIT
+						CMP		AL,TAB
+
+AL_IS_SPACE_OR_TAB_EXIT:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input  AL=ASCII Code
+; Output ZF is set if AL is space or tab.
+AL_IS_ZERO_CR_OR_LF:
+						OR		AL,AL
+						JE		AL_IS_ZERO_CR_OR_LF_EXIT
+						CMP		AL,0DH
+						JE		AL_IS_ZERO_CR_OR_LF_EXIT
+						CMP		AL,0AH
+						JE		AL_IS_ZERO_CR_OR_LF_EXIT
+
+AL_IS_ZERO_CR_OR_LF_EXIT:
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
