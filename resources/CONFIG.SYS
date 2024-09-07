@@ -1,3 +1,4 @@
 shell=A:\YAMAND.COM A:\ /P /E:80
 files=10
+device=MINVCPI.SYS
 device=B:\TBIOS.SYS /B:\TBIOS.BIN

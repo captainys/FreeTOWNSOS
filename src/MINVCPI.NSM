@@ -1,0 +1,131 @@
+; Minimum VCPI driver to run Free386 DOS Extender
+; Let's see how far I can go.
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+
+
+						DD      0FFFFFFFFh                  ; SYSDEV_NEXT				
+						DW      SYSDEV_DEVFLAG_IS_CHARDEV   ; SYSDEV_DEVFLAGS			
+						DW      STRATEGY                    ; SYSDEV_STRATEGY			
+						DW      INTERRUPT                   ; SYSDEV_INTERRUPT		
+						DB      "EMMXXXX0"                  ; SYSDEV_NAME        		
+
+REQ_HEADER				DD		0
+CASCADE_INT2F			DD		0
+
+STRATEGY:
+						MOV		CS:[REQ_HEADER],BX
+						MOV		CS:[REQ_HEADER+2],ES
+						RETF
+
+INTERRUPT:
+						SAVE_WORLD
+
+						LES		BX,CS:[REQ_HEADER]
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
+
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JNE		INTERRUPT_EXIT
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
+
+						XOR		AX,AX
+						MOV		DS,AX
+
+						MOV		EAX,[4*02FH]
+						MOV		CS:[CASCADE_INT2F],EAX
+
+						MOV		AX,CS
+						SHL		EAX,16
+						MOV		AX,INT_67H
+						MOV		[4*067H],EAX
+						MOV		AX,INT_2FH
+						MOV		[4*02FH],EAX
+
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_MINVCPI
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
+INTERRUPT_EXIT:
+						RESTORE_WORLD
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT_67H:
+						CMP		AX,0DE00H
+						JE		INT_67H_DE00H
+						CMP		AX,0DE02H
+						JE		INT_67H_DE02H
+
+						TSUGARU_DEBUG
+						IRET
+
+INT_67H_DE00H:
+						XOR		AH,AH	; Pretend VCPI installed.
+						IRET
+
+INT_67H_DE02H:			; Return RAM capacity in bytes.
+						PUSH	BX
+						PUSH	AX
+						MOV		DX,3150H	; (RAMinMB-1) times FFs
+						XOR		BX,BX
+
+INT_67H_DE02H_LOOP:
+						INC		BX
+						IN		AL,DX
+						ADD		DX,2
+						CMP		AL,0FFh
+						JE		INT_67H_DE02H_LOOP
+
+						; BX=Number_of_FFs+1
+
+						INC		BX
+						SHR		BX,1
+
+						; BX=(Number_of_FFs+2)/2
+
+						MOVZX	EDX,BX
+						SHL		EDX,20
+
+						POP		AX
+						POP		BX
+						IRET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT_2FH:
+						; Looks like Free386 uses only the following two functions of INT 2FH
+						CMP		AX,4310H
+						JE		MY_INT2FH_4310H
+						CMP		AX,4300H
+						JE		MY_INT2FH_4300H
+						JMP		FAR [CS:CASCADE_INT2F]
+
+MY_INT2FH_4300H:
+						MOV		AL,80H	; Pretend XMS Installed.
+						IRET
+
+MY_INT2FH_4310H:
+						MOV		BX,CS
+						MOV		ES,BX
+						MOV		BX,XMS_WANNABE_ENTRY
+						IRET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+XMS_WANNABE_ENTRY:
+						TSUGARU_DEBUG
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PAGE_DIRECTORY:			DD		4096 dup(0)
+
+END_OF_MINVCPI:			DB		"by CaptainYS.  FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
+

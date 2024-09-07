@@ -592,7 +592,9 @@ int main(int ac,char *av[])
 		"../resources/AUTOEXEC.BAT","AUTOEXEC","BAT",
 		"../resources/TGDRV.COM",   "TGDRV   ","COM",
 		"../resources/TEST.EXP",    "TEST    ","EXP",
+		"../src/MINVCPI.BIN",       "MINVCPI ","SYS",
 		"../externals/ORICON/ORICON.COM",   "ORICON  ","COM",
+		"../externals/Free386/free386.com", "FREE386 ","COM",
 		"","",""
 	};
 

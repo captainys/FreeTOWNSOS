@@ -27,6 +27,7 @@ def Run(argv):
 		"INTAFH",
 		"INTFDH",
 		"DOSLOAD",
+		"MINVCPI",
 	]
 
 	for src in srcs:
