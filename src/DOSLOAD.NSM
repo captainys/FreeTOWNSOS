@@ -160,19 +160,20 @@ COMMANDCOM_PARAM_SEG	DW		IOSYS_CS				; Command Tail SEG
 ; Preserves FS,BX  No guarantee for other regs
 ; Destroys DS,ES,SI,DI,DX for sure.
 PUSH_MCB:
-						MOV		ES,FS:[BX-2]
-						PUSH	ES
-						POP		DS
-						XOR		SI,SI
-						MOV		DI,AX
-						SHL		DI,4
-						MOVSD
-						MOVSD
-						MOVSD
-						MOVSD
-						SUB		DI,16
+						MOV		SI,FS:[BX-2]
+						MOV		DS,SI
+						ADD		SI,AX
+						MOV		ES,SI
 
-						SUB		ES:[DI+MCB_BLOCK_SIZE],AX
+						XOR		SI,SI
+						XOR		DI,DI
+						CLD
+						MOVSD
+						MOVSD
+						MOVSD
+						MOVSD
+
+						SUB		ES:[MCB_BLOCK_SIZE],AX
 						ADD		FS:[BX-2],AX
 
 						RET
@@ -235,9 +236,11 @@ CREATE_ADDITIONAL_SFT:
 						ADD		AX,SFT_HEADER_size+15
 						SHR		AX,4
 
+						PUSH	ES
 						PUSH	AX
 						CALL	PUSH_MCB
 						POP		AX
+						POP		ES
 
 						SHL		AX,4	; DX is the number of bytes aligned to the page border.
 
@@ -343,6 +346,13 @@ DO_CONFIG_SYS_NEXT:
 						JB		DO_CONFIG_SYS_LOOP
 
 DO_CONFIG_SYS_EXIT:
+						LFS		BX,CS:[SYSVARS_PTR]
+						MOV		AX,CS:[DEVICE_LOAD_POINT]
+						SUB		AX,FS:[BX-2]
+						; Input AX    = number of pages to push
+						;       FS:BX = DOS SYSVARS
+						CALL	PUSH_MCB
+
 						RET
 
 
@@ -358,14 +368,24 @@ DO_CONFIG_SHELL:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-DO_CONFIG_DEVICE:
-						TSUGARU_DEBUG
+CONFIG_INIT_REQ			DB		17H			; +00H Length
+						DB		0			; +01H Unit N/A for Init
+						DB		0			; +02H Command=00 Init
+CONFIG_INIT_STATUS		DW		0			; +03H Return Code
+						DB		8 dup(0)	; +05H Not used for Init
+CONFIG_INIT_UNITS		DB		0			; +0DH Number of units (Output)
+CONFIG_INIT_END_RES		DD		0			; +0EH End of resident code (Output)
+CONFIG_INIT_CMDLINE		DD		0			; +12H Command Line (Input) -> BPB array pointer (Output)
+CONFIG_INIT_FIRST_DRV	DB		0			; +16H First drive
+						DW		0			; +17H Looks like DOS 4.0 uses this byte, just in case.
 
+
+DO_CONFIG_DEVICE:
 						PUSH	DS
 						PUSH	SI
 
 						MOV		AX,CS
-						MOV		ES,AX
+						MOV		ES,AX	; ES=CS
 
 						CALL	CONFIG_SYS_SKIP_EQUAL
 						CMP		BYTE [SI-1],'='
@@ -377,17 +397,62 @@ DO_CONFIG_DEVICE:
 						MOV		DX,SI	; DS:DX points to the file name.
 
 						CALL	CONFIG_SYS_SKIP_UNTIL_SPACE_AND_TAB
-						MOV		BYTE [SI],0
+
+						XOR		CL,CL
+						XCHG	CL,[SI]		; Make file-name a C-String (Terminate by \0)
 
 						MOV		AX,4B03H ; LOAD Overlay
 						MOV		BX,DEVICE_LOAD_POINT	; Pointer to the device load point and relocation factor
-
 						INT		21H
 
+						XCHG	CL,[SI]		; Recover space
+
+						MOV		CS:[CONFIG_INIT_CMDLINE],SI
+						MOV		CS:[CONFIG_INIT_CMDLINE+2],DS
+
+						; FS points to the device driver.
+						MOV		FS,CS:[DEVICE_LOAD_POINT]
+						MOV		BX,FS:[SYSDEV_DEVFLAGS]
+						TEST	BX,8000H
+						JE		DO_CONFIG_DEVICE_EXIT	; Block Device not supported yet.
+
+						; ES is already CS
+						MOV		BX,CONFIG_INIT_REQ
+						CALL	CALL_STRATEGY_AND_INTERRUPT
+
+						CMP		WORD CS:[CONFIG_INIT_STATUS],0100h	; Status Code=Done
+						JNE		DO_CONFIG_DEVICE_EXIT
+
+
+						MOV		BX,WORD CS:[CONFIG_INIT_END_RES]
+						ADD		BX,15
+						SHR		BX,4
+						ADD		BX,WORD CS:[CONFIG_INIT_END_RES+2]
+						MOV		CS:[DEVICE_LOAD_POINT],BX
+						MOV		CS:[DEVICE_LOAD_POINT+2],BX
 
 DO_CONFIG_DEVICE_EXIT:
 						POP		SI
 						POP		DS
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input		FS   =Device Driver
+;			ES:BX=Request Header
+CALL_STRATEGY_AND_INTERRUPT:
+						PUSH	FS
+						PUSH	WORD FS:[6]
+
+						MOV		SI,SP
+						CALL	FAR [SS:SI]
+
+						ADD		SP,2
+						PUSH	WORD FS:[8]
+						CALL	FAR [SS:SI]
+
+						ADD		SP,4
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

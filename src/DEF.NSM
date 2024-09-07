@@ -11,6 +11,40 @@ SYSVARS_SFT				EQU		72h
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+
+; Must be part of SYSDEV struct, but may be different in DOS 3.x
+SYSDEV_DEVFLAG_CONS_IN						EQU		001h	; (Common with SF_DEVFLAGS)
+SYSDEV_DEVFLAG_CONS_OUT						EQU		002h	; If CHARDEV (Common with SF_DEVFLAGS)
+SYSDEV_DEVFLAG_32BIT						EQU		002h	; If BLOCKDEV DOS 3.31+
+SYSDEV_DEVFLAG_NUL							EQU		004h	; (Common with SF_DEVFLAGS)
+SYSDEV_DEVFLAG_CLOCK						EQU		008h	; (Common with SF_DEVFLAGS)
+SYSDEV_DEVFLAG_INT_29H_OUT					EQU		010h	; (Common with SF_DEVFLAGS)
+; bit5 unused 0020h
+SYSDEV_DEVFLAG_EXTFUNC_SUPPORTED			EQU		040h	; DOS 3.2+
+SYSDEV_DEVFLAG_IOCTL_QUERY_SUPPORTED		EQU		080h	; DOS 5.0+
+; bit8 unused 0100h
+; bit9 unused 0200h
+; bit10 unused 0400h
+SYSDEV_DEVFLAG_OPEN_CLOSE_SUPPORTED			EQU		0800h	; DOS 3.0+
+; bit 12 unused 1000h
+SYSDEV_DEVFLAG_OUT_UNTIL_BUSY_SUPPORTED		EQU		2000h	; If CHARDEV  DOS 3.0+ 
+SYSDEV_DEVFLAG_MEDIA_DESC_IN_FAT_REQUIRED	EQU		2000h	; IF BLOCKDEV
+SYSDEV_DEVFLAG_IOCTL_SUPPORTED				EQU		4000h
+SYSDEV_DEVFLAG_IS_CHARDEV					EQU		8000h	; IS_BLOCKDEV if 0.
+
+STRUC					SYSDEV
+SYSDEV_NEXT				DD      ?			;+00h
+SYSDEV_DEVFLAGS			DW      ?			;+04h
+SYSDEV_STRATEGY			DW      ?			;+06h
+SYSDEV_INTERRUPT		DW      ?			;+08h
+SYSDEV_NAME        		DB      8 DUP (?)	;+0Ah
+ENDSTRUC
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 BPB_POS_IN_IPL			EQU		000Bh
 
 STRUC					BIOS_PARAMETER_BLOCK
