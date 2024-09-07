@@ -1,2 +1,2 @@
-COMSPEC=A:\YAMAND.COM /P /E:80
-FILES=10
+comspec=A:\YAMAND.COM A:\ /P /E:80
+files=10

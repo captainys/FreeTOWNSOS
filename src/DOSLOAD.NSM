@@ -116,6 +116,7 @@ CLOSE_DEFAULT_FILE_LOOP:
 						MOV		AL,CS:[BOOT_DRIVE]
 						ADD		AL,'A'
 						MOV		CS:[DEFAULT_COMSPEC],AL
+						MOV		CS:[COMMANDCOM_PARAMETER+1],AL
 
 						MOV		CS:[COMMANDCOM_PARAM_SEG],CS
 
@@ -143,7 +144,7 @@ CLOSE_DEFAULT_FILE_LOOP:
 DEFAULT_CONDEV_NAME		DB		"CON",0
 DEFAULT_COMSPEC			DB		"A:\YAMAND.COM",0
 
-COMMANDCOM_PARAMETER	DB		" /P",0
+COMMANDCOM_PARAMETER	DB		" A:\ /P",0
 COMMANDCOM_PARAMBLOCK	DW		0	; ENVSEG to copy from
 						DW		COMMANDCOM_PARAMETER	; Command Tail OFFSET
 COMMANDCOM_PARAM_SEG	DW		IOSYS_CS				; Command Tail SEG
@@ -260,8 +261,15 @@ CREATE_ADDITIONAL_SFT:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-CONFIGSYS_FILENAME		DB		"A:\CONFIG.SYS"
+CONFIGSYS_FILENAME		DB		"A:\CONFIG.SYS",0
 CONFIGSYS_LENGTH		DW		0
+
+KEYWORD_COMSPEC			DB		"COMSPEC"
+KEYWORD_COMSPEC_LENGTH	EQU		7
+KEYWORD_DEVICE			DB		"DEVICE"
+KEYWORD_DEVICE_LENGTH	EQU		6
+KEYWORD_FILES			DB		"FILES"
+KEYWORD_FILES_LENGTH	EQU		5
 
 DO_CONFIG_SYS:
 						CALL	LOAD_CONFIG_SYS
@@ -270,9 +278,141 @@ DO_CONFIG_SYS:
 
 						TSUGARU_DEBUG
 
+						MOV		SI,CONFIGSYS_SEG
+						MOV		DS,SI
+						XOR		SI,SI
+
+						PUSH	CS
+						POP		ES
+DO_CONFIG_SYS_LOOP:
+						; DS:SI is the CONFIG.SYS pointer.
+						CALL	CONFIG_SYS_COUNT_LINE_LENGTH
+						; BX is the length of the line
+
+						PUSH	BX
+
+						MOV		BYTE [SI+BX],0	; Terminate the string.
+						OR		BX,BX
+						JE		DO_CONFIG_SYS_NEXT
+
+						CALL	CONFIGSYS_CAPITALIZE_BEFORE_EQUAL
+
+						PUSH	SI
+						MOV		DI,KEYWORD_COMSPEC
+						MOV		CX,KEYWORD_COMSPEC_LENGTH
+						REPE	CMPSB
+						POP		SI
+						JNE		DO_CONFIG_NOT_COMSPEC
+						CALL	DO_CONFIG_COMSPEC
+						JMP		DO_CONFIG_SYS_NEXT
+
+DO_CONFIG_NOT_COMSPEC:
+						PUSH	SI
+						MOV		DI,KEYWORD_DEVICE
+						MOV		CX,KEYWORD_DEVICE_LENGTH
+						REPE	CMPSB
+						POP		SI
+						JNE		DO_CONFIG_NOT_DEVICE
+						CALL	DO_CONFIG_DEVICE
+						JMP		DO_CONFIG_SYS_NEXT
+
+DO_CONFIG_NOT_DEVICE:
+						PUSH	SI
+						MOV		DI,KEYWORD_FILES
+						MOV		CX,KEYWORD_FILES_LENGTH
+						REPE	CMPSB
+						POP		SI
+						JNE		DO_CONFIG_NOT_FILES
+						CALL	DO_CONFIG_FILES
+						JMP		DO_CONFIG_SYS_NEXT
+
+DO_CONFIG_NOT_FILES:
+
+
+DO_CONFIG_SYS_NEXT:
+						POP		BX
+						LEA		SI,[SI+BX+1]
+						CMP		SI,CS:[CONFIGSYS_LENGTH]
+						JB		DO_CONFIG_SYS_LOOP
+
 DO_CONFIG_SYS_EXIT:
 						RET
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+DO_CONFIG_COMSPEC:
+						PUSH	DS
+						PUSH	SI
+
+						POP		SI
+						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+DO_CONFIG_DEVICE:
+						PUSH	DS
+						PUSH	SI
+
+						POP		SI
+						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+DO_CONFIG_FILES:
+						PUSH	DS
+						PUSH	SI
+
+						POP		SI
+						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input DS:SI=Pointer to the line
+; Output BX=Line Length
+CONFIG_SYS_COUNT_LINE_LENGTH:
+						XOR		BX,BX
+
+CONFIG_SYS_COUNT_LINE_LENGTH_LOOP:
+						MOV		AL,[SI+BX]
+						CMP		AL,0Dh
+						JE		CONFIG_SYS_COUNT_LINE_LENGTH_EXIT
+						CMP		AL,0Ah
+						JE		CONFIG_SYS_COUNT_LINE_LENGTH_EXIT
+						OR		AL,AL
+						JE		CONFIG_SYS_COUNT_LINE_LENGTH_EXIT
+						INC		BX
+						JMP		CONFIG_SYS_COUNT_LINE_LENGTH_LOOP
+
+CONFIG_SYS_COUNT_LINE_LENGTH_EXIT:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input  DS:SI=Pointer to the line,  BX=Line Length
+; CX destroyed.
+CONFIGSYS_CAPITALIZE_BEFORE_EQUAL:
+						MOV		CX,BX
+						XOR		BX,BX
+
+CONFIGSYS_CAPITALIZE_BEFORE_EQUAL_LOOP:
+						MOV		AL,DS:[SI+BX]
+						CMP		AL,'='
+						JE		CONFIGSYS_CAPITALIZE_BEFORE_EQUAL_EXIT
+
+						AND		AL,0DFh
+						MOV		DS:[SI+BX],AL
+
+						INC		BX
+						CMP		BX,CX
+						JB		CONFIGSYS_CAPITALIZE_BEFORE_EQUAL_LOOP
+
+CONFIGSYS_CAPITALIZE_BEFORE_EQUAL_EXIT:
+						MOV		BX,CX
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
