@@ -93,6 +93,8 @@ INT_67H_DE02H_LOOP:
 						MOVZX	EDX,BX
 						SHL		EDX,20
 
+						SUB		EDX,4096	; Apparently it needs to be the physical address of the last page.
+
 						POP		AX
 						POP		BX
 						IRET
