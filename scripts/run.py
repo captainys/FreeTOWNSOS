@@ -21,7 +21,7 @@ proc=subprocess.Popen([
 	os.path.join(THISDIR,"..","..","TOWNSEMU_TEST","DISKIMG","TBIOSV1.1L30.d77"),
 	"-DEBUG",
 	"-INITCMD","ENA FDCMON",
-	# "-INITCMD","BRKON INT 21 AX=4B03", # Stop at driver installation
+	"-INITCMD","BP 31A7:00002893", # Stop in free386.com before call init_dos_malloc
 	"-SHAREDDIR",os.path.join(THISDIR,"..","tgdrv"),
 	# "-POWEROFFAT","2B3D:100",
 	# "-UNITTEST",

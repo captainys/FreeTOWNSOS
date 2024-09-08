@@ -14,6 +14,12 @@
 						DW      INTERRUPT                   ; SYSDEV_INTERRUPT		
 						DB      "EMMXXXX0"                  ; SYSDEV_NAME        		
 
+
+XMS_MEMORY_START		EQU		0C0000H
+XMS_START_HIWORD		EQU		(XMS_MEMORY_START/010000H)
+XMS_START_LOWORD		EQU		(XMS_MEMORY_START&0FFFFH)
+
+
 REQ_HEADER				DD		0
 CASCADE_INT2F			DD		0
 
@@ -73,26 +79,11 @@ INT_67H_DE00H:
 INT_67H_DE02H:			; Return RAM capacity in bytes.
 						PUSH	BX
 						PUSH	AX
-						MOV		DX,3150H	; (RAMinMB-1) times FFs
-						XOR		BX,BX
 
-INT_67H_DE02H_LOOP:
-						INC		BX
-						IN		AL,DX
-						ADD		DX,2
-						CMP		AL,0FFh
-						JE		INT_67H_DE02H_LOOP
-
-						; BX=Number_of_FFs+1
-
-						INC		BX
-						SHR		BX,1
-
-						; BX=(Number_of_FFs+2)/2
-
-						MOVZX	EDX,BX
-						SHL		EDX,20
-
+						CALL	GET_MEMORY_CAPACITY
+						;Output  EDX=RAM size in bytes.
+						;        BX=Dextroyed
+						;        AX=Destroyed
 						SUB		EDX,4096	; Apparently it needs to be the physical address of the last page.
 
 						POP		AX
@@ -122,12 +113,91 @@ MY_INT2FH_4310H:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_WANNABE_ENTRY:
+						TEST	AH,AH
+						JE		XMS_GETVERSION
+						CMP		AH,0CH
+						JE		XMS_LOCK
+						CMP		AH,88h
+						JE		XMS_INQUIRE_AVAILABLE_MEMORY
+						CMP		AH,89h
+						JE		XMS_ALLOC_MEMORY
+
 						TSUGARU_DEBUG
+						RETF
+
+XMS_GETVERSION:
+						MOV		AH,3	; Pretend to be Version 3
+						RETF
+
+XMS_INQUIRE_AVAILABLE_MEMORY:
+						TSUGARU_DEBUG
+
+						PUSH	EBX
+
+						CALL	GET_MEMORY_CAPACITY
+						;Output  EDX=RAM size in bytes.
+						;        BX=Dextroyed
+						;        AX=Destroyed
+
+						; Nobody else is using upper memory.  Therefore, everything 0C0000h and above is available.
+
+						SUB		EDX,0C0000h
+						SHR		EDX,10	; Available continuous memory in KB
+						MOV		EAX,EDX	; Available memoroy in KB
+						XOR		ECX,ECX	; Free386 seems to excpet ECX to be zero.
+
+						POP		EBX
+						XOR		BL,BL
+
+						RETF
+
+XMS_ALLOC_MEMORY:
+						TSUGARU_DEBUG
+
+						; Free386 allocates all memory.  Sure.  I give it to Free386.  Nobody else is supposed to
+						; touch the upper memory.
+						MOV		AX,1	; Success
+						MOV		DX,1
+						RETF
+
+
+XMS_LOCK:
+						TSUGARU_DEBUG
+						; OK.  Everything is locked.  Locked from the beginning.
+						MOV		AX,1	; Success
+						MOV		DX,XMS_START_HIWORD
+						MOV		BX,XMS_START_LOWORD
 						RETF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-PAGE_DIRECTORY:			DD		4096 dup(0)
+;Output  EDX=RAM size in bytes.
+;        BX=Dextroyed
+;        AX=Destroyed
+GET_MEMORY_CAPACITY:
+						MOV		DX,3150H	; (RAMinMB-1) times FFs
+						XOR		BX,BX
+
+GET_MEMORY_CAPACITY_LOOP:
+						INC		BX
+						IN		AL,DX
+						ADD		DX,2
+						CMP		AL,0FFh
+						JE		GET_MEMORY_CAPACITY_LOOP
+
+						; BX=Number_of_FFs+1
+
+						INC		BX
+						SHR		BX,1
+
+						; BX=(Number_of_FFs+2)/2
+
+						MOVZX	EDX,BX
+						SHL		EDX,20
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 END_OF_MINVCPI:			DB		"by CaptainYS.  FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
 
