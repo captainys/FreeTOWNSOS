@@ -23,6 +23,18 @@ XMS_START_LOWORD		EQU		(XMS_MEMORY_START&0FFFFH)
 REQ_HEADER				DD		0
 CASCADE_INT2F			DD		0
 
+FROM_PM_CS_IP			DD		0
+FROM_PM_EFLAGS			DD		0
+FROM_PM_ESP				DD		0
+FROM_PM_SS				DW		0
+FROM_PM_ES				DW		0
+FROM_PM_DS				DW		0
+FROM_PM_FS				DW		0
+FROM_PM_GS				DW		0
+FROM_PM_EDX				DD		0
+
+HOMECOMING_CS_IP		DD		0
+
 STRATEGY:
 						MOV		CS:[REQ_HEADER],BX
 						MOV		CS:[REQ_HEADER+2],ES
@@ -170,6 +182,8 @@ INT_67H_DE01H_LOOP:		STOSD
 ; Jump to the protected mode.
 INT_67H_DE0CH:
 						TSUGARU_DEBUG
+						MOV		CS:[HOMECOMING_CS_IP+2],CS
+
 						MOV		EAX,ESI
 						SHR		EAX,4
 						MOV		DS,AX
@@ -308,7 +322,71 @@ GET_MEMORY_CAPACITY_LOOP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 PROTECTED_MODE_ENTRY:
-						JMP		PROTECTED_MODE_ENTRY
+						CMP		AX,0DE0CH
+						JE		PROTECTED_MODE_ENTRY_DE0CH
+						CLI
+						HLT
+
+
+
+PROTECTED_MODE_ENTRY_DE0CH:
+						TSUGARU_DEBUG
+
+						PUSH	CS
+						ADD		WORD SS:[ESP],8
+						POP		GS		; GS is same memory area as CS, but can R/W.
+
+						MOV		GS:[FROM_PM_EDX],EDX
+
+						ADD		ESP,8
+
+						POP		EDX
+						MOV		GS:[FROM_PM_CS_IP],DX
+						POP		EDX
+						MOV		GS:[FROM_PM_CS_IP+2],DX
+						POP		EDX	; Skip EFLAGS
+						POP		EDX
+						MOV		GS:[FROM_PM_ESP],EDX
+						POP		EDX
+						MOV		GS:[FROM_PM_SS],DX
+						POP		EDX
+						MOV		GS:[FROM_PM_ES],DX
+						POP		EDX
+						MOV		GS:[FROM_PM_DS],DX
+						POP		EDX
+						MOV		GS:[FROM_PM_FS],DX
+						POP		EDX
+						MOV		GS:[FROM_PM_GS],DX
+
+						CLI
+						PUSHFD
+						POP		EDX
+						MOV		GS:[FROM_PM_EFLAGS],EDX
+
+						MOV		WORD GS:[HOMECOMING_CS_IP],HOMECOMING_IP
+
+						MOV		EDX,CR0
+						AND		EDX,7FFFFFFEh	; Clear PM and PG
+						MOV		CR0,EDX
+
+						JMP		FAR WORD [GS:HOMECOMING_CS_IP]
+
+HOMECOMING_IP:			; OK, it resets CS.
+						MOV		DS,CS:[FROM_PM_DS]
+						MOV		ES,CS:[FROM_PM_ES]
+						MOV		FS,CS:[FROM_PM_FS]
+						MOV		GS,CS:[FROM_PM_GS]
+
+						MOV		EDX,CS:[FROM_PM_EDX]
+						MOV		SS,CS:[FROM_PM_SS]
+						MOV		ESP,CS:[FROM_PM_ESP]
+
+						PUSH	DWORD CS:[FROM_PM_EFLAGS]
+						POPFD
+
+						JMP		FAR [CS:FROM_PM_CS_IP]
+
+						HLT
 
 END_OF_MINVCPI:			DB		"by CaptainYS.  FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
 
