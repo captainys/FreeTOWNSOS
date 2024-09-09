@@ -582,7 +582,7 @@ INT93H_FD_DRIVE_CONTROL_IRQDIS:
 ;      AH=2 -> Wrong device
 INT93H_FD_CHECK_DISK_CHANGE:
 						; AL high 4-bits have already been checked.
-						MOV		CL,AL
+						MOV		CL,[BP+SAVED_EAX] ; AL already destroyed. Re-fetch it.
 						AND		CL,3
 
 						MOV		AL,1
