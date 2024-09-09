@@ -12,6 +12,7 @@ FDIMG=os.path.join(SRCDIR,"FDIMG.bin")
 proc=subprocess.Popen([
 	"Tsugaru_CUI",
 	ROMDIR,
+	"-HIGHFIDELITY",
 	"-USEFPU",
 	"-BOOTKEY",
 	"F0",
@@ -21,7 +22,7 @@ proc=subprocess.Popen([
 	os.path.join(THISDIR,"..","..","TOWNSEMU_TEST","DISKIMG","TBIOSV1.1L30.d77"),
 	"-DEBUG",
 	"-INITCMD","ENA FDCMON",
-	"-INITCMD","BP 31A7:00002893", # Stop in free386.com before call init_dos_malloc
+	# "-INITCMD","BP 31A7:00002893", # Stop in free386.com before call init_dos_malloc
 	"-SHAREDDIR",os.path.join(THISDIR,"..","tgdrv"),
 	# "-POWEROFFAT","2B3D:100",
 	# "-UNITTEST",
@@ -30,4 +31,5 @@ proc=subprocess.Popen([
 	"-initcmd","SAVESTATEAT B800:0 B8000000.tstate",
 	"-initcmd","SAVESTATEAT B800:262 B8000262.tstate",
 	"-initcmd","SAVESTATEAT B800:2CC B80002CC.tstate",
+
 ]+sys.argv[1:]).wait()

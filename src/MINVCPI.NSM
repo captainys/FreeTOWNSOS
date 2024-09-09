@@ -68,6 +68,12 @@ INT_67H:
 						JE		INT_67H_DE00H
 						CMP		AX,0DE02H
 						JE		INT_67H_DE02H
+						CMP		AX,0DE06H
+						JE		INT_67H_DE06H
+						CMP		AX,0DE01H
+						JE		INT_67H_DE01H
+						CMP		AX,0DE0CH
+						JE		INT_67H_DE0CH
 
 						TSUGARU_DEBUG
 						IRET
@@ -89,6 +95,108 @@ INT_67H_DE02H:			; Return RAM capacity in bytes.
 						POP		AX
 						POP		BX
 						IRET
+
+; Page to Physical Address of the First 1MB
+; Input CX=Page
+; Output EDX=Physical Address
+INT_67H_DE06H:
+						; I am not in the God Damn VM86 mode.  Just bit shift.
+						; I wish Intel guys had not come up with this VM86-mode ****shit.
+						MOVZX	EDX,CX
+						SHL		EDX,12
+						IRET
+
+
+; Initialize First Page Table, setup 3 GDT descriptors, and return the first unused page and Protected-Mode Entry Point.
+; Should I return the first uninitialized page?  Or, the page is used, but not allocated?
+; Input ES:DI=First Page Table
+;       DS:SI=GDT Pointer to the 3 descriptors
+; Output AH=0
+;        DI=Points to the first unused page table entry in the buffer.
+;        EBX=Protected Mode Entry Point.
+INT_67H_DE01H:
+						; I am not in the God Damn VM86 mode.  First 1MB maps exactly to the physical address.
+						; I wish Intel guys had not come up with this VM86-mode ****shit.
+
+						; DOS6.2 VCPI reserved 42Ch.  42Ch/4=267 entries.  267*4KB=1064KB.
+						; So, VCPI takes all RAM under 1064KB?  Can't the protected-mode apps use first 1064KB?
+
+						; OK.  So be it.  Take first 1064KB.
+						PUSH	EAX
+						PUSH	CX
+						MOV		CX,42Ch/4
+						MOV		EAX,0067H	; Dirty|Avail|U/S|R/W|Present
+
+INT_67H_DE01H_LOOP:		STOSD
+						ADD		EAX,1000h	; Increment 4K
+						LOOP	INT_67H_DE01H_LOOP
+
+						; Keep DI here.  DI return should be the pointer to the next page-table entry.
+
+						MOV		AX,CS
+						MOVZX	EAX,AX
+						SHL		EAX,4
+
+						; EAX is the linear base of this CS.
+						MOV		WORD [SI],0FFFFh
+						MOV		[SI+2],AX
+						ROL		EAX,16
+						MOV		[SI+4],AL
+						MOV		[SI+7],AH
+
+						MOV		WORD [SI+5],009AH	; Byte Granularity, 16-bit operand, A=1, Present=1, DPL=0, Type=1AH(SEGTYPE_CODE_NONCONFORMING_READABLE)
+
+						MOV		EAX,[SI]
+						MOV		[SI+8],EAX
+						MOV		EAX,[SI+4]
+						MOV		[SI+12],EAX
+
+						MOV		WORD [SI+8+5],0092H	; Same as CS, Type=12H(SEGTYPE_DATA_NORMAL_RW)
+
+						; I don't know what to do with the third selector.
+						XOR		EAX,EAX
+						MOV		[SI+16],EAX
+						MOV		[SI+20],EAX
+
+						POP		CX
+						POP		EAX
+
+						XOR		AH,AH
+						MOV		EBX,PROTECTED_MODE_ENTRY
+
+						IRET
+
+
+; Jump to the protected mode.
+INT_67H_DE0CH:
+						TSUGARU_DEBUG
+						MOV		EAX,ESI
+						SHR		EAX,4
+						MOV		DS,AX
+						AND		SI,0Fh
+
+						MOV		EAX,[SI]
+						MOV		CR3,EAX
+
+						MOV		EAX,[SI+4]
+						SHR		EAX,4
+						MOV		ES,AX
+						MOV		EAX,[SI+4]
+						AND		EAX,0Fh
+						LGDT	ES:[EAX]
+
+						MOV		EAX,[SI+8]
+						SHR		EAX,4
+						MOV		ES,AX
+						MOV		EAX,[SI+8]
+						AND		EAX,0Fh
+						LIDT	ES:[EAX]
+
+						LLDT	[SI+0CH]
+						LTR		[SI+0EH]
+
+						HLT
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -122,7 +230,6 @@ XMS_WANNABE_ENTRY:
 						CMP		AH,89h
 						JE		XMS_ALLOC_MEMORY
 
-						TSUGARU_DEBUG
 						RETF
 
 XMS_GETVERSION:
@@ -130,8 +237,6 @@ XMS_GETVERSION:
 						RETF
 
 XMS_INQUIRE_AVAILABLE_MEMORY:
-						TSUGARU_DEBUG
-
 						PUSH	EBX
 
 						CALL	GET_MEMORY_CAPACITY
@@ -152,8 +257,6 @@ XMS_INQUIRE_AVAILABLE_MEMORY:
 						RETF
 
 XMS_ALLOC_MEMORY:
-						TSUGARU_DEBUG
-
 						; Free386 allocates all memory.  Sure.  I give it to Free386.  Nobody else is supposed to
 						; touch the upper memory.
 						MOV		AX,1	; Success
@@ -162,7 +265,6 @@ XMS_ALLOC_MEMORY:
 
 
 XMS_LOCK:
-						TSUGARU_DEBUG
 						; OK.  Everything is locked.  Locked from the beginning.
 						MOV		AX,1	; Success
 						MOV		DX,XMS_START_HIWORD
@@ -198,6 +300,9 @@ GET_MEMORY_CAPACITY_LOOP:
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PROTECTED_MODE_ENTRY:
+						JMP		PROTECTED_MODE_ENTRY
 
 END_OF_MINVCPI:			DB		"by CaptainYS.  FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
 
