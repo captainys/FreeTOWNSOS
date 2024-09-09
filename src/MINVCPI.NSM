@@ -35,6 +35,9 @@ FROM_PM_EDX				DD		0
 
 HOMECOMING_CS_IP		DD		0
 
+SAVE_IO_404H			DB		0
+SAVE_IO_480H			DB		0
+
 STRATEGY:
 						MOV		CS:[REQ_HEADER],BX
 						MOV		CS:[REQ_HEADER+2],ES
@@ -91,6 +94,16 @@ INT_67H:
 						IRET
 
 INT_67H_DE00H:
+						PUSH	DS
+						PUSH	DX
+						MOV		DX,MINVCPI_LOGO
+						PUSH	CS
+						POP		DS
+						MOV		AH,9
+						INT		21H
+						POP		DX
+						POP		DS
+
 						XOR		AH,AH	; Pretend VCPI installed.
 						IRET
 
@@ -181,7 +194,8 @@ INT_67H_DE01H_LOOP:		STOSD
 
 ; Jump to the protected mode.
 INT_67H_DE0CH:
-						TSUGARU_DEBUG
+						CALL	SAVE_SYSROM_FMRVRAM_STATE_AND_UNMAP
+
 						MOV		CS:[HOMECOMING_CS_IP+2],CS
 
 						MOV		EAX,ESI
@@ -330,8 +344,6 @@ PROTECTED_MODE_ENTRY:
 
 
 PROTECTED_MODE_ENTRY_DE0CH:
-						TSUGARU_DEBUG
-
 						PUSH	CS
 						ADD		WORD SS:[ESP],8
 						POP		GS		; GS is same memory area as CS, but can R/W.
@@ -384,9 +396,56 @@ HOMECOMING_IP:			; OK, it resets CS.
 						PUSH	DWORD CS:[FROM_PM_EFLAGS]
 						POPFD
 
+						CALL	RESTORE_SYSROM_FMRVRAM
+
 						JMP		FAR [CS:FROM_PM_CS_IP]
 
 						HLT
 
-END_OF_MINVCPI:			DB		"by CaptainYS.  FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
+
+
+SAVE_SYSROM_FMRVRAM_STATE_AND_UNMAP:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,404H
+						IN		AL,DX
+						AND		AL,80H
+						MOV		CS:[SAVE_IO_404H],AL
+						MOV		AL,80h
+						OUT		DX,AL
+
+						MOV		DX,480H
+						IN		AL,DX
+						AND		AL,3
+						MOV		CS:[SAVE_IO_480H],AL
+						MOV		AL,3
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
+
+
+RESTORE_SYSROM_FMRVRAM:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,404H
+						MOV		AL,CS:[SAVE_IO_404H]
+						OUT		DX,AL
+
+						MOV		DX,480H
+						MOV		AL,CS:[SAVE_IO_480H]
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
+
+MINVCPI_LOGO:			DB		"VCPI/XMS Pretender Driver by CaptainYS (http://www.ysflight.com)",0Dh,0Ah,'$',0
+
+END_OF_MINVCPI:			DB		"FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
 
