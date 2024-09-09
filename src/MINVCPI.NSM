@@ -195,6 +195,12 @@ INT_67H_DE0CH:
 						LLDT	[SI+0CH]
 						LTR		[SI+0EH]
 
+						MOV		EAX,CR0
+						OR		EAX,80000001H
+						MOV		CR0,EAX
+
+						JMP		FAR DWORD [SI+10H]
+
 						HLT
 
 
