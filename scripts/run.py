@@ -14,6 +14,7 @@ proc=subprocess.Popen([
 	ROMDIR,
 	"-HIGHFIDELITY",
 	"-USEFPU",
+	"-MEMSIZE","8",
 	"-BOOTKEY",
 	"F0",
 	"-FD0",
@@ -27,9 +28,9 @@ proc=subprocess.Popen([
 	# "-POWEROFFAT","2B3D:100",
 	# "-UNITTEST",
 
-	"-initcmd","SAVESTATEAT 50:0 00500000.tstate",
-	"-initcmd","SAVESTATEAT B800:0 B8000000.tstate",
-	"-initcmd","SAVESTATEAT B800:262 B8000262.tstate",
-	"-initcmd","SAVESTATEAT B800:2CC B80002CC.tstate",
+	#"-initcmd","SAVESTATEAT 50:0 00500000.tstate",
+	#"-initcmd","SAVESTATEAT B800:0 B8000000.tstate",
+	#"-initcmd","SAVESTATEAT B800:262 B8000262.tstate",
+	#"-initcmd","SAVESTATEAT B800:2CC B80002CC.tstate",
 
 ]+sys.argv[1:]).wait()
