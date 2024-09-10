@@ -24,27 +24,136 @@ INT97H_EXIT:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+TICK_COUNT32			DD		0
+
+CLOCK_10MS:				DB		0
+CLOCK_SEC:				DB		0
+CLOCK_MIN:				DB		0
+CLOCK_HOUR:				DB		0
+CLOCK_DAY:				DB		1
+CLOCK_MONTH:			DB		1
+CLOCK_YEAR:				DW		0
+
+CLOCK_DAY_OF_WEEK		DB		0
+
+DAYS_OF_MONTH:			DB		31,28,31,30,31,30,31,31,30,31,30,31
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT40H_DATA_BLOCK:
 						DB		0,0
 						DW		INT40H_HANDLER
 						DW		0
 
 INT40H_HANDLER:
-						PUSH	AX
+						SAVE_WORLD
+
 
 						IN		AL,60H
+
+						PUSH	AX
+						TEST	AL,1
+						JE		INT40H_NOT_TM0OUT
+
+						; TM0OUT
+
+						INC		DWORD CS:[TICK_COUNT32]
+
+						; Update clock.
+
+						INC		BYTE CS:[CLOCK_10MS]
+						CMP		BYTE CS:[CLOCK_10MS],100
+						JB		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_10MS],0
+						INC		BYTE CS:[CLOCK_SEC]
+						CMP		BYTE CS:[CLOCK_SEC],60
+						JB		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_SEC],0
+						INC		BYTE CS:[CLOCK_MIN]
+						CMP		BYTE CS:[CLOCK_MIN],60
+						JB		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_SEC],0
+						INC		BYTE CS:[CLOCK_MIN]
+						CMP		BYTE CS:[CLOCK_MIN],60
+						JB		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_MIN],0
+						INC		BYTE CS:[CLOCK_HOUR]
+						CMP		BYTE CS:[CLOCK_HOUR],24
+						JB		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_HOUR],0
+						INC		BYTE CS:[CLOCK_DAY]
+						MOVZX	BX,BYTE CS:[CLOCK_MONTH]
+						DEC		BX
+						MOV		AL,CS:[DAYS_OF_MONTH+BX]
+						CMP		AL,BYTE CS:[CLOCK_DAY]
+						JAE		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_DAY],1
+						INC		BYTE CS:[CLOCK_MONTH]
+						CMP		BYTE CS:[CLOCK_MONTH],12
+						JBE		INT40H_CLOCK_DONE
+
+						MOV		BYTE CS:[CLOCK_MONTH],1
+						INC		BYTE CS:[CLOCK_YEAR]
+						CALL	LEAP_YEAR_ADJUSTMENT
+INT40H_CLOCK_DONE:
+
+
+INT40H_NOT_TM0OUT:
+						POP		AX
+						PUSH	AX
+						TEST	AL,2
+						JE		INT40H_NOT_TM1OUT
+
+						; TM1OUT  What am I supposed to do?
+
+INT40H_NOT_TM1OUT:
+						POP		AX
+
 						SHR		AL,2
 						OR		AL,81H
 
 						OUT		60H,AL
 
-						POP		AX
+						RESTORE_WORLD
 						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LEAP_YEAR_ADJUSTMENT:
+						MOV		BYTE CS:[DAYS_OF_MONTH+1],28
+
+						MOV		AX,CS:[CLOCK_YEAR]
+						XOR		DX,DX
+						MOV		BX,100
+						DIV		BX
+
+						OR		DX,DX
+						JE		NOT_LEAP_YEAR
+
+						AND		DX,3
+						JNE		NOT_LEAP_YEAR
+
+						; Is Leap Year.
+						INC		BYTE CS:[DAYS_OF_MONTH+1]
+
+NOT_LEAP_YEAR:
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT97H_INIT:
 						CLI
+
+
+						CALL	READ_RTC
+						; Output  EBX=HHMMSS, ECX=YYMMDDW
+						; EAX,EDX destroyed.
 
 						PUSH	CS
 						POP		DS
@@ -82,3 +191,85 @@ INT97H_INIT:
 						OUT		60H,AL
 
 						JMP		INT97H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Output  EBX=HHMMSS, ECX=YYMMDDW
+; EAX,EDX destroyed.
+READ_RTC:
+						; Wait for RTC Busy->Ready flip
+READ_RTC_WAIT_RTC_BUSY:
+						IN		AL,70H
+						TEST	AL,80H
+						JNE		READ_RTC_WAIT_RTC_BUSY
+READ_RTC_WAIT_RTC_READY:
+						IN		AL,70H
+						TEST	AL,80H
+						JE		READ_RTC_WAIT_RTC_BUSY
+
+						; I have 244us to read the RTC
+
+						XOR		EBX,EBX
+						XOR		ECX,ECX
+
+						MOV		DL,5
+
+READ_RTC_MIN_SEC_HOUR_LOOP:
+						MOV		AL,80H
+						OUT		IO_RTC_COMMAND,AL
+						MOV		AL,DL
+						OUT		IO_RTC_DATA,AL	  ; Reg=DL
+						MOV		AL,81H
+						OUT		IO_RTC_COMMAND,AL ; Address Latch
+						MOV		AL,80H
+						OUT		IO_RTC_COMMAND,AL
+
+						MOV		AL,84H
+						OUT		IO_RTC_COMMAND,AL	; Read
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+						IN		AL,IO_RTC_DATA
+
+						AND		EAX,0FH
+						SHL		EBX,4
+						OR		EBX,EAX
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+
+						DEC		DL
+						JGE		READ_RTC_MIN_SEC_HOUR_LOOP
+
+
+						MOV		DL,12
+READ_RTC_DATE_LOOP:
+						MOV		AL,80H
+						OUT		IO_RTC_COMMAND,AL
+						MOV		AL,DL
+						OUT		IO_RTC_DATA,AL	  ; Reg=DL
+						MOV		AL,81H
+						OUT		IO_RTC_COMMAND,AL ; Address Latch
+						MOV		AL,80H
+						OUT		IO_RTC_COMMAND,AL
+
+						MOV		AL,84H
+						OUT		IO_RTC_COMMAND,AL	; Read
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+						IN		AL,IO_RTC_DATA
+
+						AND		EAX,0FH
+						SHL		ECX,4
+						OR		ECX,EAX
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+
+						DEC		DL
+						CMP		DL,6
+						JGE		READ_RTC_DATE_LOOP
+
+						XOR		AL,AL
+						OUT		IO_RTC_COMMAND,AL
+
+						RET
