@@ -86,7 +86,7 @@ INT93H_INIT:
 						XOR		AH,AH
 						INT		0AEH
 
-						PUSH	EAX
+						PUSH	EAX	; Make buffer in STACK
 						MOV		DI,SS
 						MOV		DS,DI
 						MOV		DI,SP

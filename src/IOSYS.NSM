@@ -58,6 +58,8 @@ REALENTRY:
 						MOV		AH,BIOSCMD_COMMON_INIT
 						INT		93H
 
+						MOV		AH,BIOSCMD_COMMON_INIT
+						INT		97H
 
 						MOV		DS,CS:[SEG_DOSLOADER_SRC]
 						PUSH	DS	; Loading point in the stack.

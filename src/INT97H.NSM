@@ -4,11 +4,81 @@
 						BITS	16
 
 						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
 
 
 CODE					SEGMENT USE16
 
-INT96H:
+INT97H:
+						SAVE_WORLD
+
+						CMP		AH,BIOSCMD_COMMON_INIT
+						JE		INT97H_INIT
+
+INT97H_EXIT:
+						RESTORE_WORLD
 						CLC
 						IRET
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT40H_DATA_BLOCK:
+						DB		0,0
+						DW		INT40H_HANDLER
+						DW		0
+
+INT40H_HANDLER:
+						PUSH	AX
+
+						IN		AL,60H
+						SHR		AL,2
+						OR		AL,81H
+
+						OUT		60H,AL
+
+						POP		AX
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT97H_INIT:
+						CLI
+
+						PUSH	CS
+						POP		DS
+						MOV		[INT40H_DATA_BLOCK+4],CS
+						MOV		DI,INT40H_DATA_BLOCK
+						MOV		DL,0
+						XOR		AH,AH
+						INT		0AEH
+
+						PUSH	EAX	; Make buffer in STACK
+						MOV		DI,SS
+						MOV		DS,DI
+						MOV		DI,SP
+						MOV		AH,03H	; Get INT-Enabled Flags
+						INT		0AEH
+
+						MOV		EAX,DS:[DI]
+						OR		EAX,INTMANBIOS_INT00_FLAG
+						MOV		DS:[DI],EAX
+
+						MOV		AH,02H	; Set INT-Enabled Flags
+						INT		0AEH
+
+						POP		EAX
+
+						; 10ms interval timer.
+						MOV		AL,36H
+						OUT		0046H,AL
+						MOV		AL,00H
+						OUT		0040H,AL
+						MOV		AL,0CH
+						OUT		0040H,AL
+
+						MOV		AL,81H
+						OUT		60H,AL
+
+						JMP		INT97H_EXIT
