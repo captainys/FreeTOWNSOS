@@ -14,7 +14,7 @@ proc=subprocess.Popen([
 	ROMDIR,
 	"-HIGHFIDELITY",
 	"-USEFPU",
-	"-MEMSIZE","8",
+	"-MEMSIZE","16",
 	"-BOOTKEY",
 	"F0",
 	"-FD0",
