@@ -82,6 +82,8 @@ CONDEV_READ_LOOP:
 						SHL		DH,6
 						AND		DH,80H
 
+						; ES:BX no longer points to the request header.
+
 						AND		DL,7FH
 						OR		DL,DH
 
@@ -116,6 +118,8 @@ CONDEV_NON_DESTRUCTIVE_READ:
 						SHL		DH,6
 						AND		DH,80H	; Shift
 
+						; ES:BX no longer points to the request header.
+
 						AND		DL,7FH
 						OR		DL,DH
 
@@ -125,6 +129,7 @@ CONDEV_NON_DESTRUCTIVE_READ:
 
 						JE		CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT
 
+						LES		BX,CS:[CONDEV_REQHDR_PTR]	; BX may be destroyed.
 						MOV		ES:[BX+0DH],DH
 						JMP		CONDEV_INTERRUPT_RETURN
 

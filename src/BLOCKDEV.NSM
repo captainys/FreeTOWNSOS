@@ -147,6 +147,9 @@ BLKDEV_MEDIA_CHECK_INTERNAL_FD:
 						MOV		BH,1	; Clear disk-change flag (if drive ready)
 						INT		93H
 
+						; ES:BX no longer points to the request header.
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]	; Re-fetch the pointer.
+
 						; Tentatively mark as no change
 						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_UNCHANGED
 						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this???
@@ -221,6 +224,8 @@ BLKDEV_READ_INTERNAL_FD:
 
 						MOV		DX,BX	; DH is number of heads, DL is sectPerTrack
 
+						; ES:BX no longer points to the request header.
+
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]	; ES:BX is request header again.
 
 						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
@@ -288,7 +293,8 @@ BLKDEV_BUILD_BPB_INTERNAL_FD:
 						MOV		BX,1	; Do BX last.  May need ES:BX for other parameters.
 						INT		93H
 
-						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						; ES:BX no longer points to the request header.
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]	; Re-fetch the pointer.
 
 						ADD		DI,BPB_POS_IN_IPL
 						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN],DI
@@ -305,7 +311,8 @@ BLKDEV_BUILD_BPB_INTERNAL_FD:
 ;						MOV		BX,1	; Do BX last.  May need ES:BX for other parameters.
 ;						INT		93H
 ;
-;						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+;						; ES:BX no longer points to the request header.
+;						LES		BX,CS:[BLKDEV_REQHDR_PTR]	; Re-fetch the pointer.
 ;
 ;						ADD		DI,BPB_POS_IN_IPL
 ;						MOV		ES:[BX+REQ_BUILDBPB_PTR_RETURN],DI
