@@ -20,6 +20,10 @@ INT97H:
 						CMP		AH,TIMERBIOS_CMD_077H_YS_GET_CLOCK
 						JE		INT97H_YS_GET_CLOCK
 
+
+						TSUGARU_DEBUG	; If not implemented yet, break.
+
+
 INT97H_EXIT:
 						RESTORE_WORLD
 						CLC
