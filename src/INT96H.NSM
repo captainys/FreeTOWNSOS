@@ -40,19 +40,19 @@ INT96H_READ_CLOCK:
 						; EBX  YYYYMMDD
 						; CL   DayOfWeek
 
-						MOV		BYTE DS:[DI+9],0
-						MOV		DS:[DI+8],AL ; 1/100 sec
-						MOV		DS:[DI+7],AH ; sec
+						MOV		BYTE [DI+9],0
+						MOV		[DI+8],AL ; 1/100 sec
+						MOV		[DI+7],AH ; sec
 						SHR		EAX,16
-						MOV		DS:[DI+6],AL ; min
-						MOV		DS:[DI+5],AH ; hour
+						MOV		[DI+6],AL ; min
+						MOV		[DI+5],AH ; hour
 
-						MOV		DS:[DI+4],CL ; Day of week
-						MOV		DS:[DI+3],BL ; Day
-						MOV		DS:[DI+2],BH ; Month
+						MOV		[DI+4],CL ; Day of week
+						MOV		[DI+3],BL ; Day
+						MOV		[DI+2],BH ; Month
 						SHR		EBX,16
 						ADD		BX,1900
-						MOV		DS:[DI],BX
+						MOV		[DI],BX
 
 						MOV		BYTE [BP+SAVED_EAX+1],0
 

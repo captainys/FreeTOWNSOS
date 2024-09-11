@@ -31,6 +31,8 @@ CLKDEV_INTERRUPT_RETURN:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+DAYS_OF_MONTH:			DB		31,28,31,30,31,30,31,31,30,31,30,31
+
 CLOCKDEV_READ:
 						PUSH	CS
 						POP		DS
@@ -38,6 +40,7 @@ CLOCKDEV_READ:
 						MOV		AH,1
 						INT		96H
 
+						LES		BX,CS:[CLKDEV_REQHDR_PTR]
 						MOV		DS,ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
 						MOV		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
 
@@ -50,8 +53,86 @@ CLOCKDEV_READ:
 						MOV		AL,CS:[CLKDEV_READ_CALENDAR_BUFFER+5] ; Hours
 						MOV		[DI+3],AL
 
-						; How can I compute days since January 1 1980?
-						XOR		AX,AX
-						MOV		[DI],AX
+						; Days since January 1 1980?
+						MOV		AX,CS:[CLKDEV_READ_CALENDAR_BUFFER]
+						SUB		AX,1980
+						MOVZX	EAX,AX
+						MOV		EDX,365
+						MUL		EDX
+
+						MOV		ECX,EAX
+
+						; Now how many leap years?
+						MOV		AX,CS:[CLKDEV_READ_CALENDAR_BUFFER]
+						SUB		AX,1977
+						MOVZX	EAX,AX
+						SHR		EAX,2	; This many year 4*N has passed.
+
+						ADD		ECX,EAX
+
+						MOV		AX,CS:[CLKDEV_READ_CALENDAR_BUFFER]
+						SUB		AX,1901
+						MOVZX	EAX,AX
+						CWD
+						MOV		EBX,100
+						DIV		EBX		; But, if 100*N, not a leap year.
+
+						SUB		ECX,EAX
+
+						MOV		AX,CS:[CLKDEV_READ_CALENDAR_BUFFER]
+						SUB		AX,1601
+						MOVZX	EAX,AX
+						CWD
+						MOV		EBX,400
+						DIV		EBX		; Well, if 400*N, is a leap year.
+
+						ADD		ECX,EAX
+
+
+						MOV		SI,DAYS_OF_MONTH
+						MOV		BL,CS:[CLKDEV_READ_CALENDAR_BUFFER+2]
+
+						; Then add days of month.
+CLOCKDEV_READ_COUNT_MONTH_LOOP:
+						DEC		BL
+						JE		CLOCKDEV_READ_COUNT_MONTH_DONE
+						MOVZX	EAX,BYTE CS:[SI]
+						INC		SI
+						ADD		ECX,EAX
+						JMP		CLOCKDEV_READ_COUNT_MONTH_LOOP
+CLOCKDEV_READ_COUNT_MONTH_DONE:
+
+
+						MOVZX	EAX,BYTE CS:[CLKDEV_READ_CALENDAR_BUFFER+3]
+						DEC		EAX
+						ADD		ECX,EAX
+
+						MOV		AL,CS:[CLKDEV_READ_CALENDAR_BUFFER+2]
+						CMP		AL,2
+						JLE		CLOCKDEV_READ_FINISH
+
+						; Is this a leap year?
+						MOV		AX,CS:[CLKDEV_READ_CALENDAR_BUFFER]
+						TEST	AX,3
+						JNE		CLOCKDEV_READ_FINISH	; If not 4*N, then not a leap year.
+
+						MOV		AX,CS:[CLKDEV_READ_CALENDAR_BUFFER]
+						CWD
+						MOV		BX,400
+						DIV		BX
+						CMP		DX,100					; If 100*N, then not a leap year. but 400*N is a leap year
+						JE		CLOCKDEV_READ_FINISH
+						CMP		DX,200					; If 100*N, then not a leap year. but 400*N is a leap year
+						JE		CLOCKDEV_READ_FINISH
+						CMP		DX,300					; If 100*N, then not a leap year. but 400*N is a leap year
+						JE		CLOCKDEV_READ_FINISH
+
+						INC		ECX
+
+CLOCKDEV_READ_FINISH:
+						LES		BX,CS:[CLKDEV_REQHDR_PTR]
+						MOV		DS,ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOV		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						MOV		[DI],CX
 
 						JMP		CLKDEV_INTERRUPT_RETURN
