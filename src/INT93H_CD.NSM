@@ -3,13 +3,21 @@ CD_EMULATION_SCSI		DB		0
 CD_EMULATION_SCSI_ID	DB		0
 
 
+CDC_PARAM				DB		0,0,0,0,0,0,0,0
+CDC_STATUS				DB		0,0,0,0
+CDC_READ_POINTER_PHYS	DD		0
+
+INT49H_CD_INT_HANDLER:
+						RETF
+
+
 
 INT93H_CD:
 						MOV		BYTE CS:[ERROR_CODE],02H	; Tentative Wrong Device ID
 						MOV		WORD CS:[ERROR_DETAIL],0FFFFh
 						MOV		AX,[BP+SAVED_EAX]
 
-						CMP		AH,0C0H
+						CMP		AL,0C0H
 						JNE		INT93H_EXIT	; Device ID error
 
 						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
@@ -60,8 +68,8 @@ INT93H_CD_JUMP_TO_FUNCTION:
 
 
 INT93H_CD_JUMPTABLE:
-						DW		INT93H_CD_00H_SET_DRVMODE
-						DW		INT93H_CD_01H_GET_DRVMODE
+						DW		INT93H_CD_00H_SET_DRVMODE	; Do nothing
+						DW		INT93H_CD_01H_GET_DRVMODE	; Do nothing
 						DW		INT93H_CD_02H_GET_DRVSTATUS
 						DW		INT93H_CD_03H_RESTORE
 						DW		INT93H_CD_04H_SEEK_LBA
@@ -82,8 +90,8 @@ INT93H_CD_JUMPTABLE_CDDA:
 
 
 INT93H_CD_EMU_JUMPTABLE:
-						DW		INT93H_CD_EMU_00H_SET_DRVMODE
-						DW		INT93H_CD_EMU_01H_GET_DRVMODE
+						DW		INT93H_CD_00H_SET_DRVMODE	; Do nothing
+						DW		INT93H_CD_01H_GET_DRVMODE	; Do nothing
 						DW		INT93H_CD_EMU_02H_GET_DRVSTATUS
 						DW		INT93H_CD_EMU_03H_RESTORE
 						DW		INT93H_CD_EMU_04H_SEEK_LBA
@@ -102,127 +110,492 @@ INT93H_CD_EMU_JUMPTABLE_CDDA:
 						DW		INT93H_CD_EMU_56H_CDDA_RESUME
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input EAX Error code.
+INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT:
+						CMP		AH,09H
+						JE		INT93H_CD_CDC_DRIVE_NOT_READY
+						CMP		AH,08H
+						JE		INT93H_CD_CDC_MEDIA_CHANGED
+
+						; Unknown error
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		WORD CS:[ERROR_DETAIL],0
+						JMP		INT93H_EXIT
+
+INT93H_CD_CDC_DRIVE_NOT_READY:
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		WORD CS:[ERROR_DETAIL],1
+						JMP		INT93H_EXIT
+
+INT93H_CD_CDC_MEDIA_CHANGED:
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		WORD CS:[ERROR_DETAIL],1
+						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_00H_SET_DRVMODE:
-						TSUGARU_DEBUG
+						MOV		BYTE CS:[ERROR_CODE],0
+						; I tried different drive mode on real MX, but it did nothing.
+						; I hoped to be able to read CDDA sectors, but I was too optimistic.
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_01H_GET_DRVMODE:
+						MOV		BYTE CS:[ERROR_CODE],0
+						MOV		BYTE [BP+SAVED_EDX],04H	; 2048-bytes per sector.
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_02H_GET_DRVSTATUS: ; It says Drive Status, but is rather Disc status.
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
-INT93H_CD_02H_GET_DRVSTATUS:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_03H_RESTORE:
-						TSUGARU_DEBUG
+						MOV		BYTE CS:[ERROR_CODE],0	; In fact, it does not have to do anything.
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_04H_SEEK_LBA:
-						TSUGARU_DEBUG
+						MOV		BYTE CS:[ERROR_CODE],0	; In fact, it does not have to do anything.
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_05H_READ_LBA:
+						MOVZX	CX,CL
+						SHL		ECX,16
+						MOV		CX,DX	; ECX is LBA
+
+						; But, in TOWNS, the first sector needs to be 00:02:00, add 150 (75 frames times 2) for 2 seconds.
+
+						ADD		ECX,150	; ECX is the first sector.
+						MOVZX	EBX,BX
+						ADD		EBX,ECX
+						DEC		EBX		; EBX is the last sector.
+
+						MOV		EDX,EBX
+						SHR		EDX,16
+						MOV		AX,BX	; DX:AX is the last sector
+						CALL	HSG2MSF
+						MOV		CS:[CDC_PARAM+3],DL
+						MOV		CS:[CDC_PARAM+4],AH
+						MOV		CS:[CDC_PARAM+5],AL
+
+						MOV		EDX,ECX
+						SHR		EDX,16
+						MOV		AX,CX	; DX:AX is the first sector
+						CALL	HSG2MSF
+						PUSH	DX
+						PUSH	AX
+						MOV		CS:[CDC_PARAM  ],DL
+						MOV		CS:[CDC_PARAM+1],AH
+						MOV		CS:[CDC_PARAM+2],AL
+
+						MOV		WORD CS:[CDC_PARAM+6],0
+
+						; Tentative
+						MOV		CS:[CDC_READ_POINTER_PHYS],DI
+						MOV		CS:[CDC_READ_POINTER_PHYS+2],SI
+
+						MOV		CH,[BP+SAVED_ECX+1]
+						CMP		CH,0FFH
+						JE		INT93H_CD_REALLY_READ
+
+						MOVZX	ESI,WORD [BP+SAVED_DS]
+						SHL		ESI,4
+						MOVZX	EDI,WORD [BP+SAVED_EDI]
+						ADD		ESI,EDI
+
+						MOV		CS:[CDC_READ_POINTER_PHYS],ESI
+
+
+
+; 14H will also jump here.
+INT93H_CD_REALLY_READ:
+						CLI
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+						CALL	CDC_PUSH_PARAMETERS
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_RAWREAD+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+
+
+INT93H_CD_READ_LOOP:
+						CALL	CDC_GET_STATUS
+						CMP		AL,06H	; Read Done
+						JE		INT93H_CD_READ_READ_DONE
+						CMP		AL,21H ; Error
+						JE		INT93H_CD_READ_ERROR
+						CMP		AL,22H ; Data Ready
+						JNE		INT93H_CD_READ_LOOP
+
+						; Data Ready
+						CALL	CDC_SETUP_DMA_FOR_ONE_SECTOR
+
+						MOV		DX,IO_CDC_TFR_CONTROL
+						MOV		AL,010H	; DMA Transfer
+						OUT		DX,AL
+
+						CALL	CDC_WAIT_DMAE
+
+						ADD		DWORD CS:[CDC_READ_POINTER_PHYS],0800H
+
+						IN		AL,IO_DMA_MASK	; Mask DMA
+						AND		AL,0FH
+						OR		AL,08H
+						OUT		IO_DMA_MASK,AL
+
+						JMP		INT93H_CD_READ_LOOP
+
+INT93H_CD_READ_READ_DONE:
+
+						MOV		DX,IO_CDC_TFR_CONTROL	; Just in case.  Apparently DTS flag is cleared from the CDC.
+						XOR		AL,AL
+						OUT		DX,AL
+
+						; Mask DMA
+						IN		AL,IO_DMA_MASK
+						AND		AL,0FH
+						OR		AL,08H
+						OUT		IO_DMA_MASK,AL
+
+						; Clear DMA_ADDR_HIGH Just in case
+						XOR		AL,AL
+						OUT		IO_DMA_ADDR_HIGH,AL
+
+						XOR		EAX,EAX
+
+						MOV		BYTE CS:[ERROR_CODE],0
+
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+INT93H_CD_READ_ERROR:
+						JMP		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_14H_SEEK_MSF:
-						TSUGARU_DEBUG
+						MOV		BYTE CS:[ERROR_CODE],0	; In fact, it does not have to do anything.
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_15H_READ_MSF:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_50H_CDDA_PLAY:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_51H_CDDA_GET_INFO:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_52H_CDDA_STOP:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_53H_CDDA_GET_STATUS:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_54H_CDDA_GET_CDINFO:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_55H_CDDA_PAUSE:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_56H_CDDA_RESUME:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-INT93H_CD_EMU_00H_SET_DRVMODE:
+; Wait until CDC is ready.
+; Destroys AL and DX
+CDC_WAIT_READY:
+						MOV		DX,IO_CDC_MASTER_STATUS
+						IN		AL,DX
+						AND		AL,1
+						JE		CDC_WAIT_READY
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Push parameters to CDC
+CDC_PUSH_PARAMETERS:
+						MOV		DX,IO_CDC_PARAM
+						MOV		AL,CS:[CDC_PARAM]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+1]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+2]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+3]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+4]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+5]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+6]
+						OUT		DX,AL
+						MOV		AL,CS:[CDC_PARAM+7]
+						OUT		DX,AL
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CDC_GET_STATUS:
+						MOV		DX,IO_CDC_MASTER_STATUS
+						IN		AL,DX
+						AND		AL,02H
+						JE		CDC_GET_STATUS_NO_STATUS
+
+						MOV		DX,IO_CDC_STATUS
+						IN		AL,DX
+						ROR		EAX,8
+						IN		AL,DX
+						ROR		EAX,8
+						IN		AL,DX
+						ROR		EAX,8
+						IN		AL,DX
+						ROR		EAX,8
+
+						RET
+
+CDC_GET_STATUS_NO_STATUS:
+						XOR		EAX,EAX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CDC_SETUP_DMA_FOR_ONE_SECTOR:
+						; Set up DMA
+
+						MOV		AL,3	; Reset SCSI Controller
+						OUT		IO_DMA_INITIALIZE,AL
+						MOV		AL,3	; Channel 3 CD-ROM
+						OUT		IO_DMA_CHANNEL,AL
+						MOV		AL,20H	; DMA enable
+						OUT		IO_DMA_DEVICE_CTRL_LOW,AL
+
+						MOV		AL,44H	; Device to Mem
+						OUT		IO_DMA_MODE_CONTROL,AL
+
+						MOV		EAX,CS:[CDC_READ_POINTER_PHYS]
+						OUT		IO_DMA_ADDR_LOW,AX
+						SHR		EAX,16
+						OUT		IO_DMA_ADDR_MID_HIGH,AL
+						MOV		AL,AH
+						OUT		IO_DMA_ADDR_HIGH,AL
+
+						MOV		AX,0800H	; Up to 2KB for one sector
+						OUT		IO_DMA_COUNT_LOW,AX
+
+						; Unmask DMA
+						IN		AL,IO_DMA_MASK
+						AND		AL,07H
+						OUT		IO_DMA_MASK,AL
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CDC_WAIT_DMAE:
+						MOV		DX,IO_CDC_MASTER_STATUS
+						IN		AL,DX
+						AND		AL,40H
+						JE		CDC_WAIT_DMAE
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_02H_GET_DRVSTATUS: ; It says Drive Status, but is rather Disc status.
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
-INT93H_CD_EMU_01H_GET_DRVMODE:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
-
-INT93H_CD_EMU_02H_GET_DRVSTATUS:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_03H_RESTORE:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_EMU_04H_SEEK_LBA:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_05H_READ_LBA:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_EMU_14H_SEEK_MSF:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_15H_READ_MSF:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_EMU_50H_CDDA_PLAY:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_51H_CDDA_GET_INFO:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_EMU_52H_CDDA_STOP:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_53H_CDDA_GET_STATUS:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_EMU_54H_CDDA_GET_CDINFO:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_55H_CDDA_PAUSE:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 INT93H_CD_EMU_56H_CDDA_RESUME:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; HSG=60*MIN+75*SEC+FRM  ->  60 seconds/min,   75 frames/sec   -> 60*75 frames/min
+; Input:
+;	DX:AX	HSG
+; Output:
+;	DL		MIN
+;	AH		SEC
+;	AL		FRM
+HSG2MSF:
+						PUSH	CX
+
+						MOV		CX,60*75
+						DIV		CX
+						; AX minutes, DX sub-minute
+
+						XOR		AH,AH
+						PUSH	AX		; MIN in stack
+
+						MOV		AX,DX
+						XOR		DX,DX
+						MOV		CX,75
+						DIV		CX
+						; AL seconds, DL frames
+
+						MOV		AH,AL
+						MOV		AL,DL
+
+						POP		DX
+						POP		CX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; HSG=60*MIN+75*SEC+FRM  ->  60 seconds/min,   75 frames/sec   -> 60*75 frames/min
+; Input:
+;	DL		MIN
+;	AH		SEC
+;	AL		FRM
+; Output:
+;	DH		0
+;	DL		High-byte of HSG
+;	AH		Mid-byte of HSG
+;	AL		Low-byte of HSG
+
+MSF2HSG:
+						PUSH	CX
+						PUSH	BX
+
+						XOR		DH,DH
+						; DX=MIN
+						PUSH	DX
+
+						MOV		CL,AL
+						XOR		CH,CH
+						; CX=FRM
+
+						MOV		AL,AH
+						XOR		AH,AH
+						; AX=SEC
+
+						MOV		BX,75
+						MUL		BX
+						; AX=SEC*75
+
+						ADD		CX,AX
+						; CX=SEC*75+FRM
+
+						POP		DX
+						; DX=MIN
+						MOV		AX,60*75
+						MUL		DX
+
+						ADD		AX,CX
+						ADC		DX,0
+
+						POP		BX
+						POP		CX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

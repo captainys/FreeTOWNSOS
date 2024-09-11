@@ -1,0 +1,33 @@
+							ORG		100H
+							BITS	16
+
+
+
+START:
+							MOV		AL,02H   ; TOWNS_VMIF_CMD_PAUSE
+							MOV		DX,2386H ; TOWNSIO_VM_HOST_IF_CMD_STATUS
+							OUT		DX,AL
+
+							PUSH	CS
+							POP		SS
+							MOV		SP,STACKPTR
+
+							MOV		AX,05C0H
+							MOV		CX,0000H
+							MOV		DX,0000H
+							MOV		BX,2
+							PUSH	CS
+							POP		DS
+							MOV		DI,DATABUF
+							INT		93H
+
+							MOV		AL,02H   ; TOWNS_VMIF_CMD_PAUSE
+							MOV		DX,2386H ; TOWNSIO_VM_HOST_IF_CMD_STATUS
+							OUT		DX,AL
+
+							MOV		AX,4C00H
+							INT		21H
+
+							DB		256 dup(0)
+STACKPTR:
+DATABUF:					DB		16384 dup (0FFh)
