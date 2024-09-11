@@ -1,0 +1,18 @@
+; Input AL in BCD
+; Output AL in binary
+BCD2BIN_AL:
+						PUSH	BX
+
+						MOV		BL,AL
+						AND		BL,0FH
+
+						SHR		AL,4
+						MOV		BH,AL
+						SHL		AL,3	; times 8
+						SHL		BH,1	; times 2
+
+						ADD		AL,BH
+						ADD		AL,BL
+
+						POP		BX
+						RET

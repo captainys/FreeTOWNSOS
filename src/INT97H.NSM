@@ -13,9 +13,12 @@ CODE					SEGMENT USE16
 
 INT97H:
 						SAVE_WORLD
+						MOV		BP,SP
 
 						CMP		AH,BIOSCMD_COMMON_INIT
 						JE		INT97H_INIT
+						CMP		AH,TIMERBIOS_CMD_077H_YS_GET_CLOCK
+						JE		INT97H_YS_GET_CLOCK
 
 INT97H_EXIT:
 						RESTORE_WORLD
@@ -86,6 +89,13 @@ INT40H_HANDLER:
 						JB		INT40H_CLOCK_DONE
 
 						MOV		BYTE CS:[CLOCK_HOUR],0
+
+						INC		BYTE CS:[CLOCK_DAY_OF_WEEK]
+						CMP		BYTE CS:[CLOCK_DAY_OF_WEEK],6
+						JBE		DAY_OF_WEEK_DONE
+						MOV		BYTE CS:[CLOCK_DAY_OF_WEEK],0
+DAY_OF_WEEK_DONE:
+
 						INC		BYTE CS:[CLOCK_DAY]
 						MOVZX	BX,BYTE CS:[CLOCK_MONTH]
 						DEC		BX
@@ -155,6 +165,46 @@ INT97H_INIT:
 						; Output  EBX=HHMMSS, ECX=YYMMDDW
 						; EAX,EDX destroyed.
 
+						MOV		AL,BL	; SEC in BCD
+						CALL	BCD2BIN_AL
+						MOV		CS:[CLOCK_SEC],AL
+
+						MOV		AL,BH	; MIN in BCD
+						CALL	BCD2BIN_AL
+						MOV		CS:[CLOCK_MIN],AL
+
+						SHR		EBX,16
+						MOV		AL,BL
+						AND		AL,3FH
+						CALL	BCD2BIN_AL
+						MOV		CS:[CLOCK_HOUR],AL
+
+
+						MOV		AL,CL
+						AND		AL,0FH
+						MOV		CS:[CLOCK_DAY_OF_WEEK],AL
+
+						SHR		ECX,4
+						MOV		AL,CL
+						CALL	BCD2BIN_AL
+						MOV		CS:[CLOCK_DAY],AL
+
+						MOV		AL,CH
+						CALL	BCD2BIN_AL
+						MOV		CS:[CLOCK_MONTH],AL
+
+						SHR		ECX,16
+						MOV		AL,CL
+						SHR		AL,4
+						MOV		AH,10
+						MUL		AH
+
+						AND		CL,0FH
+						MOVZX	CX,CL
+						ADD		AX,CX
+						MOV		CS:[CLOCK_YEAR],AX
+
+
 						PUSH	CS
 						POP		DS
 						MOV		[INT40H_DATA_BLOCK+4],CS
@@ -190,6 +240,17 @@ INT97H_INIT:
 						MOV		AL,81H
 						OUT		60H,AL
 
+						JMP		INT97H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT97H_YS_GET_CLOCK:
+						MOV		EAX,CS:[CLOCK_10MS]
+						MOV		[BP+SAVED_EAX],EAX
+						MOV		EAX,CS:[CLOCK_DAY]
+						MOV		[BP+SAVED_EBX],EAX
+						MOV		CL,CS:[CLOCK_DAY_OF_WEEK]
+						MOV		[BP+SAVED_ECX],CL
 						JMP		INT97H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -273,3 +334,7 @@ READ_RTC_DATE_LOOP:
 						OUT		IO_RTC_COMMAND,AL
 
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+						%INCLUDE "LIB.NSM"

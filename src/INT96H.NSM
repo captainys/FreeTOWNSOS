@@ -4,11 +4,57 @@
 						BITS	16
 
 						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
 
 
 CODE					SEGMENT USE16
 
 INT96H:
+						SAVE_WORLD
+						MOV		BP,SP
+
+						MOV		BYTE [BP+SAVED_EAX+1],0	; Return AH
+
+						CMP		AH,BIOSCMD_COMMON_INIT
+						JE		INT96H_EXIT
+						CMP		AH,CALENDARBIOS_CMD_00H_WRITE_CLOCK
+						JE		INT96H_EXIT	; Not supported. Ignore
+						CMP		AH,CALENDARBIOS_CMD_01H_READ_CLOCK
+						JE		INT96H_READ_CLOCK
+
+
+INT96H_EXIT:
+						RESTORE_WORLD
 						CLC
 						IRET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT96H_READ_CLOCK:
+						MOV		AH,TIMERBIOS_CMD_077H_YS_GET_CLOCK
+						INT		97H
+
+						; EAX  HHMMSSss
+						; EBX  YYYYMMDD
+						; CL   DayOfWeek
+
+						MOV		BYTE DS:[DI+9],0
+						MOV		DS:[DI+8],AL ; 1/100 sec
+						MOV		DS:[DI+7],AH ; sec
+						SHR		EAX,16
+						MOV		DS:[DI+6],AL ; min
+						MOV		DS:[DI+5],AH ; hour
+
+						MOV		DS:[DI+4],CL ; Day of week
+						MOV		DS:[DI+3],BL ; Day
+						MOV		DS:[DI+2],BH ; Month
+						SHR		EBX,16
+						ADD		BX,1900
+						MOV		DS:[DI],BX
+
+						MOV		BYTE [BP+SAVED_EAX+1],0
+
+						JMP		INT96H_EXIT
 
