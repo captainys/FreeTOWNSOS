@@ -171,6 +171,8 @@ INT93H_CD_04H_SEEK_LBA:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_05H_READ_LBA:
+						MOV		BX,[BP+SAVED_EBX]	; BX is destroyed.  Recover it.
+
 						MOVZX	CX,CL
 						SHL		ECX,16
 						MOV		CX,DX	; ECX is LBA
@@ -194,8 +196,6 @@ INT93H_CD_05H_READ_LBA:
 						SHR		EDX,16
 						MOV		AX,CX	; DX:AX is the first sector
 						CALL	HSG2MSF
-						PUSH	DX
-						PUSH	AX
 						MOV		CS:[CDC_PARAM  ],DL
 						MOV		CS:[CDC_PARAM+1],AH
 						MOV		CS:[CDC_PARAM+2],AL
