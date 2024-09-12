@@ -98,9 +98,9 @@ TOWNSCD_IOCTL_READ_DEVICE_STATUS:
 						MOV		DWORD [DI+1],0612H
 						JMP		TOWNSCD_INTERRUPT_EXIT
 
-TOWNSCD_IOCTL_READ_MEDIA_CHANGED
+TOWNSCD_IOCTL_READ_MEDIA_CHANGED:
 						; TOWNS_CD is using an unpublished function INT 93H AX=0FC0H to check media change.
-						MOV		BYTE [DI+1],MSCDEX_MEDIA_DID_NOT_CHANGE ; Make it no change for the time being.
+						MOV		WORD [DI+1],MSCDEX_MEDIA_DID_NOT_CHANGE ; Make it no change for the time being.
 						JMP		TOWNSCD_INTERRUPT_EXIT
 
 
