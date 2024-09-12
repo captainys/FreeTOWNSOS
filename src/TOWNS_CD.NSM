@@ -5,7 +5,20 @@ TOWNSCD_HEADER_STRATEGY_PTR		DW	TOWNSCD_STRATEGY
 TOWNSCD_HEADER_INTERRUPT_PTR	DW	TOWNSCD_INTERRUPT
 TOWNSCD_HEADER_NAME				DB	"TOWNS_CD"
 
+								DB	0 ; Offset +12H (18)
+								DB 	0 ; Offset +13H (19)
+								DB	0 ; Offset +14H (20)
+								DB	1 ; Offset +15H (21) SHSCDX expects number of units.
+
 TOWNSCD_REQHDR_PTR		DD	0
+
+
+MSCDEX_ERROR_UNKNOWN_CMD		EQU		8003H
+
+MSCDEX_MEDIA_CHANGED			EQU		0FFH
+MSCDEX_MEDIA_CHANGE_UNKNOWN		EQU		0
+MSCDEX_MEDIA_DID_NOT_CHANGE		EQU		1
+
 
 TOWNSCD_STRATEGY:
 						MOV		CS:[TOWNSCD_REQHDR_PTR],BX
@@ -13,5 +26,137 @@ TOWNSCD_STRATEGY:
 						RETF
 
 TOWNSCD_INTERRUPT:
+						SAVE_WORLD
+
 						LES		BX,CS:[TOWNSCD_REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+
+						CMP		AL,DEVREQ_CMD_INIT
+						JE		TOWNSCD_INIT
+						CMP		AL,DEVREQ_CMD_IOCTL_READ
+						JE		TOWNSCD_IOCTL_READ
+						CMP		AL,DEVREQ_CMD_OPEN
+						JE		TOWNSCD_IOCTL_OPEN
+						CMP		AL,DEVREQ_CMD_CLOSE
+						JE		TOWNSCD_IOCTL_CLOSE
+
+						CMP		AL,80H
+						JE		TOWNSCD_READ_SECTORS
+						CMP		AL,82H
+						JE		TOWNSCD_NAZO_FUNCTION_82H
+
+						TSUGARU_DEBUG
+
+TOWNSCD_INTERRUPT_EXIT:
+						RESTORE_WORLD
 						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TOWNSCD_INIT:
+TOWNSCD_IOCTL_OPEN:
+TOWNSCD_IOCTL_CLOSE:
+						JMP		TOWNSCD_INTERRUPT_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TOWNSCD_IOCTL_READ:
+						; SHUCDX expects this command to return the devhdr address.
+
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						MOV		AL,[DI]
+						CMP		AL,0
+						JE		TOWNSCD_IOCTL_READ_DRVHDR
+						CMP		AL,6
+						JE		TOWNSCD_IOCTL_READ_DEVICE_STATUS
+						CMP		AL,9
+						JE		TOWNSCD_IOCTL_READ_MEDIA_CHANGED
+
+						MOV		WORD ES:[BX+REQ_STATUS],MSCDEX_ERROR_UNKNOWN_CMD
+						JMP		TOWNSCD_INTERRUPT_EXIT
+
+
+TOWNSCD_IOCTL_READ_DRVHDR:
+						MOV		WORD [DI+1],TOWNSCD_HEADER_NEXT
+						MOV		WORD [DI+3],CS
+						JMP		TOWNSCD_INTERRUPT_EXIT
+
+TOWNSCD_IOCTL_READ_DEVICE_STATUS:
+						; B0: Door Open
+						; B1: Door Unlocked
+						; B2: Support RAW Read
+						; B3: Writable
+						; B4: Can Play Audio
+						; B5: Support Interleaving
+						; B6: 0 unused
+						; B7: Support Prefetching
+						; B8: Support Audio Manipulation
+						; B9: Support HSG addressing
+						; B10-31: 0 unused
+						; Towns OS V2.1 L20 TOWNS_CD was returning 00000612h Door Unlockd, Can Play Audio, Support Interleaving, + Unused??
+						MOV		DWORD [DI+1],0612H
+						JMP		TOWNSCD_INTERRUPT_EXIT
+
+TOWNSCD_IOCTL_READ_MEDIA_CHANGED
+						; TOWNS_CD is using an unpublished function INT 93H AX=0FC0H to check media change.
+						MOV		BYTE [DI+1],MSCDEX_MEDIA_DID_NOT_CHANGE ; Make it no change for the time being.
+						JMP		TOWNSCD_INTERRUPT_EXIT
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; SHSUCDX calls this function in the following way.
+;27DE:00000CF6 89DF                      MOV     DI,BX
+;27DE:00000CF8 BB6E03                    MOV     BX,036EH
+;27DE:00000CFB 897F0E                    MOV     [BX+0EH],DI
+;27DE:00000CFE 8C4710                    MOV     [BX+10H],ES
+;27DE:00000D01 66894714                  MOV     [BX+14H],EAX
+;27DE:00000D05 894F12                    MOV     [BX+12H],CX
+;27DE:00000D08 1E                        PUSH    DS
+;27DE:00000D09 07                        POP     ES
+;27DE:00000D0A E8A7FF                    CALL    00000CB4
+;27DE:00000D0D 817F030001                CMP     WORD PTR [BX+03H],0100H
+;
+;; In the LST.
+;  2548                                  ; Parameters:
+;  2549                                  ;	ES:BX -> buffer
+;  2550                                  ;	  EAX := starting sector number
+;  2551                                  ;	   CX := number of sectors
+;
+;  2562                                  CdReadLong
+;  2563 00000BF3 065357                  	uses	es,bx,di
+;  2564 00000BF6 89DF                    	mov	di, bx
+;  2565 00000BF8 BB[6E02]                	mov	bx, rh_rl
+;  2566 00000BFB 897F0E8C4710            	ses	di, bx+rhReadLong.Bufp
+;  2567 00000C01 66894714                	mmovd	bx+rhReadLong.StartBlk
+;  2568 00000C05 894F12                  	mov	[bx+rhReadLong.Count], cx
+;  2569 00000C08 1E07                    	ld	es, ds
+;  2570 00000C0A E8A7FF                  	call	DDCall
+;  2571 00000C0D 817F030001              	cmpw	[bx+rh.Status], 100h
+;  2572 00000C12 5F5B07C3                	return
+;
+;  ES:[BX+12H] must be sector count.
+;  ES:[BX+0EH] must be buffer far pointer.
+;  ES:[BX+14H] must be the starting sector.
+TOWNSCD_READ_SECTORS:
+						MOV		AX,05C0H
+						MOV		ECX,ES:[BX+14H]
+						MOV		DX,CX
+						SHL		ECX,16
+						XOR		CH,CH
+						LDS		DI,ES:[BX+0EH]
+						MOV		BX,ES:[BX+12H]	; Do it last.  ES:BX is destroyed.
+
+						INT		93H
+
+						JMP		TOWNSCD_INTERRUPT_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TOWNSCD_NAZO_FUNCTION_82H:
+						; TOWNS OS V2.1 L20's TOWNS_CD just returns status code 8103H.
+						MOV		WORD ES:[BX+REQ_STATUS],8103H
+						JMP		TOWNSCD_INTERRUPT_EXIT

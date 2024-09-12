@@ -16,3 +16,19 @@ BCD2BIN_AL:
 
 						POP		BX
 						RET
+
+; Input AL in binary
+; Output AL in BCD
+BIN2BCD_AL:
+						PUSH	BX
+
+						XOR		AH,AH
+						MOV		BL,10
+						DIV		BL
+
+						SHL		AL,4
+						AND		AH,0FH
+						OR		AL,AH
+
+						POP		BX
+						RET

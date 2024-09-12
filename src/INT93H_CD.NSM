@@ -224,10 +224,10 @@ INT93H_CD_REALLY_READ:
 						CLI
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
-						CALL	CDC_PUSH_PARAMETERS
+						CALL	CDC_PUSH_PARAMETERS_BCD
 
 						MOV		DX,IO_CDC_COMMAND
-						MOV		AL,CDCCMD_RAWREAD+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						MOV		AL,CDCCMD_MODE1_READ+CDCCMD_IRQ+CDCCMD_STATUSREQ
 						OUT		DX,AL
 
 
@@ -279,7 +279,6 @@ INT93H_CD_READ_READ_DONE:
 
 						MOV		BYTE CS:[ERROR_CODE],0
 
-						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
 INT93H_CD_READ_ERROR:
@@ -356,23 +355,39 @@ CDC_WAIT_READY:
 
 ; Push parameters to CDC
 CDC_PUSH_PARAMETERS:
+						PUSH	BX
+
+						XOR		BX,BX
 						MOV		DX,IO_CDC_PARAM
-						MOV		AL,CS:[CDC_PARAM]
+
+CDC_PUSH_PARAMETERS_LOOP:
+						MOV		AL,CS:[CDC_PARAM+BX]
 						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+1]
+						INC		BX
+						CMP		BX,8
+						JB		CDC_PUSH_PARAMETERS_LOOP
+
+						POP		BX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Push parameters to CDC
+CDC_PUSH_PARAMETERS_BCD:
+						PUSH	BX
+
+						XOR		BX,BX
+						MOV		DX,IO_CDC_PARAM
+
+CDC_PUSH_PARAMETERS_BCD_LOOP:
+						MOV		AL,CS:[CDC_PARAM+BX]
+						CALL	BIN2BCD_AL
 						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+2]
-						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+3]
-						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+4]
-						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+5]
-						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+6]
-						OUT		DX,AL
-						MOV		AL,CS:[CDC_PARAM+7]
-						OUT		DX,AL
+						INC		BX
+						CMP		BX,8
+						JB		CDC_PUSH_PARAMETERS_BCD_LOOP
+
+						POP		BX
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -599,3 +614,5 @@ MSF2HSG:
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+						%INCLUDE "LIB.NSM"
