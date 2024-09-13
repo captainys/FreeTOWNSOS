@@ -3,11 +3,12 @@
 
 ; Input   AX=Cluster  FS:DI=BPB
 ; Output  AX=LBA
+;        Preserves BX
 BPB_CLUSTER_TO_SECT_CT:
 						PUSH	DX
 
 						SUB		AX,2	; In DOS, cluster 2 is the first cluster.
-						MOVZX	DX,BYTE [BPB_POS_IN_IPL+BPB_SECTOR_PER_CLUSTER]
+						MOVZX	DX,BYTE FS:[DI+BPB_SECTOR_PER_CLUSTER]
 						MUL		DX
 
 						POP		DX
@@ -19,6 +20,7 @@ BPB_CLUSTER_TO_SECT_CT:
 ; Input FS:DI  BPB
 ; Output AX  Number of sectors of ROOTDIR
 ;        DX Destroyed
+;        Preserves BX
 BPB_CALC_ROOTDIR_SECT_CT:
 						; Calculated as (#RootDirEntries * DirEntSize + bytesPerSector -1)/bytesPerSector
 						; Number of bytes for root dir entries / bytes per sector, but must round up if some root dir entries are hanging.
@@ -39,6 +41,7 @@ BPB_CALC_ROOTDIR_SECT_CT:
 ; Input FS:DI  BPB
 ; Output AX  LBA for the root dir
 ;        DX Destroyed
+;        Preserves BX
 BPB_CALC_ROOTDIR_LBA:
 						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
 						; Skip FAT

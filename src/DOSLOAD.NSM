@@ -827,34 +827,28 @@ LOAD_DOS_FROM_FD:
 						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
 						MOV		DI,ROOTDIR_OFFSET
 						INT		93H
+						JB		FDBOOT_YSDOS_NOT_FOUND
 
+						; Input
+						;   DS:SI	Directory
+						;   ES:DI	File name in DOS 8+3 format
+						;   DX		Number of files in the directory (including unused directory)
+						; Output
+						;   CX      Destroyed
+						;   DX		0
+						;   DF      Clear
+						;   CF=0    DS:SI=Found directory entry
+						;   CF=1    Not found  SI points to the end of the directory
 
+						; DS is already set.
+						MOV		SI,ROOTDIR_OFFSET
 						PUSH	CS
 						POP		ES
-						MOV		SI,ROOTDIR_OFFSET
-						MOV		DX,FS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
-						CLD
-FDBOOT_FIND_YSDOS:
 						MOV		DI,YSDOS_SYS_FILENAME
+						MOV		DX,FS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
+						CALL	SEARCH_DIRECTORY
+						JB		FDBOOT_YSDOS_NOT_FOUND
 
-						PUSH	SI
-						MOV		CX,11
-						REP		CMPSB
-						POP		SI
-
-						JE		FDBOOT_FOUND_YSDOS
-
-						ADD		SI,DIRENT_LENGTH
-						DEC		DX
-						JNE		FDBOOT_FIND_YSDOS
-
-						; YSDOS.SYS not found
-						ADD		SP,4
-						STC
-						RET
-
-
-FDBOOT_FOUND_YSDOS:
 						; Need to know
 						;   Where YSDOS.SYS started (LBA)
 						;   How many sectors.
@@ -867,7 +861,7 @@ FDBOOT_FOUND_YSDOS:
 						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
 						DEC		EAX
 
-						CDQ
+						XOR		EDX,EDX
 						DIV		ECX
 
 						MOV		EBX,EAX
@@ -894,6 +888,11 @@ FDBOOT_FOUND_YSDOS:
 
 						RET
 
+FDBOOT_YSDOS_NOT_FOUND:
+						ADD		SP,4
+						STC
+						RET
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 LOAD_DOS_FROM_ROM:
@@ -907,7 +906,8 @@ LOAD_DOS_FROM_ROM:
 
 						; BX is the number of sectors of the root dir.
 
-						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM
+						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM   BX Preserved
+						PUSH	AX	; Save ROOTDIR LBA
 
 						MOV		DX,AX	; DX is ROOTDIR LBA
 						XOR		CX,CX	; CX:DX points to ROOTDIR
@@ -916,12 +916,109 @@ LOAD_DOS_FROM_ROM:
 						MOV		DI,BOOTSECT_SEG
 						MOV		DS,DI
 						MOV		DI,ROOTDIR_OFFSET
-						POP		BX		; ROOTDIR Sector Count
+						INT		93H
+						JC		LOAD_DOS_FROM_ROM_NOT_FOUND
+
+						; Input
+						;   DS:SI	Directory
+						;   ES:DI	File name in DOS 8+3 format
+						;   DX		Number of files in the directory (including unused directory)
+						; Output
+						;   CX      Destroyed
+						;   DF      Clear
+						;   DX		0
+						;   CF=0    DS:SI=Found directory entry
+						;   CF=1    Not found  SI points to the end of the directory
+
+						; DS is already set.
+						MOV		SI,ROOTDIR_OFFSET
+						PUSH	CS
+						POP		ES
+						MOV		DI,YSDOS_SYS_FILENAME
+						MOV		DX,CS:[ROMDRIVE_BPB+BPB_NUM_ROOT_DIR_ENT]
+						CALL	SEARCH_DIRECTORY
+						JNC		LOAD_DOS_FROM_ROM_FOUND
+
+						MOV		SI,ROOTDIR_OFFSET
+						MOV		DI,MSDOS_SYS_FILENAME
+						MOV		DX,CS:[ROMDRIVE_BPB+BPB_NUM_ROOT_DIR_ENT]
+						CALL	SEARCH_DIRECTORY
+						JC		LOAD_DOS_FROM_ROM_NOT_FOUND
+
+LOAD_DOS_FROM_ROM_FOUND:
+						MOV		EAX,[SI+DIRENT_FILE_SIZE]
+						MOVZX	ECX,WORD CS:[ROMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+
+						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
+						DEC		EAX
+
+						XOR		EDX,EDX
+						DIV		ECX
+
+						MOV		EBX,EAX
+
+						; BX is number of sectors.
+
+						MOV		AX,[SI+DIRENT_FIRST_CLUSTER]
+
+						MOV		DI,ROMDRIVE_BPB
+						CALL	BPB_CLUSTER_TO_SECT_CT ; Preserves BX
+
+						POP		DX	; DX will be overwritten by BPB_LBA_TO_CYLINDER_HEAD_SECTOR anyway
+						ADD		AX,DX
+						POP		DX
+						ADD		DX,AX	; DX is the first sector of MSDOS.SYS
+						XOR		CX,CX	; CX:DX is the first sector of MSDOS.SYS
+
+						MOV		DS,CS:[DOSSEG]	; YSDOS Loading Point
+						XOR		DI,DI
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,DISKBIOS_ROMDISK
+
 						INT		93H
 
-				TSUGARU_DEBUG
+						; CF set by INT 93H
+
+						RET
+
+LOAD_DOS_FROM_ROM_NOT_FOUND:
+						ADD		SP,4  ; Skip ROOTDIR LBA and ROOTDIR Sector Count
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Input
+;   DS:SI	Directory
+;   ES:DI	File name in DOS 8+3 format
+;   DX		Number of files in the directory (including unused directory)
+; Output
+;   CX      Destroyed
+;   DX		0
+;   DF      Clear
+;   CF=0    DS:SI=Found directory entry
+;   CF=1    Not found  SI points to the end of the directory
+SEARCH_DIRECTORY:
+						CLD
+						PUSH	DI
+						PUSH	SI
+						MOV		CX,11
+						REP		CMPSB
+						POP		SI
+						POP		DI
+
+						JE		SEARCH_DIR_FOUND
+
+						ADD		SI,DIRENT_LENGTH
+						DEC		DX
+						JNE		SEARCH_DIRECTORY
 
 						STC
+						RET
+
+SEARCH_DIR_FOUND:
+						CLC
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
