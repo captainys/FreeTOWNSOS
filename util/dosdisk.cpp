@@ -538,34 +538,112 @@ unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
 class CommandParameterInfo
 {
 public:
-	std::string outFileName="output.bin";
+	std::vector <std::string> outFile;
+	std::vector <std::string> inFile;
+	std::string IPLFile;
 
 	bool RecognizeCommandParameter(int ac,char *av[])
 	{
-		if(2<=ac)
+		for(int i=1; i<ac; ++i)
 		{
-			outFileName=av[1];
+			std::string opt(av[i]);
+			for(auto &c : opt)
+			{
+				c=tolower(c);
+			}
+			if("-h"==opt || "-help"==opt || "-?"==opt)
+			{
+				Help();
+			}
+			else if("-o"==opt || "-out"==opt)
+			{
+				if(i+1<ac)
+				{
+					outFile.push_back(av[i+1]);
+					++i;
+				}
+				else
+				{
+					std::cout << "Missing argument for -o option.\n";
+					return false;
+				}
+			}
+			else if("-i"==opt || "-in"==opt)
+			{
+				if(i+1<ac)
+				{
+					inFile.push_back(av[i+1]);
+					++i;
+				}
+				else
+				{
+					std::cout << "Missing argument for -i option.\n";
+					return false;
+				}
+			}
+			else if("-ipl"==opt || "-bootsect"==opt)
+			{
+				if(i+1<ac)
+				{
+					if(""!=IPLFile)
+					{
+						std::cout << "-ipl or -bootsect option is specified multiple times.\n";
+						return false;
+					}
+					IPLFile=av[i+1];
+					++i;
+				}
+				else
+				{
+					std::cout << "Missing argument for -ipl option.\n";
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
 		}
 		return true;
 	}
+
+	static void Help(void)
+	{
+		std::cout << "-h, -help, -?\n";
+		std::cout << "  Print this message.\n";
+		std::cout << "-o outfile.bin\n";
+		std::cout << "-out outfile.bin\n";
+		std::cout << "  Specify output file.\n";
+		std::cout << "  If no output file is specified, this program does nothing.\n";
+		std::cout << "  If multiple output files are specfied, this program makes multiple disk images.\n";
+		std::cout << "-i input\n";
+		std::cout << "-in input-file\n";
+		std::cout << "  Specify input file.\n";
+		std::cout << "  If no output file is specified, this program makes an empty disk.\n";
+		std::cout << "-ipl ipl-image-file\n";
+		std::cout << "  Specify IPL-image file.\n";
+	}
 };
 
-int main(int ac,char *av[])
+bool MakeDisk(std::string outFile,const CommandParameterInfo &cpi)
 {
-	CommandParameterInfo cpi;
-	if(true!=cpi.RecognizeCommandParameter(ac,av))
-	{
-		std::cout << "Error in the command parameter(s)\n";
-		return 1;
-	}
-
 	Disk disk;
 	disk.Create(BPB_MEDIA_1232K);
 
-	disk.WriteIPLSector(ReadBinaryFile("../resources/FD_IPL.bin"));
+	if(""!=cpi.IPLFile)
+	{
+		auto file=ReadBinaryFile(cpi.IPLFile);
+		if(0==file.size())
+		{
+			std::cout << "Cannot open the IPL image: "<< cpi.IPLFile << "\n";
+			return false;
+		}
+		disk.WriteIPLSector(file);
+	}
+
+	std::cout << "Making: " << outFile << "\n";
 
 	auto bpb=disk.GetBPB();
-	std::cout << disk.FindAvailableCluster(disk.GetFAT(),bpb) << "\n";
 
 	{
 		auto dirEnt=disk.FindAvailableDirEnt();
@@ -583,36 +661,39 @@ int main(int ac,char *av[])
 		}
 	}
 
-	std::string srcFile[]=
-	{
-		"../resources/IO.SYS"   ,   "IO      ","SYS",
-		"../resources/YSDOS.SYS",   "YSDOS   ","SYS",
-		"../resources/YAMAND.COM",  "YAMAND  ","COM",
-		"../resources/CONFIG.SYS",  "CONFIG  ","SYS",
-		"../resources/AUTOEXEC.BAT","AUTOEXEC","BAT",
-		"../resources/TGDRV.COM",   "TGDRV   ","COM",
-		"../resources/TEST.EXP",    "TEST    ","EXP",
-		"../src/MINVCPI.BIN",       "MINVCPI ","SYS",
-		"../externals/ORICON/ORICON.COM",   "ORICON  ","COM",
-		"../externals/Free386/free386.com", "FREE386 ","COM",
-		"","",""
-	};
-
-	for(int i=0; ""!=srcFile[i]; i+=3)
+	for(auto inFile : cpi.inFile)
 	{
 		auto dirEnt=disk.FindAvailableDirEnt();
-		auto file=ReadBinaryFile(srcFile[i]);
+		auto file=ReadBinaryFile(inFile);
 		if(0==file.size())
 		{
-			continue;
+			std::cout << "Cannot open input file: " << inFile << "\n";
+			return false;
 		}
+
+		char DOS8PLUS3[11];
+		for(auto &c : DOS8PLUS3)
+		{
+			c=' ';
+		}
+		int strPtr=0;
+		for(int i=0; i<8 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
+		{
+			DOS8PLUS3[i]=toupper(inFile[strPtr]);
+		}
+		for(int i=0; i<3 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
+		{
+			DOS8PLUS3[8+i]=toupper(inFile[strPtr]);
+		}
+
+
 		auto firstCluster=disk.WriteData(file);
 		if(nullptr!=dirEnt)
 		{
 			disk.WriteDirEnt(
 				dirEnt,
-			   srcFile[i+1],
-			   srcFile[i+2],
+			   DOS8PLUS3,
+			   DOS8PLUS3+8,
 			   DIRENT_ATTR_READONLY|DIRENT_ATTR_ARCHIVE /*|DIRENT_ATTR_SYSTEM*/,
 			   23,42,00,
 			   2024,8,28,
@@ -621,8 +702,26 @@ int main(int ac,char *av[])
 		}
 	}
 
-	std::ofstream ofp(cpi.outFileName,std::ios::binary);
+	std::ofstream ofp(outFile,std::ios::binary);
 	ofp.write((char *)disk.data.data(),disk.data.size());
+
+	return true;
+}
+
+int main(int ac,char *av[])
+{
+	CommandParameterInfo cpi;
+	if(true!=cpi.RecognizeCommandParameter(ac,av))
+	{
+		std::cout << "Error in the command parameter(s)\n";
+		CommandParameterInfo::Help();
+		return 1;
+	}
+
+	for(auto &o : cpi.outFile)
+	{
+		MakeDisk(o,cpi);
+	}
 
 	return 0;
 }

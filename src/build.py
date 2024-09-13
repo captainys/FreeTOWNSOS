@@ -58,7 +58,20 @@ def Run(argv):
 
 	subprocess.Popen(["./assemble"]).wait()
 
-	subprocess.Popen(["./dosdisk","FDIMG.bin"]).wait()
+	subprocess.Popen(["./dosdisk",
+		"-o",		"FDIMG.bin",
+		"-ipl",		"FD_IPL.bin",
+		"-i",		"../resources/IO.SYS",
+		"-i",		"../resources/YSDOS.SYS",
+		"-i",		"../resources/YAMAND.COM",
+		"-i",		"../resources/CONFIG.SYS",
+		"-i",		"../resources/AUTOEXEC.BAT",
+		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../resources/TEST.EXP",
+		"-i",		"../src/MINVCPI.BIN",
+		"-i",		"../externals/ORICON/ORICON.COM",
+		"-i",		"../externals/Free386/free386.com",
+	]).wait()
 
 
 if __name__=="__main__":
