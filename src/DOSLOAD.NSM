@@ -4,7 +4,10 @@
 
 
 ; If YSDOS.SYS is in the root dir of the boot device, it loads YSDOS.
-; Otherwise, look for MSDOS.SYS in C drive.
+; Otherwise, look for C:\MSDOS.SYS.
+
+; If BOOTDRV:YAMAND.COM is available, it will launch YAMAND.COM.
+; Otherwise, look for C:\COMMAND.COM
 
 						CPU		386
 						BITS	16
@@ -42,6 +45,21 @@ NUM_FILES				DW		15
 DISKBIOS_BOOT_DEVICE	DB		0
 
 CONDEV_PTR				DD		0
+
+ROMDRIVE_BPB:			DW		200H	; bytesPerSect
+						DB		2		; sectPerCluster
+						DW		1		; reservedSectors
+						DB		2		; #FATs
+						DW		0070H	; #rootDirEntries
+						DW		0500H	; #sectors including reserved sectors
+						DB		0FBh	; mediaDesc
+						DW		2		; #sectPerFAT
+						DW		8		; #sectPerTrack
+						DW		1		; #heads
+						DW		0		; #hiddenSect
+						DD		0		; 32-bit #sectors
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 REALENTRY:
 						MOV		CS:[BOOT_DEVICE],BX
@@ -85,129 +103,33 @@ CLONE_ENTRY:
 
 						MOV		BX,CS:[BOOT_DEVICE]
 						CMP		BL,BOOTDEV_FD
-						JE		BOOT_FROM_FD
+						JNE		NOT_BOOT_FROM_FD
+						CALL	LOAD_DOS_FROM_FD
+						JB		TRY_LOAD_DOS_FROM_ROM
+						JMP		YSDOS_LOADED
+
+NOT_BOOT_FROM_FD:
 						CMP		BL,BOOTDEV_CD
-						JE		BOOT_FROM_CD
+						JNE		NOT_BOOT_FROM_CD
+						CALL	LOAD_DOS_FROM_CD
+						JMP		YSDOS_LOADED
+						JB		TRY_LOAD_DOS_FROM_ROM
+						JMP		YSDOS_LOADED
+
+NOT_BOOT_FROM_CD:
 						CMP		BL,BOOTDEV_HD
-						JE		BOOT_FROM_HD
-
-BOOT_FROM_HD:
-BOOT_FROM_CD:
-INFINITY				JMP		INFINITY
-
-
-
-BOOT_FROM_FD:
-						MOV		AL,BH
-						AND		AL,0FH
-						MOV		CS:[BOOT_DRIVE],AL	; A or B.  If the 3rd FD, forget about it....
-
-						OR		AL,DISKBIOS_FDD_0
-						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
-
-						MOV		AH,DISKBIOS_CMD_03H_RESTORE
-						INT		93H
-
-
-
-						; Read IPL Sector to get BPB
-						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
-						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
-						MOV		CX,0		; Track 0
-						MOV		DX,0001h	; Head 0 Sector 1
-						MOV		BX,1		; 1 sector
-						MOV		DI,BOOTSECT_SEG
-						MOV		DS,DI
-						MOV		FS,DI	; Prep to use BPB
-						XOR		DI,DI
-						INT		93H
-						JB		INFINITY
-
-
-
-						MOV		DI,BPB_POS_IN_IPL
-
-						CALL	BPB_CALC_ROOTDIR_SECT_CT	; In DOSUTIL.NSM  AX is # root-dir sectors, DX destroyed
-						MOV		BX,AX
-						PUSH	AX	; Save ROOTDIR sector count
-
-						; BX is the number of sectors of the root dir.
-
-						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM
-
-						PUSH	AX	; Save ROOTDIR LBA
-
-						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
-
-						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
-						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
-						MOV		DI,ROOTDIR_OFFSET
-						INT		93H
-
-
-						PUSH	CS
-						POP		ES
-						MOV		SI,ROOTDIR_OFFSET
-						MOV		DX,FS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
-						CLD
-FDBOOT_FIND_YSDOS:
-						MOV		DI,YSDOS_SYS_FILENAME
-
-						PUSH	SI
-						MOV		CX,11
-						REP		CMPSB
-						POP		SI
-
-						JE		FDBOOT_FOUND_YSDOS
-
-						ADD		SI,DIRENT_LENGTH
-						DEC		DX
-						JNE		FDBOOT_FIND_YSDOS
-
-						JMP		INFINITY	; YSDOS.SYS not found
-
-
-FDBOOT_FOUND_YSDOS:
-						; Need to know
-						;   Where YSDOS.SYS started (LBA)
-						;   How many sectors.
-
-						MOV		DI,BPB_POS_IN_IPL
-
-						MOV		EAX,[SI+DIRENT_FILE_SIZE]
-						MOVZX	ECX,WORD [DI+BPB_BYTES_PER_SECTOR]
-
-						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
-						DEC		EAX
-
-						CDQ
-						DIV		ECX
-
-						MOV		EBX,EAX
-
-						; BX is number of sectors.
-
-						MOV		AX,[SI+DIRENT_FIRST_CLUSTER]
-
-						CALL	BPB_CLUSTER_TO_SECT_CT
-						POP		DX	; DX will be overwritten by BPB_LBA_TO_CYLINDER_HEAD_SECTOR anyway
-						ADD		AX,DX
-						POP		DX
-						ADD		AX,DX
-						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
-
-						MOV		DS,CS:[DOSSEG]	; YSDOS Loading Point
-						XOR		DI,DI
-						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
-						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
-
-						INT		93H
-
-						JB		INFINITY
+						JNE		NOT_BOOT_FROM_HD
+						CALL	LOAD_DOS_FROM_HD
+						JB		TRY_LOAD_DOS_FROM_ROM
 						JMP		YSDOS_LOADED
 
 
+NOT_BOOT_FROM_HD:		JMP		NOT_BOOT_FROM_HD	; Where is this booting from?
 
+
+TRY_LOAD_DOS_FROM_ROM:
+						CALL	LOAD_DOS_FROM_ROM
+						JB		INFINITY
 
 
 ; Stack Top is YSDOS Segment
@@ -838,6 +760,158 @@ LOAD_CONFIG_SYS:
 
 LOAD_CONFIG_SYS_EXIT:
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INFINITY				JMP		INFINITY
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LOAD_DOS_FROM_HD:
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LOAD_DOS_FROM_CD:
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LOAD_DOS_FROM_FD:
+						MOV		AL,BH
+						AND		AL,0FH
+						MOV		CS:[BOOT_DRIVE],AL	; A or B.  If the 3rd FD, forget about it....
+
+						OR		AL,DISKBIOS_FDD_0
+						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
+
+						MOV		AH,DISKBIOS_CMD_03H_RESTORE
+						INT		93H
+
+
+
+						; Read IPL Sector to get BPB
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+						MOV		CX,0		; Track 0
+						MOV		DX,0001h	; Head 0 Sector 1
+						MOV		BX,1		; 1 sector
+						MOV		DI,BOOTSECT_SEG
+						MOV		DS,DI
+						MOV		FS,DI	; Prep to use BPB
+						XOR		DI,DI
+						INT		93H
+						JB		INFINITY
+
+
+
+						MOV		DI,BPB_POS_IN_IPL
+
+						CALL	BPB_CALC_ROOTDIR_SECT_CT	; In DOSUTIL.NSM  AX is # root-dir sectors, DX destroyed
+						MOV		BX,AX
+						PUSH	AX	; Save ROOTDIR sector count
+
+						; BX is the number of sectors of the root dir.
+
+						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM
+
+						PUSH	AX	; Save ROOTDIR LBA
+
+						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+						MOV		DI,ROOTDIR_OFFSET
+						INT		93H
+
+
+						PUSH	CS
+						POP		ES
+						MOV		SI,ROOTDIR_OFFSET
+						MOV		DX,FS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
+						CLD
+FDBOOT_FIND_YSDOS:
+						MOV		DI,YSDOS_SYS_FILENAME
+
+						PUSH	SI
+						MOV		CX,11
+						REP		CMPSB
+						POP		SI
+
+						JE		FDBOOT_FOUND_YSDOS
+
+						ADD		SI,DIRENT_LENGTH
+						DEC		DX
+						JNE		FDBOOT_FIND_YSDOS
+
+						JMP		INFINITY	; YSDOS.SYS not found
+
+
+FDBOOT_FOUND_YSDOS:
+						; Need to know
+						;   Where YSDOS.SYS started (LBA)
+						;   How many sectors.
+
+						MOV		DI,BPB_POS_IN_IPL
+
+						MOV		EAX,[SI+DIRENT_FILE_SIZE]
+						MOVZX	ECX,WORD [DI+BPB_BYTES_PER_SECTOR]
+
+						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
+						DEC		EAX
+
+						CDQ
+						DIV		ECX
+
+						MOV		EBX,EAX
+
+						; BX is number of sectors.
+
+						MOV		AX,[SI+DIRENT_FIRST_CLUSTER]
+
+						CALL	BPB_CLUSTER_TO_SECT_CT
+						POP		DX	; DX will be overwritten by BPB_LBA_TO_CYLINDER_HEAD_SECTOR anyway
+						ADD		AX,DX
+						POP		DX
+						ADD		AX,DX
+						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
+
+						MOV		DS,CS:[DOSSEG]	; YSDOS Loading Point
+						XOR		DI,DI
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+
+						INT		93H
+
+						; CF set by INT 93H
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LOAD_DOS_FROM_ROM:
+						PUSH	CS
+						POP		FS
+						MOV		DI,ROMDRIVE_BPB
+
+						CALL	BPB_CALC_ROOTDIR_SECT_CT	; In DOSUTIL.NSM  AX is # root-dir sectors, DX destroyed
+						MOV		BX,AX
+						PUSH	AX	; Save ROOTDIR sector count
+
+						; BX is the number of sectors of the root dir.
+
+						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM
+
+						PUSH	AX	; Save ROOTDIR LBA
+
+				TSUGARU_DEBUG
+
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 YSDOS_SYS_FILENAME		DB		"YSDOS   SYS"
 
