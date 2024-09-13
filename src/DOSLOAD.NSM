@@ -848,7 +848,10 @@ FDBOOT_FIND_YSDOS:
 						DEC		DX
 						JNE		FDBOOT_FIND_YSDOS
 
-						JMP		INFINITY	; YSDOS.SYS not found
+						; YSDOS.SYS not found
+						ADD		SP,4
+						STC
+						RET
 
 
 FDBOOT_FOUND_YSDOS:
@@ -906,7 +909,15 @@ LOAD_DOS_FROM_ROM:
 
 						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM
 
-						PUSH	AX	; Save ROOTDIR LBA
+						MOV		DX,AX	; DX is ROOTDIR LBA
+						XOR		CX,CX	; CX:DX points to ROOTDIR
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,DISKBIOS_ROMDISK
+						MOV		DI,BOOTSECT_SEG
+						MOV		DS,DI
+						MOV		DI,ROOTDIR_OFFSET
+						POP		BX		; ROOTDIR Sector Count
+						INT		93H
 
 				TSUGARU_DEBUG
 
@@ -916,5 +927,6 @@ LOAD_DOS_FROM_ROM:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 YSDOS_SYS_FILENAME		DB		"YSDOS   SYS"
+MSDOS_SYS_FILENAME		DB		"MSDOS   SYS"
 
 						%INCLUDE	"DOSUTIL.NSM"
