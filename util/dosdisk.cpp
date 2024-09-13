@@ -9,15 +9,17 @@
 
 std::vector <unsigned char> ReadBinaryFile(std::string fileName)
 {
-	std::ifstream ifp(fileName,std::ios::binary);
-	ifp.seekg(0,std::ios::end);
-	auto sz=ifp.tellg();
-	ifp.seekg(0,std::ios::beg);
-
 	std::vector <unsigned char> data;
-	data.resize(sz);
-	ifp.read((char *)data.data(),data.size());
+	std::ifstream ifp(fileName,std::ios::binary);
+	if(true==ifp.is_open())
+	{
+		ifp.seekg(0,std::ios::end);
+		auto sz=ifp.tellg();
+		ifp.seekg(0,std::ios::beg);
 
+		data.resize(sz);
+		ifp.read((char *)data.data(),data.size());
+	}
 	return data;
 }
 
@@ -676,16 +678,33 @@ bool MakeDisk(std::string outFile,const CommandParameterInfo &cpi)
 		{
 			c=' ';
 		}
-		int strPtr=0;
+		int strPtr=inFile.size();
+		while(0<strPtr && '/'!=inFile[strPtr] && '\\'!=inFile[strPtr] && ':'!=inFile[strPtr])
+		{
+			--strPtr;
+		}
+		if('/'==inFile[strPtr] || '\\'==inFile[strPtr] || ':'==inFile[strPtr])
+		{
+			++strPtr;
+		}
 		for(int i=0; i<8 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
 		{
 			DOS8PLUS3[i]=toupper(inFile[strPtr]);
+		}
+		if('.'==inFile[strPtr])
+		{
+			++strPtr;
 		}
 		for(int i=0; i<3 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
 		{
 			DOS8PLUS3[8+i]=toupper(inFile[strPtr]);
 		}
 
+		for(auto &c : DOS8PLUS3)
+		{
+			std::cout << c;
+		}
+		std::cout << "\n";
 
 		auto firstCluster=disk.WriteData(file);
 		if(nullptr!=dirEnt)

@@ -30,6 +30,10 @@ def Run(argv):
 		"MINVCPI",
 	]
 
+	rename=[
+		["MINVCPI.bin","MINVCPI.SYS"]
+	]
+
 	for src in srcs:
 		print(src+".NSM")
 		proc=subprocess.Popen(["NASM",src+".NSM","-l",src+".LST","-o",src+".bin"])
@@ -37,6 +41,12 @@ def Run(argv):
 		if 0!=proc.returncode:
 			print("Error building "+src)
 			quit()
+
+	for ren in rename:
+		print("Rename "+ren[0]+" to "+ren[1])
+		if os.path.isfile(ren[1]):
+			os.remove(ren[1])
+		os.rename(ren[0],ren[1])
 
 	proc=subprocess.Popen(["cl","assemble.cpp","/EHsc"])
 	proc.communicate()
@@ -68,7 +78,20 @@ def Run(argv):
 		"-i",		"../resources/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
-		"-i",		"../src/MINVCPI.BIN",
+		"-i",		"../src/MINVCPI.SYS",
+		"-i",		"../externals/ORICON/ORICON.COM",
+		"-i",		"../externals/Free386/free386.com",
+	]).wait()
+
+	subprocess.Popen(["./dosdisk",
+		"-o",		"FDIMG_USEROM.bin",
+		"-ipl",		"FD_IPL.bin",
+		"-i",		"../resources/IO.SYS",
+		"-i",		"../resources/CONFIG.SYS",
+		"-i",		"../resources/AUTOEXEC.BAT",
+		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../resources/TEST.EXP",
+		"-i",		"../src/MINVCPI.SYS",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 	]).wait()

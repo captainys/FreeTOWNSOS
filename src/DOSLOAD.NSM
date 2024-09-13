@@ -532,6 +532,8 @@ DO_CONFIG_DEVICE:
 						MOV		BX,DEVICE_LOAD_POINT	; Pointer to the device load point and relocation factor
 						INT		21H
 
+						JB		DO_CONFIG_DEVICE_EXIT	; Load Error
+
 						XCHG	CL,[SI]		; Recover space
 
 						MOV		CS:[CONFIG_INIT_CMDLINE],SI
