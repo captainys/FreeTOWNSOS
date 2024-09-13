@@ -124,6 +124,9 @@ INT41H_MATRIX_UPDATE_DONE:
 						CMP		BX,CS:[KEYBUF_READPTR]
 						JE		INT41H_HANDLER_EXIT		; Jump if buffer is full
 
+						CMP		AL,7FH	; 7FH seems to be a response to a unpublished command.  Don't push it to the buffer.
+						JE		INT41H_HANDLER_EXIT
+
 						MOV		BX,CS:[KEYBUF_WRITEPTR]
 						SHL		BX,1
 						MOV		CS:[KEYBUF+BX],AX
