@@ -272,6 +272,8 @@ CLOSE_DEFAULT_FILE_LOOP:
 						MOV		BX,COMMANDCOM_PARAMBLOCK
 						INT		21H
 
+						MOV		BYTE CS:[COMMANDCOM_PARAMETER+1],'C'
+
 						MOV		AX,4B00H	; EXEC
 						PUSH	CS
 						POP		DS
@@ -295,9 +297,12 @@ COMMANDCOM_PARAMETER	DB		" A:\ /P",0
 COMMANDCOM_PARAMBLOCK	DW		0	; ENVSEG to copy from
 						DW		COMMANDCOM_PARAMETER	; Command Tail OFFSET
 COMMANDCOM_PARAM_SEG	DW		IOSYS_CS				; Command Tail SEG
-						DD		0	; First FCB to be copied
-						DD		0	; Second FCB to be copied
+						DW		FCB_WAS_A_BAD_IDEA		; First FCB to be copied
+						DW		DOSLOADER_EXE_SEG
+						DW		FCB_WAS_A_BAD_IDEA		; Second FCB to be copied
+						DW		DOSLOADER_EXE_SEG
 
+FCB_WAS_A_BAD_IDEA:		DB		16 dup (0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
