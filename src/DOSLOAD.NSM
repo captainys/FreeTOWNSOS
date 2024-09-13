@@ -1,6 +1,7 @@
 						%INCLUDE "UTIL.NSM"
 						%INCLUDE "DEF.NSM"
 						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
 
 
 ; If YSDOS.SYS is in the root dir of the boot device, it loads YSDOS.
@@ -153,6 +154,11 @@ YSDOS_LOADED:
 						MOV		CS:[SYSVARS_PTR],DI
 						MOV		CS:[SYSVARS_PTR+2],ES
 
+						MOV		BX,DI
+						MOV		DX,TSUGARUIO_VM_HOST_IF_CMD_STATUS
+						MOV		AL,TOWNS_VMIF_CMD_NOTIFY_DOSLOL
+						OUT		DX,AL
+
 						CALL	CREATE_CDS
 
 						; Save Temporary PDB to a safe location.
@@ -266,12 +272,24 @@ CLOSE_DEFAULT_FILE_LOOP:
 						MOV		BX,COMMANDCOM_PARAMBLOCK
 						INT		21H
 
+						MOV		AX,4B00H	; EXEC
+						PUSH	CS
+						POP		DS
+						MOV		DX,C_COMMAND_COM
+						PUSH	CS
+						POP		ES
+						MOV		BX,COMMANDCOM_PARAMBLOCK
+						INT		21H
+
+HALT_FOREVER:
 						HLT
-						HLT
+						JMP		HALT_FOREVER
 
 
 DEFAULT_CONDEV_NAME		DB		"CON",0
 DEFAULT_COMSPEC			DB		"A:\YAMAND.COM",0
+
+C_COMMAND_COM:			DB		"C:\COMMAND.COM",0
 
 COMMANDCOM_PARAMETER	DB		" A:\ /P",0
 COMMANDCOM_PARAMBLOCK	DW		0	; ENVSEG to copy from

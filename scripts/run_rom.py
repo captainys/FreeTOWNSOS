@@ -20,7 +20,7 @@ proc=subprocess.Popen([
 	"-FD0",
 	FDIMG,
 	"-FD1",
-	os.path.join(THISDIR,"..","..","TOWNSEMU_TEST","DISKIMG","TBIOSV1.1L30.d77"),
+	os.path.join(THISDIR,"..","..","TOWNSEMU_TEST","DISKIMG","TBIOSV1.1L10.d77"),
 	"-DEBUG",
 	"-INITCMD","ENA FDCMON",
 	# "-INITCMD","BP 31A7:00002893", # Stop in free386.com before call init_dos_malloc
