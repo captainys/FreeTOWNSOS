@@ -71,6 +71,8 @@ KEYBUF_DATA_FIRST_BYTE	DB		0
 KEY_STATE_MAP_LEN		EQU		16
 KEY_STATE_MAP			DB		KEY_STATE_MAP_LEN dup(0)	; 128 bits.
 
+KEY_MATRIX				DB		16 dup (0)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT41H_INT_DATABLOCK:
@@ -97,21 +99,34 @@ INT41H_DATA_IS_SECOND_BYTE:
 						TEST	AH,80H
 						JE		INT41H_HANDLER_EXIT				; Something is wrong.  Discard the data.
 
-						; TEST	AH,010H	; Is it a BREAK (Key-Release) code?
-						; JNE		INT41H_DATA_IS_KEY_MAKE_CODE
 						; Update key bitmap
+
+						MOVZX	BX,AL
+						SHR		BX,3
+						MOV		CL,AL
+						AND		CL,7
+						MOV		CH,1
+						SHL		CH,CL
+
+						TEST	AH,010H
+						JNE		INT41H_DATA_IS_KEY_RELEASE
+; IS_KEY_PRESS:
+						OR		CS:[KEY_MATRIX+BX],CH
+						JMP		INT41H_MATRIX_UPDATE_DONE
+INT41H_DATA_IS_KEY_RELEASE:
+						NOT		CH
+						AND		CS:[KEY_MATRIX+BX],CH
+INT41H_MATRIX_UPDATE_DONE:
 
 						MOV		BX,CS:[KEYBUF_WRITEPTR]
 						INC		BX
 						AND		BX,KEYBUF_LEN_MASK
 						CMP		BX,CS:[KEYBUF_READPTR]
-						JE		INT41H_HANDLER_DUMMY_READ_AND_EXIT		; Jump if buffer is full
+						JE		INT41H_HANDLER_EXIT		; Jump if buffer is full
 
 						MOV		BX,CS:[KEYBUF_WRITEPTR]
 						SHL		BX,1
 						MOV		CS:[KEYBUF+BX],AX
-
-						; Update key bitmap
 
 						SHR		BX,1
 						INC		BX
@@ -346,6 +361,20 @@ INT90H_09H_HAVE_KEY:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_0AH_MATRIX_INPUT:
+						PUSH	DS
+						POP		ES
+
+						PUSH	CS
+						POP		DS
+						MOV		SI,KEY_MATRIX
+
+						CLD
+
+						MOVSD
+						MOVSD
+						MOVSD
+						MOVSD
+
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
