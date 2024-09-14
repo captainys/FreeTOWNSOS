@@ -30,6 +30,9 @@ CONDEV_INTERRUPT:
 						CMP		AL,DEVREQ_CMD_NON_DEST_READ
 						JE		CONDEV_NON_DESTRUCTIVE_READ
 
+						CMP		AL,DEVREQ_CMD_FLUSH_INPUT
+						JE		CONDEV_FLUSH_INPUT
+
 						CMP		AL,DEVREQ_CMD_OUTPUT_STATUS
 						JE		CONDEV_INTERRUPT_RETURN
 						CMP		AL,DEVREQ_CMD_INPUT_STATUS
@@ -96,6 +99,13 @@ CONDEV_NON_DESTRUCTIVE_READ:
 CONDEV_NON_DESTRUCTIVE_READ_NO_INPUT:
 						LES		BX,CS:[CONDEV_REQHDR_PTR]	; BX may be destroyed.
 						MOV		WORD ES:[BX+REQ_STATUS],CONSDEV_FLAG_BUSY
+						JMP		CONDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CONDEV_FLUSH_INPUT:
+						MOV		AH,06H ; Clear buffer
+						INT		90H
 						JMP		CONDEV_INTERRUPT_RETURN
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

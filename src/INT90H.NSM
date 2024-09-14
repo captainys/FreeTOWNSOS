@@ -87,6 +87,8 @@ BIOS_KEY_MASK_CHR		EQU		01h
 
 BIOS_CODE_SYSTEM		DW		0
 
+BIOS_KEY_LOCK			DB		0
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 KEYCODE_TO_ASCII:
@@ -153,6 +155,9 @@ INT41H_DATA_IS_SECOND_BYTE:
 						; Do not push a key that does not make a chr if encode mode.
 						CMP		SI,BIOS_MODE_ENCODE
 						JNE		INT41H_MATRIX_UPDATE_DONE
+
+						CMP		BYTE CS:[BIOS_KEY_LOCK],1
+						JE		INT41H_HANDLER_EXIT	; In Encode Mode and Key Locked, don't push to the buffer.
 
 						MOVZX	BX,AH
 						AND		BL,4
@@ -261,8 +266,6 @@ ERROR_DETAIL			DW		0
 INT90H_00H_INIT:
 						CLD
 
-						XOR		AX,AX
-
 						PUSH	CS
 						POP		ES
 						MOV		DI,KEYBUF
@@ -273,6 +276,8 @@ INT90H_00H_INIT:
 						MOV		CX,KEY_MATRIX_LEN
 						REP		STOSB
 
+						XOR		AX,AX
+						MOV		CS:[BIOS_CODE_SYSTEM],AX
 						MOV		CS:[KEYBUF_WRITEPTR],AX
 						MOV		CS:[KEYBUF_READPTR],AX
 						MOV		CS:[KEYBUF_DATA_FIRST_BYTE],AL
@@ -315,26 +320,44 @@ INT90H_01H_SET_BUFFERING:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_02H_SET_CODE_SYSTEM:
+						MOV		DX,[BP+SAVED_EDX]
+						MOV		CS:[BIOS_CODE_SYSTEM],DX
+						MOV		BYTE [BP+SAVED_EAX+1],0
+
+						XOR		AX,AX
+						MOV		CS:[KEYBUF_WRITEPTR],AX
+						MOV		CS:[KEYBUF_READPTR],AX
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_03H_GET_CODE_SYTEM:
+						MOV		DX,CS:[BIOS_CODE_SYSTEM]
+						MOV		[BP+SAVED_EDX],DX
+						MOV		BYTE [BP+SAVED_EAX+1],0
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_04H_CONTROL_KEYBOARD_LOCK:
+						MOV		AL,[BP+SAVED_EAX]
+						MOV		CS:[BIOS_KEY_LOCK],AL
+						MOV		BYTE [BP+SAVED_EAX+1],0
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_05H_CONTROL_CLICK_SOUND:
+						MOV		BYTE [BP+SAVED_EAX+1],0
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT90H_06H_CLEAR_BUFFER:
+						XOR		AX,AX
+						MOV		CS:[KEYBUF_WRITEPTR],AX
+						MOV		CS:[KEYBUF_READPTR],AX
+						MOV		BYTE [BP+SAVED_EAX+1],0
 						JMP		INT90H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
