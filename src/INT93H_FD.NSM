@@ -25,6 +25,7 @@ INT93_FD_SEEK_STEP		DB		1,1,1,1
 ; Must check FREADY flag every 1 second and set the flag if FREADY=0
 INT93_FD_DISKCHANGE		DB		0	; bit0 A drive changed  bit 1 B drive changed (detected FREADY=0)
 
+INT93H_READ_OR_WRITE:	DW		0
 
 INT93H_FD:
 						MOV		BYTE CS:[ERROR_CODE],80H
@@ -151,7 +152,7 @@ INT93H_FD_SEEK:
 
 
 ; Input
-;   AL Drive
+;   AL Drive (High-bits will be ignored)
 ;   CL Cylinder
 ; All registers preserved.
 INT93H_FD_SEEK_INTERNAL:
@@ -229,17 +230,21 @@ INT93H_FD_READ:
 						AND		BX,BX
 						JE		INT93H_EXIT_NO_ERROR
 
-INT93H_FD_READ_CYLINDER_LOOP:
+						MOV		WORD CS:[INT93H_READ_OR_WRITE],INT93H_FD_READ_INTERNAL
+						; Fall down to INT93H_FD_RW_CYLINDER_LOOP
+
+
+INT93H_FD_RW_CYLINDER_LOOP:
 						MOV		AX,[BP+SAVED_EAX]
 						CALL	INT93H_FD_SEEK_INTERNAL
 
-INT93H_FD_READ_SECTOR_LOOP:
+INT93H_FD_RW_SECTOR_LOOP:
 						; Loop until Record Not Found && 0<BX
 						PUSH	BX
 						PUSH	CX
 						PUSH	DX
 						MOV		AL,[BP+SAVED_EAX]
-						CALL	INT93H_FD_READ_INTERNAL
+						CALL	[CS:INT93H_READ_OR_WRITE]
 						POP		DX
 						POP		CX
 						POP		BX
@@ -251,7 +256,7 @@ INT93H_FD_READ_SECTOR_LOOP:
 						TEST	AL,IOERR_LOST_DATA
 						JNE		INT93H_FD_LOST_DATA
 
-						; One sector was read with no error.
+						; One sector was read/written with no error.
 						MOV		AL,[BP+SAVED_EAX]
 						CALL	INT93H_FD_SECTLEN_FROM_DRV
 						ADD		DI,AX
@@ -262,15 +267,15 @@ INT93H_FD_READ_SECTOR_LOOP:
 						MOV		AL,[BP+SAVED_EAX]
 						CALL	INT93H_FD_SECTPERTRK_FROM_DRV
 						CMP		DL,AL
-						JLE		INT93H_FD_READ_SECTOR_LOOP
+						JLE		INT93H_FD_RW_SECTOR_LOOP
 
 						MOV		DL,1
 						INC		DH	; Next Side
 						AND		DH,1
-						JNE		INT93H_FD_READ_SECTOR_LOOP
+						JNE		INT93H_FD_RW_SECTOR_LOOP
 
 						INC		CL	; Next Cylinder
-						JMP		INT93H_FD_READ_CYLINDER_LOOP
+						JMP		INT93H_FD_RW_CYLINDER_LOOP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -351,11 +356,95 @@ INT93H_FD_READ_INTERNAL:
 
 
 INT93H_FD_WRITE:
-						JMP		INT93H_EXIT
+						MOV		BX,[BP+SAVED_DS]
+						MOV		DS,BX
+						MOV		DI,[BP+SAVED_EDI]
+
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+
+						AND		BX,BX
+						JE		INT93H_EXIT_NO_ERROR
+
+						MOV		WORD CS:[INT93H_READ_OR_WRITE],INT93H_FD_WRITE_INTERNAL
+						JMP		INT93H_FD_RW_CYLINDER_LOOP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input    Same as INT 06H
+; Output   AL FDC Status
+;          Destroys SI
+INT93H_FD_WRITE_INTERNAL:
+						PUSH	DX
+						PUSH	CX
+						PUSH	BX
+						PUSH	AX
 
+						CALL	INT93H_FD_SECTLEN_FROM_DRV
+						MOV		SI,AX
+
+						POP		AX
+						PUSH	AX
+
+						CALL	INT93H_FD_WAIT_FDC_READY
+						CLI
+
+						MOV		BYTE CS:[INT46H_DID_COME_IN],0
+
+						CALL	INT93H_FD_SELECT_DRIVE
+
+						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
+
+						CLI
+
+						XCHG	BX,DX		; Now BH=Head  BL=Sector
+
+						PUSH	CX
+						MOV		DX,DS
+						MOVZX	EDX,DX
+						SHL		EDX,4
+						MOVZX	EDI,DI
+						ADD		EDX,EDI
+						MOV		AL,DMA_CHANNEL_FD
+						MOV		CX,SI
+						CALL	INT93H_DMA_SETUP_WRITE
+						POP		CX
+
+						MOV		AL,CL
+						MOV		DX,IO_FDC_CYLINDER
+						OUT		DX,AL
+
+						MOV		AL,BL
+						MOV		DX,IO_FDC_SECTOR
+						OUT		DX,AL
+
+						STI
+						XCHG	BX,DX		; Restore sector and side
+						CALL	INT93H_FD_DRIVE_CONTROL_IRQEN
+
+						MOV		AL,FDCCMD_WRITESECTOR;
+						MOV		DX,IO_FDC_COMMAND
+						OUT		DX,AL
+
+						CALL	INT93H_FD_WAIT_INT46
+
+						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
+
+						MOV		AL,DMA_CHANNEL_FD
+						CALL	INT93H_DMA_MASK
+
+						POP		AX
+
+						MOV		DX,IO_FDC_STATUS
+						IN		AL,DX
+
+						POP		BX
+						POP		CX
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_FD_CHECK_SECTOR:
 						JMP		INT93H_EXIT

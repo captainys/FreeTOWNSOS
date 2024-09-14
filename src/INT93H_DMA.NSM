@@ -4,6 +4,22 @@
 ;   EDX Physical Address
 ;   CX  Count
 INT93H_DMA_SETUP_READ:
+						PUSH	BX
+						MOV		BL,44h					; Single Mode, I/O->MEM
+						CALL	INT93H_DMA_SETUP_COMMON
+						POP		BX
+						RET
+
+
+INT93H_DMA_SETUP_WRITE:
+						PUSH	BX
+						MOV		BL,48h					; Single Mode, MEM->I/O
+						CALL	INT93H_DMA_SETUP_COMMON
+						POP		BX
+						RET
+
+
+INT93H_DMA_SETUP_COMMON:
 						PUSH	AX
 						PUSH	CX
 
@@ -22,6 +38,9 @@ INT93H_DMA_SETUP_READ:
 						OUT		IO_DMA_ADDR_HIGH,AL     ; 00A7h
 						ROL		EDX,16
 
+						MOV		AL,BL
+						OUT		IO_DMA_MODE_CONTROL,AL	; 00AAh
+
 						MOV		AH,1
 						AND		CL,3
 						SHL		AH,CL
@@ -30,9 +49,6 @@ INT93H_DMA_SETUP_READ:
 						AND		AL,AH
 						AND		AL,0Fh
 						OUT		IO_DMA_MASK,AL		; 00AFh
-
-						MOV		AL,44h					; Single Mode, I/O->MEM
-						OUT		IO_DMA_MODE_CONTROL,AL	; 00AAh
 
 						POP		CX
 						POP		AX
