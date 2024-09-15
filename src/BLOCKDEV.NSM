@@ -55,6 +55,8 @@ BLKDEV_INTERRUPT:
 						JE		BLKDEV_BUILD_BPB
 						CMP		AL,DEVREQ_CMD_READ
 						JE		BLKDEV_READ
+						CMP		AL,DEVREQ_CMD_WRITE
+						JE		BLKDEV_WRITE
 
 						TSUGARU_DEBUG
 
@@ -261,6 +263,81 @@ BLKDEV_READ_INTERNAL_FD:
 
 						JMP		BLKDEV_RETURN
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+BLKDEV_WRITE:
+						MOV		AH,ES:[BX+REQ_UNIT]
+						MOV		AL,ES:[BX+REQ_READ_WRITE_MEDIA_DESC]
+
+						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						JE		BLKDEV_WRITE_ROMDRIVE
+						CMP		AH,2
+						JB		BLKDEV_WRITE_INTERNAL_FD ; Unit 0 or 1 Internal FD
+
+						TSUGARU_DEBUG
+
+						JMP		BLKDEV_RETURN
+
+BLKDEV_WRITE_ROMDRIVE:
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_WRITE_PROTECTED
+						JMP		BLKDEV_RETURN
+
+BLKDEV_WRITE_INTERNAL_FD:
+						MOV		AH,DISKBIOS_CMD_01H_GET_DRV_MODE
+						MOV		AL,ES:[BX+REQ_UNIT]
+						OR		AL,20H
+						XOR		CH,CH
+						INT		93H
+
+						CMP		AH,80h
+						JE		BLKDEV_BIOS_FD_HARDERROR
+						CMP		AH,02H
+						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
+
+						; Now BH=number of heads, and BL=sectPerTrack
+						OR		BH,BH
+						JE		BLKDEV_BIOS_UNKNOWN_ERROR
+						OR		BL,BL
+						JE		BLKDEV_BIOS_UNKNOWN_ERROR
+
+						MOV		DX,BX	; DH is number of heads, DL is sectPerTrack
+
+						; ES:BX no longer points to the request header.
+
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]	; ES:BX is request header again.
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
+						DIV		DL
+
+						; AH is sector number.  AL is track (C*2+H)
+
+						INC		AH		; Sector number starts with 1, not 0.
+						MOV		DL,AH	; DL is sector number
+
+						MOVZX	AX,AL
+						DIV		DH
+
+						; AL is Cylinder,  AH is head
+
+						MOVZX	CX,AL	; CX is cylinder
+						MOV		DH,AH	; DH is head
+
+						MOV		DS,ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOV		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+
+						MOV		AH,DISKBIOS_CMD_06H_WRITE_SECTOR
+						MOV		AL,ES:[BX+REQ_UNIT]
+						OR		AL,20H
+
+						MOV		BX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]	; Do BX last.  Need ES:BX for other parameters.
+						INT		93H
+
+						CMP		AH,80h
+						JE		BLKDEV_BIOS_FD_HARDERROR
+						CMP		AH,02H
+						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
+
+						JMP		BLKDEV_RETURN
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
