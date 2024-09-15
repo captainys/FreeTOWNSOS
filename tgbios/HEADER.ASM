@@ -1,0 +1,102 @@
+						.386p
+
+						ASSUME CS:CODE
+
+						EXTRN	EGB_ENTRY:NEAR
+						; EXTRN	MOS_ENTRY:NEAR
+						; EXTRN	SPR_ENTRY:NEAR
+						; EXTRN	SND_ENTRY:NEAR
+						; EXTRN	FNT_ENTRY:NEAR
+						; EXTRN	MIDI_ENTRY:NEAR
+						; EXTRN	SNDINT_ENTRY:NEAR
+						; EXTRN SYSINFO_ENTRY:NEAR
+
+
+SAVE_WORLD				MACRO
+						PUSHF
+						PUSH	FS
+						PUSH	GS
+						PUSH	ES
+						PUSH	DS
+						PUSHAD
+						ENDM
+
+RESTORE_WORLD			MACRO
+						POPAD
+						POP		DS
+						POP		ES
+						POP		GS
+						POP		FS
+						POPF
+						ENDM
+
+TGBIOS_SEG				EQU		0110H
+
+CODE					SEGMENT
+
+						DB		"TSUGARU BIOS",0
+
+						ORG		20H
+						DD		OFFSET EGB
+						DW		TGBIOS_SEG
+
+						ORG		40H
+						DD		OFFSET MOS
+						DW		TGBIOS_SEG
+
+						ORG		60H
+						DD		OFFSET SPR
+						DW		TGBIOS_SEG
+
+						ORG		80H
+						DD		OFFSET SND
+						DW		TGBIOS_SEG
+
+						ORG		0A0H
+						DD		OFFSET FNT
+						DW		TGBIOS_SEG
+
+						ORG		0C0H
+						DD		OFFSET MIDI
+						DW		TGBIOS_SEG
+
+						ORG		1A0H
+						DD		OFFSET SNDINT
+						DW		TGBIOS_SEG
+
+						ORG		1C0H
+						DD		OFFSET SYSINFO
+						DW		TGBIOS_SEG
+
+						ORG		200H
+
+EGB						PROC	FAR
+						SAVE_WORLD
+						CALL	EGB_ENTRY
+						RESTORE_WORLD
+						RET
+EGB						ENDP
+
+MOS						PROC	FAR
+MOS						ENDP
+
+SPR						PROC	FAR
+SPR						ENDP
+
+SND						PROC	FAR
+SND						ENDP
+
+FNT						PROC	FAR
+FNT						ENDP
+
+MIDI					PROC	FAR
+MIDI					ENDP
+
+SNDINT					PROC	FAR
+SNDINT					ENDP
+
+SYSINFO					PROC	FAR
+SYSINFO					ENDP
+
+CODE					ENDS
+						END
