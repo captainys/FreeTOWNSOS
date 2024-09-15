@@ -78,24 +78,31 @@ EGB						PROC	FAR
 EGB						ENDP
 
 MOS						PROC	FAR
+						RET
 MOS						ENDP
 
 SPR						PROC	FAR
+						RET
 SPR						ENDP
 
 SND						PROC	FAR
+						RET
 SND						ENDP
 
 FNT						PROC	FAR
+						RET
 FNT						ENDP
 
 MIDI					PROC	FAR
+						RET
 MIDI					ENDP
 
 SNDINT					PROC	FAR
+						RET
 SNDINT					ENDP
 
 SYSINFO					PROC	FAR
+						RET
 SYSINFO					ENDP
 
 CODE					ENDS
