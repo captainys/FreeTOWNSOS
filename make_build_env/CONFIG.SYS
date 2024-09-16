@@ -1,3 +1,3 @@
-shell=A:\YAMAND.COM A:\ /P /E:80
+shell=A:\YAMAND.COM A:\ /E:80 /P
 files=10
 device=MINVCPI.SYS
