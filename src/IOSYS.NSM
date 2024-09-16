@@ -108,7 +108,33 @@ SETUP_REALMODE_INT_HANDLER:
 						MOV		AX,CS:[SEG_INTFDH]
 						SHL		EAX,16
 						MOV		ES:[0FDH*4],EAX
+
+						MOV		AX,CS
+						SHL		EAX,16
+						MOV		AX,INT20H_TO_EXIT
+						MOV		ES:[020H*4],EAX
+
 						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+EXIT_CODE:
+						MOV		AX,4C00H	; 3 bytes
+						INT		21H			; 2 bytes
+
+INT20H_TO_EXIT:
+						POP		BX
+						POP		GS
+						PUSH	GS
+						PUSH	BX
+
+						MOV		EAX,CS:[EXIT_CODE]
+						MOV		GS:[BX],EAX
+						MOV		EAX,CS:[EXIT_CODE+4]
+						MOV		GS:[BX+4],EAX
+
+						IRET
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
