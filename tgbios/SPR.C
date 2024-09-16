@@ -75,19 +75,17 @@ void SPR_DISPLAY(
 	unsigned int GS,
 	unsigned int FS)
 {
-	int i;
+	int i = 1024 - ECX;
 
 	switch(EAX & 0x3)
 	{
 		case 0: /* Stop sprite */
-			i = ECX - 1024;
 			_outb(0x450, 0);
 			_outb(0x452, (i & 0xff));
 			_outb(0x450, 1);
 			_outb(0x452, ((i >> 8) & 0x3));
 			break;
 		case 1: /* Start sprite */
-			i = ECX - 1024;
 			_outb(0x450, 0);
 			_outb(0x452, (i & 0xff));
 			_outb(0x450, 1);
