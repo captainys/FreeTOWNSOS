@@ -29,24 +29,12 @@ def Run(argv):
 		"-i",		"AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
+		"-i",		"../resources/SUCCESS.EXE",
+		"-i",		"../resources/FAIL.EXE",
 		"-i",		"../src/MINVCPI.SYS",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 	]).wait()
-
-	subprocess.Popen(["./dosdisk",
-		"-o",		"FDIMG_USEROM.bin",
-		"-ipl",		"../src/FD_IPL.bin",
-		"-i",		"../resources/IO.SYS",
-		"-i",		"CONFIG.SYS",
-		"-i",		"AUTOEXEC.BAT",
-		"-i",		"../resources/TGDRV.COM",
-		"-i",		"../resources/TEST.EXP",
-		"-i",		"../src/MINVCPI.SYS",
-		"-i",		"../externals/ORICON/ORICON.COM",
-		"-i",		"../externals/Free386/free386.com",
-	]).wait()
-
 
 if __name__=="__main__":
 	Run(sys.argv[1:])

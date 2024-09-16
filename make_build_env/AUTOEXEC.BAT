@@ -14,5 +14,6 @@ SET TMP=D:\TMP
 
 TGDRV
 C:\MSCDEX.EXE /L:Q /D:TOWNS_CD /M:8
-ORICON
+E:
+E:\TASK.BAT
 REM ORICON will start a new instance of COMMAND.COM no more commands here will be executed.
