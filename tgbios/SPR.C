@@ -35,6 +35,8 @@ void SPR_INIT(
 	_outb(0x452, 0);
 	_outb(0x450, 5);
 	_outb(0x452, 0);
+	_outb(0x450, 6);
+	_outb(0x452, 0);
 
 	/* Clear Sprite layer frame buffer with 0x8000 */
 	_Far unsigned int *vram;
@@ -73,24 +75,24 @@ void SPR_DISPLAY(
 	unsigned int GS,
 	unsigned int FS)
 {
+	int i = 1024 - ECX;
 
 	switch(EAX & 0x3)
 	{
 		case 0: /* Stop sprite */
 			_outb(0x450, 0);
-			_outb(0x452, (ECX & 0xff));
+			_outb(0x452, (i & 0xff));
 			_outb(0x450, 1);
-			_outb(0x452, ((ECX >> 8) & 0x3));
-
+			_outb(0x452, ((i >> 8) & 0x3));
 			break;
 		case 1: /* Start sprite */
 			_outb(0x450, 0);
-			_outb(0x452, (ECX & 0xff));
+			_outb(0x452, (i & 0xff));
 			_outb(0x450, 1);
-			_outb(0x452, 0x80 | ((ECX >> 8) & 0x3));
+			_outb(0x452, 0x80 | ((i >> 8) & 0x3));
 			break;
 		case 2: /* Wait sprite ready */
-			while(!(_inb(0x44c) & 2)){}
+			while((_inb(0x44c) & 2)){}
 			break;
 	}
 }
@@ -225,7 +227,7 @@ void SPR_SETATTRIBUTE(
 	spr_ram += (4 * (ECX & 1023)) + 2;
 
 	y = ((EDX >> 8) & 0xff) * (EDX & 0xff);
-	for(i = 0; y < y; i++)
+	for(i = 0; i < y; i++)
 	{
 		*spr_ram = (ESI & 0xffff);
 		spr_ram++;
@@ -257,7 +259,7 @@ void SPR_SETMOTION(
 	spr_ram += (4 * (ECX & 1023));
 
 	y = ((EDX >> 8) & 0xff) * (EDX & 0xff);
-	for(i = 0; y < y; i++)
+	for(i = 0; i < y; i++)
 	{
 		*spr_ram += (ESI & 0xffff);
 		spr_ram++;
