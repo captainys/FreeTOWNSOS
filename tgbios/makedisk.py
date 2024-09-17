@@ -13,6 +13,25 @@ def CopyToResources(filename):
 def Run(argv):
 	os.chdir(THISDIR)
 
+	proc=subprocess.Popen([
+		"Tsugaru_CUI",
+		os.path.join(THISDIR,"..","CompROM"),
+		"-FD0",
+		os.path.join(THISDIR,"..","make_build_env","BUILDTGBIOS.bin"),
+		"-BOOTKEY",
+		"F0",
+		"-SHAREDDIR",
+		os.path.join(THISDIR,"..","..","HC386ENV"),
+		"-SHAREDDIR",
+		THISDIR,
+		"-DEBUG",
+		"-UNITTEST",
+	])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error bulding TGBIOS.BIN")
+		quit()
+
 	proc=subprocess.Popen(["cl","../util/dosdisk.cpp","/EHsc"])
 	proc.communicate()
 	if 0!=proc.returncode:

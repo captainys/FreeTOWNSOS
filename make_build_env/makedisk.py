@@ -20,7 +20,7 @@ def Run(argv):
 		quit()
 
 	subprocess.Popen(["./dosdisk",
-		"-o",		"FDIMG.bin",
+		"-o",		"BUILDTGBIOS.bin",
 		"-ipl",		"../src/FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
 		"-i",		"../resources/YSDOS.SYS",
@@ -32,7 +32,6 @@ def Run(argv):
 		"-i",		"../resources/SUCCESS.EXE",
 		"-i",		"../resources/FAIL.EXE",
 		"-i",		"../src/MINVCPI.SYS",
-		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 	]).wait()
 
