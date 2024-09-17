@@ -8,6 +8,10 @@ struct EGB_ScreenMode
 	unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
 	unsigned char colors;
 	unsigned char combination[4];
+
+	unsigned int flags;
+	unsigned short defZoomH,defZoomV;
+
 	_Far unsigned char *vram;
 };
 
@@ -42,5 +46,7 @@ struct EGB_Work
 
 	struct EGB_ScreenMode virtualVRAM[4];
 };
+
+_Far unsigned short *EGB_GetCRTCRegs(int modeComb);
 
 #endif
