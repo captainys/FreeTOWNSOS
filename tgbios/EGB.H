@@ -1,16 +1,25 @@
 #ifndef EGB_H_IS_INCLUDED
 #define EGB_H_IS_INCLUDED
 
+struct POINTW
+{
+	short x,y;
+};
+
+#define SCRNMODE_FLAG_VSCROLL	1
+#define SCRNMODE_FLAG_HSCROLL	2
+
 struct EGB_ScreenMode
 {
-	unsigned short wid,hei;
+	struct POINTW visiSize;
+	struct POINTW size;
 	unsigned short bytesPerLine;
 	unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
 	unsigned char colors;
 	unsigned char combination[4];
 
 	unsigned int flags;
-	unsigned short defZoomH,defZoomV;
+	struct POINTW defZoom;
 
 	_Far unsigned char *vram;
 };

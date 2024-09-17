@@ -2,6 +2,258 @@
 #include "TGBIOS.H"
 #include <DOS.H>
 
+
+struct EGB_ScreenMode EGB_SCREENMODES[19]=
+{
+	{ // Zero is not used
+		{0,0}, //struct POINTW visiSize;
+		{0,0}, //struct POINTW size;
+		0,//unsigned short bytesPerLine;
+		0,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		0,//unsigned char colors;
+		{0,0,0,0},//unsigned char combination[4];
+
+		0,//unsigned int flags;
+		{0,0},//struct POINTW defZoom;
+
+		NULL,//_Far unsigned char *vram;
+	},
+	{ // Mode 1
+		{640,400}, //struct POINTW visiSize;
+		{640,819}, //struct POINTW size;
+		320,//unsigned short bytesPerLine;
+		0,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		16,//unsigned char colors;
+		{1,255,255,255},//unsigned char combination[4];
+
+		0,//unsigned int flags;
+		{1,1},//struct POINTW defZoom;
+
+		NULL,//_Far unsigned char *vram;
+	},
+	{ // Mode 2
+		{640,200}, //struct POINTW visiSize;
+		{640,819}, //struct POINTW size;
+		320,//unsigned short bytesPerLine;
+		0,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		16,//unsigned char colors;
+		{2,255,255,255},//unsigned char combination[4];
+
+		0,//unsigned int flags;
+		{1,2},//struct POINTW defZoom;
+
+		NULL,//_Far unsigned char *vram;
+	},
+	{ // Mode 3
+		{640,480}, //struct POINTW visiSize;
+		{1024,512}, //struct POINTW size;
+		512,//unsigned short bytesPerLine;
+		9,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		16,//unsigned char colors;
+		{3,5,10,255},//unsigned char combination[4];
+
+		SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		{1,1},//struct POINTW defZoom;
+
+		NULL,//_Far unsigned char *vram;
+	},
+	{ // Mode 4
+		{640,400}, //struct POINTW visiSize;
+		{1024,512}, //struct POINTW size;
+		512,//unsigned short bytesPerLine;
+		9,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		16,//unsigned char colors;
+		{4,6},//unsigned char combination[4];
+
+		SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		{1,1},//struct POINTW defZoom;
+
+		NULL,//_Far unsigned char *vram;
+	},
+/*	{ // Mode 5
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 6
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 7
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 8
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 9
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 10
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 11
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 12
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 13
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 14
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 15
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 16
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 17
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},
+	{ // Mode 18
+		{}, //struct POINTW visiSize;
+		{}, //struct POINTW size;
+		,//unsigned short bytesPerLine;
+		,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		,//unsigned char colors;
+		{},//unsigned char combination[4];
+
+		,//unsigned int flags;
+		,//struct POINTW defZoom;
+
+		,//_Far unsigned char *vram;
+	},*/
+};
+
 unsigned short EGB_CRTCREGS[33][38]=
 {
 	{
