@@ -19,6 +19,15 @@ ORICONはMIYAZAKIさんとYAMAZAKIさんによるコンソールエミュレー�
 
 ORICON was a console emulator and included in this program by courtesy of the developers, Mr. MIYAZAKI and Mr. YAMAZAKI.  I sincerely appreciate their generosity and enormous contribution to the FM TOWNS community.
 
+DOS-Extenderの置き換えには、nabeさんによるFree386を利用させていただいています。Free386はPublic Domain Softwareということなので、nabeさんのご厚意とFM TOWNSコミュニティへの貢献に感謝して再配布させていただいています。
+
+Free386 is a PharLap-compatible DOS-Extender developed by nabe-abk.  Free386 is released as a PDS (Public Domain Software), and is included in this package.  I sincerely appreciate his generosity and enormous contribution to the FM TOWNS community.
+
+YAMAND.COMとYSDOS.SYSは自分のプロジェクトから持ってきてます。https://github.com/captainys/TOWNSROM
+
+YAMAND.COM and YSDOS.SYS are from my project https://github.com/captainys/TOWNSROM .
+
+
 
 
 
