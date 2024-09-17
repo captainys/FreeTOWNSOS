@@ -96,6 +96,10 @@ unsigned char modeComb[33][2]=
 	{  1,  4},//FMR
 };
 
+#define TOWNSIO_VM_HOST_IF_CMD_STATUS 0x2386
+#define TOWNSIO_VM_HOST_IF_DATA       0x2387
+#define TOWNS_VMIF_CMD_CAPTURE_CRTC   0x01
+
 int main(void)
 {
 	EGB_init(EGB_work,EgbWorkSize);
@@ -105,6 +109,9 @@ int main(void)
 		EGB_resolution(EGB_work,0,modeComb[i][0]);
 		EGB_resolution(EGB_work,1,modeComb[i][1]);
 		// CaptureCRTC registers
+		_outp(TOWNSIO_VM_HOST_IF_DATA,modeComb[i][0]);
+		_outp(TOWNSIO_VM_HOST_IF_DATA,modeComb[i][1]);
+		_outp(TOWNSIO_VM_HOST_IF_CMD_STATUS,TOWNS_VMIF_CMD_CAPTURE_CRTC);
 	}
 	return 0;
 }
