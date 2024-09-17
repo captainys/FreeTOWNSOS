@@ -1,6 +1,10 @@
 #ifndef TGBIOS_H_IS_INCLUDED
 #define TGBIOS_H_IS_INCLUDED
 
+#ifndef NULL
+#define NULL 0
+#endif
+
 #define SEG_TGBIOS_CODE 0x110
 #define SEG_TGBIOS_DATA 0x118
 

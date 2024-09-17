@@ -1,3 +1,4 @@
+#include <DOS.H>
 #include "TGBIOS.H"
 #include "EGB.H"
 #include "MACRO.H"
@@ -16,7 +17,66 @@ void EGB_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far unsigned char *ptr;
+	int i;
+
+	_Far struct EGB_Work *EGB_work;
+	_FP_SEG(EGB_work)=GS;
+	_FP_OFF(EGB_work)=EDI;
+
+	EGB_work->screenMode[0]=12;    //+00H
+	EGB_work->screenMode[1]=12;
+	EGB_work->writePage=0;         //+02H
+	EGB_work->showPageBits=3;      //+03H
+	EGB_work->foregroundColor=15;  //+04H
+	EGB_work->backgroundColor=0;  //+06H
+	EGB_work->transparentColor=0;  //+08H
+	EGB_work->alpha=128;             //+0AH
+	EGB_work->viewport[0]=0;       //+0CH x0,y0,x1,y1
+	EGB_work->viewport[1]=0;       //+0CH x0,y0,x1,y1
+	EGB_work->viewport[2]=639;       //+0CH x0,y0,x1,y1
+	EGB_work->viewport[3]=479;       //+0CH x0,y0,x1,y1
+	EGB_work->fontSpacing=0;       //+14H
+	EGB_work->fontRotation=0;       //+16H
+	EGB_work->stringRotation=0;     //+17H
+	EGB_work->textX=0;       //+18H
+	EGB_work->textY=0;
+	EGB_work->paintMode=0;          //+1CH
+	EGB_work->padding0=0xFF;           //+1DH PADDING
+	EGB_work->paintColor=0;        //+1EH
+	EGB_work->drawingMode=0;        //+20H
+	EGB_work->superImpose=0;        //+21H
+	EGB_work->superImposeArea[0]=0;//+22H x0,y0,x1,y1
+	EGB_work->superImposeArea[1]=0;//+22H x0,y0,x1,y1
+	EGB_work->superImposeArea[2]=0;//+22H x0,y0,x1,y1
+	EGB_work->superImposeArea[3]=0;//+22H x0,y0,x1,y1
+	EGB_work->superImposeBright=255;  //+2AH
+	EGB_work->penWidth=1;           //+2BH
+	EGB_work->fontStyle=0;          //+2CH
+	EGB_work->padding1=0xFF;           //+2DH PADDING
+	EGB_work->hatchWid=0;
+	EGB_work->hatchHei=0;  //+2EH
+	EGB_work->hatchingPtn=NULL;  //+30H
+	EGB_work->tileWid=0;
+	EGB_work->tileHei=0;    //+36H
+	EGB_work->tilePtn=NULL;      //+3AH
+
+	for(i=0; i<4; ++i)
+	{
+		EGB_work->virtualVRAM[i].wid=0;
+		EGB_work->virtualVRAM[i].hei=0;
+		EGB_work->virtualVRAM[i].bytesPerLine=0;
+		EGB_work->virtualVRAM[i].bytesPerLineShift=0;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		EGB_work->virtualVRAM[i].colors=0;
+		EGB_work->virtualVRAM[i].combination[0]=0xFF;
+		EGB_work->virtualVRAM[i].combination[1]=0xFF;
+		EGB_work->virtualVRAM[i].combination[2]=0xFF;
+		EGB_work->virtualVRAM[i].combination[3]=0xFF;
+		EGB_work->virtualVRAM[i].vram=NULL;
+	}
+
+	// Need to set up CRTC
+	// Need to initialize palette
+
 	TSUGARU_BREAK;
 }
 
