@@ -1,0 +1,21 @@
+#ifndef TGBIOS_H_IS_INCLUDED
+#define TGBIOS_H_IS_INCLUDED
+
+#define SEG_TGBIOS_CODE 0x110
+#define SEG_TGBIOS_DATA 0x118
+
+#define SEG_VRAM_2PG 0x120
+#define SEG_VRAM_1PG 0x128
+
+#define SEG_PATTERN_RAM 0x130
+
+#define SEG_KANJI_FONT_ROM 0x138
+
+#define SEG_WAVE_RAM 0x140
+
+#define SEG_OS_RAM 0x148
+
+#define SEG_SYSROM_CODE 0x100
+#define SEG_SYSROM_DATA 0x100
+
+#endif

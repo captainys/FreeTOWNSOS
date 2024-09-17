@@ -26,6 +26,7 @@ def Run(argv):
 		THISDIR,
 		"-DEBUG",
 		"-UNITTEST",
+		"-USEFPU",
 	])
 	proc.communicate()
 	if 0!=proc.returncode:

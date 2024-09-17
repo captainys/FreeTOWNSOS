@@ -1,3 +1,5 @@
+#include "TGBIOS.H"
+#include "EGB.H"
 #include "MACRO.H"
 
 void EGB_INIT(
