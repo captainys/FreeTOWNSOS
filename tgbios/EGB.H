@@ -1,6 +1,8 @@
 #ifndef EGB_H_IS_INCLUDED
 #define EGB_H_IS_INCLUDED
 
+#define EGB_NUM_MODECOMB 33
+
 struct POINTW
 {
 	short x,y;

@@ -1,7 +1,9 @@
 #include <DOS.H>
+#include <CONIO.H>
 #include "TGBIOS.H"
 #include "EGB.H"
 #include "MACRO.H"
+#include "IODEF.H"
 
 void EGB_INIT(
 	unsigned int EDI,
@@ -62,8 +64,10 @@ void EGB_INIT(
 
 	for(i=0; i<4; ++i)
 	{
-		EGB_work->virtualVRAM[i].wid=0;
-		EGB_work->virtualVRAM[i].hei=0;
+		EGB_work->virtualVRAM[i].visiSize.x=0;
+		EGB_work->virtualVRAM[i].visiSize.y=0;
+		EGB_work->virtualVRAM[i].size.x=0;
+		EGB_work->virtualVRAM[i].size.y=0;
 		EGB_work->virtualVRAM[i].bytesPerLine=0;
 		EGB_work->virtualVRAM[i].bytesPerLineShift=0;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
 		EGB_work->virtualVRAM[i].colors=0;
@@ -71,6 +75,11 @@ void EGB_INIT(
 		EGB_work->virtualVRAM[i].combination[1]=0xFF;
 		EGB_work->virtualVRAM[i].combination[2]=0xFF;
 		EGB_work->virtualVRAM[i].combination[3]=0xFF;
+
+		EGB_work->virtualVRAM[i].flags=0;
+		EGB_work->virtualVRAM[i].defZoom.x=0;
+		EGB_work->virtualVRAM[i].defZoom.y=0;
+
 		EGB_work->virtualVRAM[i].vram=NULL;
 	}
 
@@ -95,6 +104,79 @@ void EGB_RESOLUTION(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+
+	_Far struct EGB_Work *EGB_work;
+	_FP_SEG(EGB_work)=GS;
+	_FP_OFF(EGB_work)=EDI;
+
+	unsigned char AL=EAX&0xFF;
+	if(0==AL || 1==AL)
+	{
+		unsigned int newScreenMode[2];
+		newScreenMode[0]=EGB_work->screenMode[0];
+		newScreenMode[1]=EGB_work->screenMode[1];
+		newScreenMode[AL]=EDX&0x3F;
+
+		if(0==(EDX&0x40))
+		{
+			int modeComb;
+			_Far unsigned short *regSet;
+			for(modeComb=0; modeComb<EGB_NUM_MODECOMB; ++modeComb)
+			{
+				regSet=EGB_GetCRTCRegs(modeComb);
+				if(newScreenMode[0]==regSet[0] & newScreenMode[1]==regSet[1])
+				{
+					break;
+				}
+			}
+			if(modeComb>=EGB_NUM_MODECOMB)
+			{
+				for(modeComb=0; modeComb<EGB_NUM_MODECOMB; ++modeComb)
+				{
+					regSet=EGB_GetCRTCRegs(modeComb);
+					if(newScreenMode[AL]==regSet[AL])
+					{
+						newScreenMode[0]=regSet[0];
+						newScreenMode[1]=regSet[1];
+						break;
+					}
+				}
+			}
+			if(modeComb<EGB_NUM_MODECOMB)
+			{
+				int reg;
+				EGB_work->screenMode[0]=newScreenMode[0];
+				EGB_work->screenMode[1]=newScreenMode[1];
+				for(reg=0; reg<32; ++reg)
+				{
+					if(reg==2 || reg==3)
+					{
+						continue;
+					}
+					_outb(TOWNSIO_CRTC_ADDRESS,reg);
+					_outw(TOWNSIO_CRTC_DATA_LOW,regSet[2+reg]);
+				}
+				for(reg=0; reg<2; ++reg)
+				{
+					_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,reg);
+					_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,regSet[2+32+reg]);
+				}
+			}
+			else
+			{
+				TSUGARU_BREAK;
+				EAX|=0xFF00;
+			}
+		}
+	}
+	else if(0x80<=AL && AL<=0x83)
+	{
+		TSUGARU_BREAK;
+	}
+	else
+	{
+		EAX|=0xFF00;
+	}
 }
 
 void EGB_DISPLAYSTART(

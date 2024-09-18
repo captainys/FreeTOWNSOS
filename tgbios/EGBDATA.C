@@ -254,7 +254,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 	},*/
 };
 
-unsigned short EGB_CRTCREGS[33][38]=
+unsigned short EGB_CRTCREGS[EGB_NUM_MODECOMB][38]=
 {
 	{
 	0x0C,0xFF,
