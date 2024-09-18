@@ -42,7 +42,7 @@ void SPR_INIT(
 	_Far unsigned int *vram;
 	_FP_SEG(vram) = 0x104;
 	_FP_OFF(vram) = 0x0;
-	vram += 0xffff;
+	vram += 0x10000;
 
 	for(i = 0;i < 65536;i++)
 	{
