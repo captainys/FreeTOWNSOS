@@ -86,7 +86,7 @@ void EGB_INIT(
 	// Need to set up CRTC
 	// Need to initialize palette
 
-	TSUGARU_BREAK;
+	EAX&=0xFFFF00FF;
 }
 
 void EGB_RESOLUTION(
