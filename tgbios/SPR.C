@@ -41,7 +41,8 @@ void SPR_INIT(
 	/* Clear Sprite layer frame buffer with 0x8000 */
 	_Far unsigned int *vram;
 	_FP_SEG(vram) = 0x104;
-	_FP_OFF(vram) = 0x20000;
+	_FP_OFF(vram) = 0x0;
+	vram += 0x10000;
 
 	for(i = 0;i < 65536;i++)
 	{
@@ -92,6 +93,8 @@ void SPR_DISPLAY(
 			_outb(0x452, 0x80 | ((i >> 8) & 0x3));
 			break;
 		case 2: /* Wait sprite ready */
+			_outb( 0x0440, 30 );
+			while(!(_inb(0x443) & 4)){}
 			while((_inb(0x44c) & 2)){}
 			break;
 	}
@@ -122,6 +125,24 @@ void SPR_DEFINE(
 		byte = 128;
 	}
 
+	/*_Far unsigned char *ram;
+	_FP_SEG(ram) = DS;
+	_FP_OFF(ram) = ESI;
+
+	_Far unsigned char *sprram;
+	_FP_SEG(sprram) = 0x114;
+	_FP_OFF(sprram) = 0x0;
+
+	sprram += 128 * (ECX & 1023);
+	byte *= (EDX & 0xff) * ((EDX >> 8) & 0xff);
+
+	for(int i = 0;i < byte;i++)
+	{
+		*sprram = *ram;
+		ram++;
+		sprram++
+	}*/
+
 	_movedata(DS, ESI, 0x114, 128 * (ECX & 1023), (EDX & 0xff) * ((EDX >> 8) & 0xff) * byte);
 }
 
@@ -139,6 +160,24 @@ void SPR_SETPALETTEBLOCK(
 	unsigned int GS,
 	unsigned int FS)
 {
+	/*_Far unsigned char *ram;
+	_FP_SEG(ram) = DS;
+	_FP_OFF(ram) = ESI;
+
+	_Far unsigned char *sprram;
+	_FP_SEG(sprram) = 0x114;
+	_FP_OFF(sprram) = 0x0;
+
+	sprram += 32 * (ECX & 511);
+	int byte = (EDX & 0xff) * 32);
+
+	for(int i = 0;i < byte;i++)
+	{
+		*sprram = *ram;
+		ram++;
+		sprram++
+	}*/
+
 	_movedata(DS, ESI, 0x114, 32 * (ECX & 511), (EDX & 0xff) * 32);
 }
 
@@ -230,6 +269,7 @@ void SPR_SETATTRIBUTE(
 	for(i = 0; i < y; i++)
 	{
 		*spr_ram = (ESI & 0xffff);
+		ESI++;
 		spr_ram++;
 		*spr_ram = (EDI & 0xffff);
 		spr_ram += 3;
@@ -306,5 +346,23 @@ void SPR_READATTRIBUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
+	/*_Far unsigned char *ram;
+	_FP_SEG(ram) = DS;
+	_FP_OFF(ram) = ESI;
+
+	_Far unsigned char *sprram;
+	_FP_SEG(sprram) = 0x114;
+	_FP_OFF(sprram) = 0x0;
+
+	sprram += 8 * (ECX & 1023);
+	int byte = (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8;
+
+	for(int i = 0;i < byte;i++)
+	{
+		*ram = *sprram;
+		ram++;
+		sprram++
+	}*/
+
 	_movedata(0x114, 8 * (ECX & 1023), DS, ESI, (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8);
 }
