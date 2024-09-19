@@ -4,6 +4,36 @@
 #include "EGB.H"
 #include "MACRO.H"
 #include "IODEF.H"
+#include "UTIL.H"
+
+static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
+{
+	int reg;
+	_Far unsigned short *regSet=EGB_GetCRTCRegs(modeComb);
+	if(NULL==regSet || EGB_INVALID_SCRNMODE==regSet[0])
+	{
+		// Register Set does not exist, or the set is unused.
+		return;
+	}
+	for(reg=0; reg<NUM_CRTC_REGS; ++reg)
+	{
+		work->crtcRegs[reg]=regSet[2+reg];
+		if(reg==2 || reg==3)
+		{
+			continue;
+		}
+		_outb(TOWNSIO_CRTC_ADDRESS,reg);
+		_outw(TOWNSIO_CRTC_DATA_LOW,regSet[2+reg]);
+	}
+	for(reg=0; reg<2; ++reg)
+	{
+		work->sifter[reg]=regSet[2+32+reg];
+		_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,reg);
+		_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,regSet[2+32+reg]);
+	}
+}
+
+////////////////////////////////////////////////////////////
 
 void EGB_INIT(
 	unsigned int EDI,
@@ -70,7 +100,7 @@ void EGB_INIT(
 		EGB_work->virtualVRAM[i].size.y=0;
 		EGB_work->virtualVRAM[i].bytesPerLine=0;
 		EGB_work->virtualVRAM[i].bytesPerLineShift=0;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
-		EGB_work->virtualVRAM[i].colors=0;
+		EGB_work->virtualVRAM[i].bitsPerPixel=0;
 		EGB_work->virtualVRAM[i].combination[0]=0xFF;
 		EGB_work->virtualVRAM[i].combination[1]=0xFF;
 		EGB_work->virtualVRAM[i].combination[2]=0xFF;
@@ -83,10 +113,33 @@ void EGB_INIT(
 		EGB_work->virtualVRAM[i].vram=NULL;
 	}
 
-	// Need to set up CRTC
+	// Clear VRAM
+	{
+		_Far unsigned int *vram;
+		_FP_SEG(vram)=SEG_VRAM_2PG;
+		_FP_OFF(vram)=0;
+		for(int i=0; i<VRAM_SIZE/sizeof(unsigned int); ++i)
+		{
+			vram[i]=0;
+		}
+	}
+
+	// Set up CRTC
+	for(i=0; i<EGB_NUM_MODECOMB; ++i)
+	{
+		_Far unsigned short *regSet=EGB_GetCRTCRegs(i);
+		if(NULL!=regSet && 3==regSet[0] && 3==regSet[1])
+		{
+			EGB_SetUpCRTC(EGB_work,i);
+			break;
+		}
+	}
+	_outb(TOWNSIO_CRTC_OUTPUT_CONTROL,0x0A);  // FM-R CRTC Output Control
+
 	// Need to initialize palette
 
-	EAX&=0xFFFF00FF;
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_RESOLUTION(
@@ -103,13 +156,17 @@ void EGB_RESOLUTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
-
 	_Far struct EGB_Work *EGB_work;
 	_FP_SEG(EGB_work)=GS;
 	_FP_OFF(EGB_work)=EDI;
 
 	unsigned char AL=EAX&0xFF;
+	if(EGB_INVALID_SCRNMODE==AL)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
 	if(0==AL || 1==AL)
 	{
 		unsigned int newScreenMode[2];
@@ -144,28 +201,14 @@ void EGB_RESOLUTION(
 			}
 			if(modeComb<EGB_NUM_MODECOMB)
 			{
-				int reg;
 				EGB_work->screenMode[0]=newScreenMode[0];
 				EGB_work->screenMode[1]=newScreenMode[1];
-				for(reg=0; reg<32; ++reg)
-				{
-					if(reg==2 || reg==3)
-					{
-						continue;
-					}
-					_outb(TOWNSIO_CRTC_ADDRESS,reg);
-					_outw(TOWNSIO_CRTC_DATA_LOW,regSet[2+reg]);
-				}
-				for(reg=0; reg<2; ++reg)
-				{
-					_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,reg);
-					_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,regSet[2+32+reg]);
-				}
+				EGB_SetUpCRTC(EGB_work,modeComb);
 			}
 			else
 			{
 				TSUGARU_BREAK;
-				EAX|=0xFF00;
+				EGB_SetError(EAX,EGB_GENERAL_ERROR);
 			}
 		}
 	}
@@ -175,7 +218,7 @@ void EGB_RESOLUTION(
 	}
 	else
 	{
-		EAX|=0xFF00;
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
 	}
 }
 
@@ -244,7 +287,26 @@ void EGB_WRITEPAGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *EGB_work;
+	_FP_SEG(EGB_work)=GS;
+	_FP_OFF(EGB_work)=EDI;
+
+	unsigned char AL=EAX&0xFF;
+	if((0==AL || 1==AL) && EGB_work->screenMode[AL]!=EGB_INVALID_SCRNMODE)
+	{
+		EGB_work->writePage=AL;
+		EGB_SetError(EAX,EGB_NO_ERROR);
+	}
+	else if(0x80<=AL && AL<0x84)
+	{
+		AL&=3;
+		if(NULL!=EGB_work->virtualVRAM[AL].vram)
+		{
+			EGB_work->writePage=(AL|0x80);
+			EGB_SetError(EAX,EGB_NO_ERROR);
+		}
+	}
+	EGB_SetError(EAX,EGB_GENERAL_ERROR);
 }
 
 void EGB_DISPLAYPAGE(
@@ -261,7 +323,30 @@ void EGB_DISPLAYPAGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	unsigned char priority=EAX&1;
+	unsigned char showPage=0;
+
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	work->sifter[1]&=0xFE;
+	work->sifter[1]|=priority;
+	_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,1);
+	_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,work->sifter[1]);
+
+	if(EDX&1)
+	{
+		showPage=3;
+	}
+	if(EDX&2)
+	{
+		showPage|=0x0C;
+	}
+
+	_outb(TOWNSIO_CRTC_OUTPUT_CONTROL,showPage);
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_COLOR(
@@ -652,7 +737,57 @@ void EGB_CLEARSCREEN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
+	if(0==work->writePage || 1==work->writePage)
+	{
+		_Far struct EGB_ScreenMode *prop=EGB_GetScreenModeProp(work->screenMode[work->writePage]);
+		if(NULL!=prop)
+		{
+			_Far unsigned char *vram;
+			unsigned int vramOffset,wordData,count;
+			if(4==prop->bitsPerPixel)
+			{
+				unsigned short wd;
+				wd=work->backgroundColor;
+				wd<<=4;
+				wd|=work->backgroundColor;
+				wordData=wd|(wd<<8);
+			}
+			else if(8==prop->bitsPerPixel)
+			{
+				wordData=work->backgroundColor|(work->backgroundColor<<8);
+			}
+			else
+			{
+				wordData=work->backgroundColor;
+			}
+
+			if(work->screenMode[1]==EGB_INVALID_SCRNMODE)
+			{
+				vramOffset=0;
+				count=VRAM_SIZE/2;
+			}
+			else
+			{
+				vramOffset=(VRAM_SIZE/2)*work->writePage;
+				count=VRAM_SIZE/4;
+			}
+			_FP_SEG(vram)=SEG_VRAM_2PG;
+			_FP_OFF(vram)=vramOffset;
+			MEMSETW_FAR(vram,wordData,count);
+		}
+		return;
+	}
+	else if(0x80<=work->writePage && work->writePage<=0x83)
+	{
+		TSUGARU_BREAK;
+		return;
+	}
+	EGB_SetError(EAX,EGB_GENERAL_ERROR);
 }
 
 void EGB_PARTCLEARSCREEN(

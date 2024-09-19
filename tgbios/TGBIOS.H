@@ -10,6 +10,7 @@
 
 #define SEG_VRAM_2PG 0x120
 #define SEG_VRAM_1PG 0x128
+#define VRAM_SIZE (512*1024)
 
 #define SEG_PATTERN_RAM 0x130
 

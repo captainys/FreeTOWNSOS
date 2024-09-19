@@ -1,6 +1,8 @@
 						.386p
 
 						ASSUME CS:CODE
+						PUBLIC	MEMSETB_FAR
+						PUBLIC	MEMSETW_FAR
 
 CODE					SEGMENT
 
@@ -21,6 +23,92 @@ TOWNS_VMIF_TFR_VM_TO_HOST    	EQU		02H
 
 TOWNS_VMIF_TFR_NOERROR       	EQU		00H
 TOWNS_VMIF_TFR_WRITE_ERROR   	EQU		80H
+
+
+MEMSETB_FAR				PROC
+; MEMSETB_FAR(_Far void *ptr,unsigned int value,unsigned int count);
+; [EBP+20] count
+; [EBP+16] value
+; [EBP+12] SELECTOR
+; [EBP+8]  OFFSET
+; [EBP+4]  EIP
+; [EBP]    EBP
+						PUSH	ES
+						PUSH	ECX
+						PUSH	EDI
+						PUSH	EBP
+						MOV		EBP,ESP
+
+						MOV		AL,[EBP+16]
+						MOV		AH,AL
+						SHL		EAX,8
+						MOV		AL,AH
+						SHL		EAX,8
+						MOV		AL,AH
+
+						LES		EDI,[EBP+8]
+						CLD
+
+						MOV		ECX,[EBP+20]
+						SHR		ECX,2
+						STOSD
+
+						MOV		ECX,[EBP+20]
+						SHR		ECX,1
+						AND		ECX,1
+						STOSW
+
+						MOV		ECX,[EBP+20]
+						SHR		ECX,2
+						AND		ECX,1
+						STOSB
+
+						POP		EBP
+						POP		EDI
+						POP		ECX
+						POP		ES
+						RET
+
+MEMSETB_FAR				ENDP
+
+
+MEMSETW_FAR				PROC
+; MEMSETW_FAR(_Far void *ptr,unsigned int value,unsigned int count);
+; [EBP+20] count
+; [EBP+16] value
+; [EBP+12] SELECTOR
+; [EBP+8]  OFFSET
+; [EBP+4]  EIP
+; [EBP]    EBP
+						PUSH	ES
+						PUSH	ECX
+						PUSH	EDI
+						PUSH	EBP
+						MOV		EBP,ESP
+
+						MOV		AX,[EBP+16]
+						SHL		EAX,16
+						MOV		AX,[EBP+16]
+
+						LES		EDI,[EBP+8]
+						CLD
+
+						MOV		ECX,[EBP+20]
+						SHR		ECX,1
+						STOSD
+
+						MOV		ECX,[EBP+20]
+						AND		ECX,1
+						STOSW
+
+						POP		EBP
+						POP		EDI
+						POP		ECX
+						POP		ES
+						RET
+
+MEMSETW_FAR				ENDP
+
 
 CODE					ENDS
 						END
