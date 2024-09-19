@@ -18,6 +18,9 @@
 #define EGB_FUNC_MATTE 6
 #define EGB_FUNC_PASTEL 7
 #define EGB_FUNC_OPAGUE 9
+#define EGB_FUNC_IMPSET 10
+#define EGB_FUNC_IMPRESET 11
+#define EGB_FUNC_IMPNOT 12
 #define EGB_FUNC_MASKSET 13
 #define EGB_FUNC_MASKRESET 14
 #define EGB_FUNC_MASKNOT 15
@@ -61,9 +64,7 @@ struct EGB_PerPage
 	unsigned char screenMode;
 	unsigned char _padding0;
 
-	unsigned short foregroundColor;
-	unsigned short backgroundColor;
-	unsigned short transparentColor;
+	unsigned short color[4];
 	unsigned short alpha;
 	unsigned short viewport[4];
 	unsigned short fontSpacing;
@@ -71,7 +72,6 @@ struct EGB_PerPage
 	unsigned char stringRotation;
 	unsigned short textX,textY;
 
-	unsigned short paintColor;
 	unsigned char paintMode;
 	unsigned char drawingMode;
 

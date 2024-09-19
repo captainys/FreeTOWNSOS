@@ -102,9 +102,10 @@ void EGB_INIT(
 	{
 		_Far struct EGB_PerPage *p=&(work->perPage[i]);
 		p->screenMode=12;
-		p->foregroundColor=15;
-		p->backgroundColor=0;
-		p->transparentColor=0;
+		p->color[EGB_FOREGROUND_COLOR]=15;
+		p->color[EGB_BACKGROUND_COLOR]=0;
+		p->color[EGB_TRANSPARENT_COLOR]=0;
+		p->color[EGB_FILL_COLOR]=0;
 		p->alpha=128;
 		p->viewport[0]=0;
 		p->viewport[1]=0;
@@ -116,7 +117,6 @@ void EGB_INIT(
 		p->textX=0;
 		p->textY=0;
 		p->paintMode=0;
-		p->paintColor=0;
 		p->drawingMode=0;
 		p->penWidth=1;
 		p->fontStyle=0;
@@ -283,6 +283,7 @@ void EGB_DISPLAYSTART(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_VIEWPORT(
@@ -300,6 +301,7 @@ void EGB_VIEWPORT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PALETTE(
@@ -317,6 +319,7 @@ void EGB_PALETTE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_WRITEPAGE(
@@ -409,7 +412,15 @@ void EGB_COLOR(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+	if(NULL!=pointerSet.settings)
+	{
+		pointerSet.settings->color[EAX&3]=EDX;
+	}
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_COLORIGRB(
@@ -427,6 +438,7 @@ void EGB_COLORIGRB(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PASTEL(
@@ -444,6 +456,7 @@ void EGB_PASTEL(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_WRITEMODE(
@@ -460,7 +473,16 @@ void EGB_WRITEMODE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	// One big question is, is write-mode per page?  Or common?
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+	if(NULL!=pointerSet.settings)
+	{
+		pointerSet.settings->drawingMode=EAX&0xFF;
+	}
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_LINEPATTERN(
@@ -478,6 +500,7 @@ void EGB_LINEPATTERN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PAINTMODE(
@@ -495,6 +518,7 @@ void EGB_PAINTMODE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_HATCHINGPATTERN(
@@ -512,6 +536,7 @@ void EGB_HATCHINGPATTERN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_TILEPATTERN(
@@ -529,6 +554,7 @@ void EGB_TILEPATTERN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_MASKREGION(
@@ -546,6 +572,7 @@ void EGB_MASKREGION(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_MASK(
@@ -563,6 +590,7 @@ void EGB_MASK(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PEN(
@@ -580,6 +608,7 @@ void EGB_PEN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PENSIZE(
@@ -597,6 +626,7 @@ void EGB_PENSIZE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PENSTYLE(
@@ -614,6 +644,7 @@ void EGB_PENSTYLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_MASKBIT(
@@ -631,6 +662,7 @@ void EGB_MASKBIT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_TEXTDIRECTION(
@@ -648,6 +680,7 @@ void EGB_TEXTDIRECTION(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_TEXTDISPLAYDIRECTION(
@@ -665,6 +698,7 @@ void EGB_TEXTDISPLAYDIRECTION(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_TEXTSPACE(
@@ -682,6 +716,7 @@ void EGB_TEXTSPACE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_TEXTZOOM(
@@ -699,6 +734,7 @@ void EGB_TEXTZOOM(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_FONTSTYLE(
@@ -716,6 +752,7 @@ void EGB_FONTSTYLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_SUPERIMPOSE(
@@ -733,6 +770,7 @@ void EGB_SUPERIMPOSE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_DIGITIZE(
@@ -750,6 +788,7 @@ void EGB_DIGITIZE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_RESOLUTION_BY_HANDLE(
@@ -767,6 +806,7 @@ void EGB_RESOLUTION_BY_HANDLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CLEARSCREEN(
@@ -797,18 +837,18 @@ void EGB_CLEARSCREEN(
 		if(4==pointerSet.modeProp->bitsPerPixel)
 		{
 			unsigned short wd;
-			wd=pointerSet.settings->backgroundColor;
+			wd=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
 			wd<<=4;
-			wd|=pointerSet.settings->backgroundColor;
+			wd|=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
 			wordData=wd|(wd<<8);
 		}
 		else if(8==pointerSet.modeProp->bitsPerPixel)
 		{
-			wordData=pointerSet.settings->backgroundColor|(pointerSet.settings->backgroundColor<<8);
+			wordData=pointerSet.settings->color[EGB_BACKGROUND_COLOR]|(pointerSet.settings->color[EGB_BACKGROUND_COLOR]<<8);
 		}
 		else
 		{
-			wordData=pointerSet.settings->backgroundColor;
+			wordData=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
 		}
 
 		MEMSETW_FAR(pointerSet.vram,wordData,pointerSet.vramSize/2);
@@ -832,6 +872,7 @@ void EGB_PARTCLEARSCREEN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_GETBLOCKCOLOR(
@@ -849,6 +890,7 @@ void EGB_GETBLOCKCOLOR(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PUTBLOCKCOLOR(
@@ -866,6 +908,7 @@ void EGB_PUTBLOCKCOLOR(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_GETBLOCK(
@@ -883,6 +926,7 @@ void EGB_GETBLOCK(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PUTBLOCK(
@@ -900,6 +944,7 @@ void EGB_PUTBLOCK(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_GETBLOCKZOOM(
@@ -917,6 +962,7 @@ void EGB_GETBLOCKZOOM(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PUTBLOCKZOOM(
@@ -934,6 +980,7 @@ void EGB_PUTBLOCKZOOM(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_GRAPHICCURSOR(
@@ -951,6 +998,7 @@ void EGB_GRAPHICCURSOR(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_MASKDATA(
@@ -968,6 +1016,7 @@ void EGB_MASKDATA(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_SCROLL(
@@ -985,6 +1034,7 @@ void EGB_SCROLL(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PARTSCROLL(
@@ -1002,6 +1052,7 @@ void EGB_PARTSCROLL(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_REGION(
@@ -1019,6 +1070,7 @@ void EGB_REGION(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_COPY(
@@ -1036,6 +1088,7 @@ void EGB_COPY(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ROTATE(
@@ -1053,6 +1106,7 @@ void EGB_ROTATE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_RESOLVE(
@@ -1070,6 +1124,7 @@ void EGB_RESOLVE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PSET(
@@ -1087,6 +1142,7 @@ void EGB_PSET(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CONNECT(
@@ -1104,6 +1160,7 @@ void EGB_CONNECT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_UNCONNECT(
@@ -1121,6 +1178,7 @@ void EGB_UNCONNECT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_POLYGON(
@@ -1138,6 +1196,7 @@ void EGB_POLYGON(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ROTATEPOLYGON(
@@ -1155,6 +1214,7 @@ void EGB_ROTATEPOLYGON(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_TRIANGLE(
@@ -1172,6 +1232,7 @@ void EGB_TRIANGLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_RECTANGLE(
@@ -1189,6 +1250,7 @@ void EGB_RECTANGLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CIRCLE(
@@ -1206,6 +1268,7 @@ void EGB_CIRCLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ARC(
@@ -1223,6 +1286,7 @@ void EGB_ARC(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_FAN(
@@ -1240,6 +1304,7 @@ void EGB_FAN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ELLIPSE(
@@ -1257,6 +1322,7 @@ void EGB_ELLIPSE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ELLIPTICARC(
@@ -1274,6 +1340,7 @@ void EGB_ELLIPTICARC(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ELLIPTICFAN(
@@ -1291,6 +1358,7 @@ void EGB_ELLIPTICFAN(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_PAINT(
@@ -1308,6 +1376,7 @@ void EGB_PAINT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CLOSEPAINT(
@@ -1325,6 +1394,7 @@ void EGB_CLOSEPAINT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_POINT(
@@ -1342,6 +1412,7 @@ void EGB_POINT(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_BOW(
@@ -1359,6 +1430,7 @@ void EGB_BOW(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_BOW2(
@@ -1376,6 +1448,7 @@ void EGB_BOW2(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_SJISSTRING(
@@ -1393,6 +1466,7 @@ void EGB_SJISSTRING(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CONNECTSJISSTRING(
@@ -1410,6 +1484,7 @@ void EGB_CONNECTSJISSTRING(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ASCIISTRING(
@@ -1427,6 +1502,7 @@ void EGB_ASCIISTRING(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CONNECTASCIISTRING(
@@ -1444,6 +1520,7 @@ void EGB_CONNECTASCIISTRING(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_JISSTRING(
@@ -1461,6 +1538,7 @@ void EGB_JISSTRING(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_CONNECTJISSTRING(
@@ -1478,6 +1556,7 @@ void EGB_CONNECTJISSTRING(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_ANYCHAR(
@@ -1495,6 +1574,7 @@ void EGB_ANYCHAR(
 	unsigned int FS)
 {
 	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
 void EGB_UNSUPPORTED(
