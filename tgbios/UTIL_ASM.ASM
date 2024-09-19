@@ -33,11 +33,11 @@ MEMSETB_FAR				PROC
 ; [EBP+8]  OFFSET
 ; [EBP+4]  EIP
 ; [EBP]    EBP
+						PUSH	EBP
+						MOV		EBP,ESP
 						PUSH	ES
 						PUSH	ECX
 						PUSH	EDI
-						PUSH	EBP
-						MOV		EBP,ESP
 
 						MOV		AL,[EBP+16]
 						MOV		AH,AL
@@ -63,10 +63,10 @@ MEMSETB_FAR				PROC
 						AND		ECX,1
 						STOSB
 
-						POP		EBP
 						POP		EDI
 						POP		ECX
 						POP		ES
+						POP		EBP
 						RET
 
 MEMSETB_FAR				ENDP
@@ -80,11 +80,11 @@ MEMSETW_FAR				PROC
 ; [EBP+8]  OFFSET
 ; [EBP+4]  EIP
 ; [EBP]    EBP
+						PUSH	EBP
+						MOV		EBP,ESP
 						PUSH	ES
 						PUSH	ECX
 						PUSH	EDI
-						PUSH	EBP
-						MOV		EBP,ESP
 
 						MOV		AX,[EBP+16]
 						SHL		EAX,16
@@ -101,10 +101,10 @@ MEMSETW_FAR				PROC
 						AND		ECX,1
 						STOSW
 
-						POP		EBP
 						POP		EDI
 						POP		ECX
 						POP		ES
+						POP		EBP
 						RET
 
 MEMSETW_FAR				ENDP

@@ -33,6 +33,48 @@ static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 	}
 }
 
+struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
+{
+	struct EGB_PagePointerSet pointerSet;
+	if(work->writePage<2)
+	{
+		pointerSet.settings=&work->perPage[work->writePage];
+		if(EGB_INVALID_SCRNMODE!=pointerSet.settings->screenMode)
+		{
+			pointerSet.modeProp=EGB_GetScreenModeProp(pointerSet.settings->screenMode);
+			if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
+			{
+				_FP_SEG(pointerSet.vram)=SEG_VRAM_1PG;
+				_FP_OFF(pointerSet.vram)=0;
+				pointerSet.vramSize=VRAM_SIZE;
+			}
+			else
+			{
+				_FP_SEG(pointerSet.vram)=SEG_VRAM_2PG;
+				_FP_OFF(pointerSet.vram)=(VRAM_SIZE/2)*work->writePage;
+				pointerSet.vramSize=VRAM_SIZE/2;
+			}
+			return pointerSet;
+		}
+	}
+	else if(0x80<=work->writePage && work->writePage<0x84)
+	{
+		unsigned int vPageIdx=(work->writePage&3);
+		if(NULL!=work->virtualPage[vPageIdx].vram)
+		{
+			pointerSet.settings=&work->perVirtualPage[vPageIdx];
+			pointerSet.modeProp=&work->virtualPage[vPageIdx];
+			pointerSet.vram=work->virtualPage[vPageIdx].vram;
+			pointerSet.vramSize=(pointerSet.modeProp->bytesPerLine*pointerSet.modeProp->size.y);
+			return pointerSet;
+		}
+	}
+	pointerSet.settings=NULL;
+	pointerSet.modeProp=NULL;
+	pointerSet.vram=NULL;
+	return pointerSet;
+}
+
 ////////////////////////////////////////////////////////////
 
 void EGB_INIT(
@@ -51,67 +93,70 @@ void EGB_INIT(
 {
 	int i;
 
-	_Far struct EGB_Work *EGB_work;
-	_FP_SEG(EGB_work)=GS;
-	_FP_OFF(EGB_work)=EDI;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
 
-	EGB_work->screenMode[0]=12;    //+00H
-	EGB_work->screenMode[1]=12;
-	EGB_work->writePage=0;         //+02H
-	EGB_work->showPageBits=3;      //+03H
-	EGB_work->foregroundColor=15;  //+04H
-	EGB_work->backgroundColor=0;  //+06H
-	EGB_work->transparentColor=0;  //+08H
-	EGB_work->alpha=128;             //+0AH
-	EGB_work->viewport[0]=0;       //+0CH x0,y0,x1,y1
-	EGB_work->viewport[1]=0;       //+0CH x0,y0,x1,y1
-	EGB_work->viewport[2]=639;       //+0CH x0,y0,x1,y1
-	EGB_work->viewport[3]=479;       //+0CH x0,y0,x1,y1
-	EGB_work->fontSpacing=0;       //+14H
-	EGB_work->fontRotation=0;       //+16H
-	EGB_work->stringRotation=0;     //+17H
-	EGB_work->textX=0;       //+18H
-	EGB_work->textY=0;
-	EGB_work->paintMode=0;          //+1CH
-	EGB_work->padding0=0xFF;           //+1DH PADDING
-	EGB_work->paintColor=0;        //+1EH
-	EGB_work->drawingMode=0;        //+20H
-	EGB_work->superImpose=0;        //+21H
-	EGB_work->superImposeArea[0]=0;//+22H x0,y0,x1,y1
-	EGB_work->superImposeArea[1]=0;//+22H x0,y0,x1,y1
-	EGB_work->superImposeArea[2]=0;//+22H x0,y0,x1,y1
-	EGB_work->superImposeArea[3]=0;//+22H x0,y0,x1,y1
-	EGB_work->superImposeBright=255;  //+2AH
-	EGB_work->penWidth=1;           //+2BH
-	EGB_work->fontStyle=0;          //+2CH
-	EGB_work->padding1=0xFF;           //+2DH PADDING
-	EGB_work->hatchWid=0;
-	EGB_work->hatchHei=0;  //+2EH
-	EGB_work->hatchingPtn=NULL;  //+30H
-	EGB_work->tileWid=0;
-	EGB_work->tileHei=0;    //+36H
-	EGB_work->tilePtn=NULL;      //+3AH
+	work->writePage=0;
+	for(i=0; i<2; ++i)
+	{
+		_Far struct EGB_PerPage *p=&(work->perPage[i]);
+		p->screenMode=12;
+		p->foregroundColor=15;
+		p->backgroundColor=0;
+		p->transparentColor=0;
+		p->alpha=128;
+		p->viewport[0]=0;
+		p->viewport[1]=0;
+		p->viewport[2]=639;
+		p->viewport[3]=479;
+		p->fontSpacing=0;
+		p->fontRotation=0;
+		p->stringRotation=0;
+		p->textX=0;
+		p->textY=0;
+		p->paintMode=0;
+		p->paintColor=0;
+		p->drawingMode=0;
+		p->penWidth=1;
+		p->fontStyle=0;
+		p->hatchWid=0;
+		p->hatchHei=0;
+		p->hatchingPtn=NULL;
+		p->tileWid=0;
+		p->tileHei=0;
+		p->tilePtn=NULL;
+	}
+
+	work->superImpose=0;
+	work->superImposeArea[0]=0;
+	work->superImposeArea[1]=0;
+	work->superImposeArea[2]=0;
+	work->superImposeArea[3]=0;
+	work->superImposeBright=255;
 
 	for(i=0; i<4; ++i)
 	{
-		EGB_work->virtualVRAM[i].visiSize.x=0;
-		EGB_work->virtualVRAM[i].visiSize.y=0;
-		EGB_work->virtualVRAM[i].size.x=0;
-		EGB_work->virtualVRAM[i].size.y=0;
-		EGB_work->virtualVRAM[i].bytesPerLine=0;
-		EGB_work->virtualVRAM[i].bytesPerLineShift=0;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
-		EGB_work->virtualVRAM[i].bitsPerPixel=0;
-		EGB_work->virtualVRAM[i].combination[0]=0xFF;
-		EGB_work->virtualVRAM[i].combination[1]=0xFF;
-		EGB_work->virtualVRAM[i].combination[2]=0xFF;
-		EGB_work->virtualVRAM[i].combination[3]=0xFF;
+		work->virtualPage[i].visiSize.x=0;
+		work->virtualPage[i].visiSize.y=0;
+		work->virtualPage[i].size.x=0;
+		work->virtualPage[i].size.y=0;
+		work->virtualPage[i].bytesPerLine=0;
+		work->virtualPage[i].bytesPerLineShift=0;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
+		work->virtualPage[i].bitsPerPixel=0;
+		work->virtualPage[i].combination[0]=EGB_INVALID_SCRNMODE;
+		work->virtualPage[i].combination[1]=EGB_INVALID_SCRNMODE;
+		work->virtualPage[i].combination[2]=EGB_INVALID_SCRNMODE;
+		work->virtualPage[i].combination[3]=EGB_INVALID_SCRNMODE;
 
-		EGB_work->virtualVRAM[i].flags=0;
-		EGB_work->virtualVRAM[i].defZoom.x=0;
-		EGB_work->virtualVRAM[i].defZoom.y=0;
+		work->virtualPage[i].flags=0;
+		work->virtualPage[i].defZoom.x=0;
+		work->virtualPage[i].defZoom.y=0;
 
-		EGB_work->virtualVRAM[i].vram=NULL;
+		work->virtualPage[i].vram=NULL;
 	}
+
+	MEMSETB_FAR(work->perVirtualPage,0,sizeof(struct EGB_PerPage)*4);
 
 	// Clear VRAM
 	{
@@ -130,14 +175,13 @@ void EGB_INIT(
 		_Far unsigned short *regSet=EGB_GetCRTCRegs(i);
 		if(NULL!=regSet && 3==regSet[0] && 3==regSet[1])
 		{
-			EGB_SetUpCRTC(EGB_work,i);
+			EGB_SetUpCRTC(work,i);
 			break;
 		}
 	}
 	_outb(TOWNSIO_CRTC_OUTPUT_CONTROL,0x0A);  // FM-R CRTC Output Control
 
 	// Need to initialize palette
-
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -156,9 +200,9 @@ void EGB_RESOLUTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *EGB_work;
-	_FP_SEG(EGB_work)=GS;
-	_FP_OFF(EGB_work)=EDI;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
 
 	unsigned char AL=EAX&0xFF;
 	if(EGB_INVALID_SCRNMODE==AL)
@@ -170,11 +214,10 @@ void EGB_RESOLUTION(
 	if(0==AL || 1==AL)
 	{
 		unsigned int newScreenMode[2];
-		newScreenMode[0]=EGB_work->screenMode[0];
-		newScreenMode[1]=EGB_work->screenMode[1];
+		newScreenMode[0]=work->perPage[0].screenMode;
+		newScreenMode[1]=work->perPage[1].screenMode;
 		newScreenMode[AL]=EDX&0x3F;
 
-		if(0==(EDX&0x40))
 		{
 			int modeComb;
 			_Far unsigned short *regSet;
@@ -201,9 +244,12 @@ void EGB_RESOLUTION(
 			}
 			if(modeComb<EGB_NUM_MODECOMB)
 			{
-				EGB_work->screenMode[0]=newScreenMode[0];
-				EGB_work->screenMode[1]=newScreenMode[1];
-				EGB_SetUpCRTC(EGB_work,modeComb);
+				work->perPage[0].screenMode=newScreenMode[0];
+				work->perPage[1].screenMode=newScreenMode[1];
+				if(0==(EDX&0x40))
+				{
+					EGB_SetUpCRTC(work,modeComb);
+				}
 			}
 			else
 			{
@@ -287,22 +333,22 @@ void EGB_WRITEPAGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *EGB_work;
-	_FP_SEG(EGB_work)=GS;
-	_FP_OFF(EGB_work)=EDI;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
 
 	unsigned char AL=EAX&0xFF;
-	if((0==AL || 1==AL) && EGB_work->screenMode[AL]!=EGB_INVALID_SCRNMODE)
+	if((0==AL || 1==AL) && work->perPage[AL].screenMode!=EGB_INVALID_SCRNMODE)
 	{
-		EGB_work->writePage=AL;
+		work->writePage=AL;
 		EGB_SetError(EAX,EGB_NO_ERROR);
 	}
 	else if(0x80<=AL && AL<0x84)
 	{
 		AL&=3;
-		if(NULL!=EGB_work->virtualVRAM[AL].vram)
+		if(NULL!=work->virtualPage[AL].vram)
 		{
-			EGB_work->writePage=(AL|0x80);
+			work->writePage=(AL|0x80);
 			EGB_SetError(EAX,EGB_NO_ERROR);
 		}
 	}
@@ -742,49 +788,30 @@ void EGB_CLEARSCREEN(
 	_FP_OFF(work)=EDI;
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
-	if(0==work->writePage || 1==work->writePage)
-	{
-		_Far struct EGB_ScreenMode *prop=EGB_GetScreenModeProp(work->screenMode[work->writePage]);
-		if(NULL!=prop)
-		{
-			_Far unsigned char *vram;
-			unsigned int vramOffset,wordData,count;
-			if(4==prop->bitsPerPixel)
-			{
-				unsigned short wd;
-				wd=work->backgroundColor;
-				wd<<=4;
-				wd|=work->backgroundColor;
-				wordData=wd|(wd<<8);
-			}
-			else if(8==prop->bitsPerPixel)
-			{
-				wordData=work->backgroundColor|(work->backgroundColor<<8);
-			}
-			else
-			{
-				wordData=work->backgroundColor;
-			}
 
-			if(work->screenMode[1]==EGB_INVALID_SCRNMODE)
-			{
-				vramOffset=0;
-				count=VRAM_SIZE/2;
-			}
-			else
-			{
-				vramOffset=(VRAM_SIZE/2)*work->writePage;
-				count=VRAM_SIZE/4;
-			}
-			_FP_SEG(vram)=SEG_VRAM_2PG;
-			_FP_OFF(vram)=vramOffset;
-			MEMSETW_FAR(vram,wordData,count);
-		}
-		return;
-	}
-	else if(0x80<=work->writePage && work->writePage<=0x83)
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+	if(NULL!=pointerSet.modeProp)
 	{
-		TSUGARU_BREAK;
+		_Far unsigned char *vram;
+		unsigned int vramOffset,wordData,count;
+		if(4==pointerSet.modeProp->bitsPerPixel)
+		{
+			unsigned short wd;
+			wd=pointerSet.settings->backgroundColor;
+			wd<<=4;
+			wd|=pointerSet.settings->backgroundColor;
+			wordData=wd|(wd<<8);
+		}
+		else if(8==pointerSet.modeProp->bitsPerPixel)
+		{
+			wordData=pointerSet.settings->backgroundColor|(pointerSet.settings->backgroundColor<<8);
+		}
+		else
+		{
+			wordData=pointerSet.settings->backgroundColor;
+		}
+
+		MEMSETW_FAR(pointerSet.vram,wordData,pointerSet.vramSize/2);
 		return;
 	}
 	EGB_SetError(EAX,EGB_GENERAL_ERROR);

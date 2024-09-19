@@ -56,11 +56,11 @@ struct EGB_ScreenMode
 	_Far unsigned char *vram;
 };
 
-struct EGB_Work
+struct EGB_PerPage
 {
-	unsigned char screenMode[2];
-	unsigned char writePage;
-	unsigned char showPageBits;
+	unsigned char screenMode;
+	unsigned char _padding0;
+
 	unsigned short foregroundColor;
 	unsigned short backgroundColor;
 	unsigned short transparentColor;
@@ -70,27 +70,44 @@ struct EGB_Work
 	unsigned char fontRotation;
 	unsigned char stringRotation;
 	unsigned short textX,textY;
-	unsigned char paintMode;
-	unsigned char padding0;
+
 	unsigned short paintColor;
+	unsigned char paintMode;
 	unsigned char drawingMode;
+
+	unsigned char penWidth;
+	unsigned char fontStyle;
+	unsigned char hatchWid;
+	unsigned char hatchHei;
+	_Far unsigned char *hatchingPtn;
+	unsigned char tileWid;
+	unsigned char tileHei;
+	_Far unsigned char *tilePtn;
+};
+
+struct EGB_Work
+{
+	unsigned char writePage;
 	unsigned char superImpose;
 	unsigned short superImposeArea[4];
 	unsigned char superImposeBright;
-	unsigned char penWidth;
-	unsigned char fontStyle;
-	unsigned char padding1;
-	unsigned char hatchWid,hatchHei;
-	_Far unsigned char *hatchingPtn;
-	unsigned char tileWid,tileHei;
-	_Far unsigned char *tilePtn;
+	unsigned char _padding0;
 
-	unsigned char padding2;           //+3BH PADDING
+	struct EGB_PerPage perPage[2];
 
-	unsigned short crtcRegs[NUM_CRTC_REGS];  //+3CH
-	unsigned char sifter[2];          //+7CH
+	unsigned short crtcRegs[NUM_CRTC_REGS];
+	unsigned char sifter[2];
 
-	struct EGB_ScreenMode virtualVRAM[4];
+	struct EGB_ScreenMode virtualPage[4];
+	struct EGB_PerPage perVirtualPage[4];
+};
+
+struct EGB_PagePointerSet
+{
+	_Far struct EGB_ScreenMode *modeProp;
+	_Far struct EGB_PerPage *settings;
+	_Far unsigned char *vram;
+	unsigned int vramSize;
 };
 
 _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode);
