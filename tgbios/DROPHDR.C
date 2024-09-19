@@ -6,6 +6,7 @@ int main(int ac,char *av[])
 {
 	FILE *fp;
 	size_t sz;
+	size_t BIOSStart=0x200;
 
 	if(ac<3)
 	{
@@ -23,9 +24,17 @@ int main(int ac,char *av[])
 	sz=fread(buf,1,1024*1024,fp);
 	fclose(fp);
 
-	if(sz<0x200)
+	for(BIOSStart=0; BIOSStart<sz; ++BIOSStart)
 	{
-		printf("%s is too small.\n",av[1]);
+		if(0==memcmp(buf+BIOSStart,"TSUGARU BIOS",12))
+		{
+			break;
+		}
+	}
+	if(sz==BIOSStart)
+	{
+		printf("Cannot find BIOS Header (TSUGARU BIOS).\n");
+		return 1;
 	}
 
 	fp=fopen(av[2],"wb");
@@ -34,7 +43,7 @@ int main(int ac,char *av[])
 		printf("Cannot open %s for write.\n",av[2]);
 		return 1;
 	}
-	fwrite(buf+0x200,1,sz-0x200,fp);
+	fwrite(buf+BIOSStart,1,sz-BIOSStart,fp);
 	fclose(fp);
 
 	return 0;
