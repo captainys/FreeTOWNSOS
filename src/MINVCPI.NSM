@@ -1,6 +1,10 @@
 ; Minimum VCPI driver to run Free386 DOS Extender
 ; Let's see how far I can go.
 
+; To Do: Add an option to let Free386 run in no-VCPI mode.
+;        That can save some DOS memory by dropping VCPI part of this driver.
+;        However, that will disable C0000H to FFFFFH.
+
 						CPU		386
 						BITS	16
 
@@ -104,7 +108,8 @@ INT_67H_DE00H:
 						POP		DX
 						POP		DS
 
-						XOR		AH,AH	; Pretend VCPI installed.
+						MOV		BX,0100h	; Fake VCPI Version 1.0.
+						XOR		AH,AH		; Pretend VCPI installed.
 						IRET
 
 INT_67H_DE02H:			; Return RAM capacity in bytes.
@@ -119,6 +124,7 @@ INT_67H_DE02H:			; Return RAM capacity in bytes.
 
 						POP		AX
 						POP		BX
+						XOR		AH,AH		; No Error
 						IRET
 
 ; Page to Physical Address of the First 1MB
@@ -129,6 +135,7 @@ INT_67H_DE06H:
 						; I wish Intel guys had not come up with this VM86-mode ****shit.
 						MOVZX	EDX,CX
 						SHL		EDX,12
+						XOR		AH,AH
 						IRET
 
 
