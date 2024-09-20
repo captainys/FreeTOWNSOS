@@ -4,6 +4,12 @@
 						PUBLIC	MEMSETB_FAR
 						PUBLIC	MEMSETW_FAR
 
+						PUBLIC	SET_SECOND_BYTE
+						PUBLIC	SET_LOW_BYTE
+						PUBLIC	SET_LOW_WORD
+						PUBLIC	SET_DWORD
+
+
 CODE					SEGMENT
 
 TOWNSIO_VM_HOST_IF_CMD_STATUS	EQU		2386H
@@ -108,6 +114,52 @@ MEMSETW_FAR				PROC
 						RET
 
 MEMSETW_FAR				ENDP
+
+
+
+SET_SECOND_BYTE			PROC
+
+						PUSH	EBP
+						MOV		EBP,[ESP+8]
+						MOV		AL,[ESP+12]
+						MOV		[EBP+1],AL
+						POP		EBP
+						RET
+
+SET_SECOND_BYTE			ENDP
+
+SET_LOW_BYTE			PROC
+
+						PUSH	EBP
+						MOV		EBP,[ESP+8]
+						MOV		AL,[ESP+12]
+						MOV		[EBP],AL
+						POP		EBP
+						RET
+
+SET_LOW_BYTE			ENDP
+
+SET_LOW_WORD			PROC
+
+						PUSH	EBP
+						MOV		EBP,[ESP+8]
+						MOV		AX,[ESP+12]
+						MOV		[EBP],AX
+						POP		EBP
+						RET
+
+SET_LOW_WORD			ENDP
+
+SET_DWORD				PROC
+
+						PUSH	EBP
+						MOV		EBP,[ESP+8]
+						MOV		EAX,[ESP+12]
+						MOV		[EBP],EAX
+						POP		EBP
+						RET
+
+SET_DWORD				ENDP
 
 
 CODE					ENDS

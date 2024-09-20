@@ -887,8 +887,8 @@ void SND_JOY_IN_2(
 	{
 		pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
 	}
-	pad&=0x3F;
 
+	pad|=0xC0;
 	if(0==(pad&(PAD_LEFT|PAD_RIGHT)))
 	{
 		pad&=(~PAD_RUN);
@@ -898,8 +898,8 @@ void SND_JOY_IN_2(
 		pad&=(~PAD_SELECT);
 	}
 
-	EDX&=0xFFFFFF00;
-	EDX|=pad;
+	SET_LOW_BYTE(&EDX,pad);
+
 	SND_SetError(EAX,SND_NO_ERROR);
 }
 
