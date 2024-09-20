@@ -8,6 +8,22 @@
 
 // What about SND_END?
 
+// "To make it compatible with MSX game pads, COM out must be zero."
+// "To read A and B buttons, TRIG out must be one."
+// The value written to I/O 04D6H must be 0FH instead of 3FH.
+#define PAD_OUT_CONST			0x0F
+// 0FH  Port0 and Port1 COM=0,   Port0 and Port1 trig A and B=1
+
+#define PAD_DOWN 1
+#define PAD_UP   2
+#define PAD_LEFT 4
+#define PAD_RIGHT 8
+#define PAD_ABUTTON 16
+#define PAD_BBUTTON 32
+#define PAD_RUN 64
+#define PAD_SELECT 128
+
+
 void SND_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -857,12 +873,34 @@ void SND_JOY_IN_2(
 	unsigned int GS,
 	unsigned int FS)
 {
+	unsigned char port=EDX&1,pad;
 	_Far struct EGB_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,PAD_OUT_CONST);
+	if(0==port)
+	{
+		pad=_inb(TOWNSIO_GAMEPORT_A_INPUT);
+	}
+	else
+	{
+		pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
+	}
+	pad&=0x3F;
+
+	if(0==(pad&(PAD_LEFT|PAD_RIGHT)))
+	{
+		pad&=(~PAD_RUN);
+	}
+	if(0==(pad&(PAD_UP|PAD_DOWN)))
+	{
+		pad&=(~PAD_SELECT);
+	}
+
+	EDX&=0xFFFFFF00;
+	EDX|=pad;
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_JOY_OUT(
