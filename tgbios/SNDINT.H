@@ -1,0 +1,4 @@
+#ifndef SNDINT_H_IS_INCLUDED
+#define SNDINT_H_IS_INCLUDED
+
+#endif
