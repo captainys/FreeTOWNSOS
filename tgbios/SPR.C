@@ -6,6 +6,11 @@
 #include <dos.h>
 #include "MACRO.H"
 
+#define SPR_ERROR_MASK (~0xFF00)
+#define SPR_GENERAL_ERROR 0xFF00
+#define SPR_NO_ERROR 0
+#define SPR_SetError(reg,err) {reg&=SPR_ERROR_MASK;reg|=err;}
+
 void SPR_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -60,6 +65,8 @@ void SPR_INIT(
 		*spr_ram = 0x0;
 		spr_ram++;
 	}
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_DISPLAY(
@@ -98,6 +105,8 @@ void SPR_DISPLAY(
 			while((_inb(0x44c) & 2)){}
 			break;
 	}
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_DEFINE(
@@ -144,6 +153,8 @@ void SPR_DEFINE(
 	}*/
 
 	_movedata(DS, ESI, 0x114, 128 * (ECX & 1023), (EDX & 0xff) * ((EDX >> 8) & 0xff) * byte);
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_SETPALETTEBLOCK(
@@ -179,6 +190,8 @@ void SPR_SETPALETTEBLOCK(
 	}*/
 
 	_movedata(DS, ESI, 0x114, 32 * (ECX & 511), (EDX & 0xff) * 32);
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_SETPOSITION(
@@ -241,6 +254,8 @@ void SPR_SETPOSITION(
 		}
 		y2 += y_add;
 	}
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_SETATTRIBUTE(
@@ -274,6 +289,8 @@ void SPR_SETATTRIBUTE(
 		*spr_ram = (EDI & 0xffff);
 		spr_ram += 3;
 	}
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_SETMOTION(
@@ -306,6 +323,8 @@ void SPR_SETMOTION(
 		*spr_ram += (EDI & 0xffff);
 		spr_ram += 3;
 	}
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_SETOFFSET(
@@ -330,6 +349,8 @@ void SPR_SETOFFSET(
 	_outb(0x452, (EDI & 0xff));
 	_outb(0x450, 5);
 	_outb(0x452, ((EDI >> 8) & 0x1));
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
 
 void SPR_READATTRIBUTE(
@@ -365,4 +386,6 @@ void SPR_READATTRIBUTE(
 	}*/
 
 	_movedata(0x114, 8 * (ECX & 1023), DS, ESI, (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8);
+
+	SPR_SetError(EAX,SPR_NO_ERROR);
 }
