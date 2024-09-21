@@ -9,6 +9,12 @@
 						PUBLIC	SET_LOW_WORD
 						PUBLIC	SET_DWORD
 
+						PUBLIC	__SET_RPVECTP
+						PUBLIC	__GET_RVECT
+						PUBLIC	__GET_PVECT
+						PUBLIC	__SET_RVECT
+						PUBLIC	__SET_PVECT
+
 
 CODE					SEGMENT
 
@@ -161,6 +167,98 @@ SET_DWORD				PROC
 
 SET_DWORD				ENDP
 
+
+__SET_RPVECTP			PROC
+; __SET_RPVECTP(int INTNum,_Far void (*func)(void))
+						PUSH	EBP
+						MOV		EBP,ESP
+						PUSH	ECX
+						PUSH	EDX
+						PUSH	DS
+
+						MOV		AX,2506H	; Set INT to Always Gain Control in Protected Mode
+						MOV		CL,[EBP+08H]
+						MOV		DS,[EBP+0CH]
+						MOV		EDX,[EBP+10H]
+						INT		21H
+
+						POP		DS
+						POP		EDX
+						POP		ECX
+						POP		EBP
+						RET
+__SET_RPVECTP			ENDP
+
+__GET_RVECT				PROC
+; unsigned long __GET_RVECT(int INTNum)
+						PUSH	ECX
+						PUSH	EBX
+
+						MOV		CL,[ESP+0CH]
+						MOV		AX,2503H
+						INT		21H
+						MOV		EAX,EBX
+
+						POP		EBX
+						POP		ECX
+						RET
+__GET_RVECT				ENDP
+
+__GET_PVECT				PROC
+; _Far void *__GET_PVECT(int INTNum)
+						PUSH	ECX
+						PUSH	EBX
+						PUSh	ES
+
+						MOV		AX,2502h
+						MOV		CL,[ESP+10H]
+						INT		21H
+
+						MOV		DX,ES
+						MOV		EAX,EBX
+
+						POP		ES
+						POP		EBX
+						POP		ECX
+
+						; High-C apparently returns a Far pointer by DS:EAX
+
+						RET
+__GET_PVECT				ENDP
+
+__SET_RVECT				PROC
+; void __SET_RVECT(int INTNum,unsigned long Handler)
+						PUSH	ECX
+						PUSH	EBX
+
+						MOV		EBX,[ESP+10H]
+						MOV		CL,[ESP+0CH]
+						MOV		AX,2505H
+						INT		21H
+
+						POP		EBX
+						POP		ECX
+						RET
+__SET_RVECT				ENDP
+
+__SET_PVECT				PROC
+; void __SET_PVECT(int INTNum,_Far void *func)
+						PUSH	ECX
+						PUSH	EDX
+						PUSh	DS
+
+						MOV		CL,[ESP+10H]
+						MOV		EDX,[ESP+14H]
+						MOV		DS,[ESP+18H]
+						MOV		AX,2504h
+						INT		21H
+
+						POP		DS
+						POP		EDX
+						POP		ECX
+
+						RET
+__SET_PVECT				ENDP
 
 CODE					ENDS
 						END

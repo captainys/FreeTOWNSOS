@@ -7,11 +7,16 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
-extern void REGISTER_PROTECTED_MODE_INT(int INTNum,_Far void *func);
-
 #define _PUSHFD _inline(0x9C);
 #define _POPFD _inline(0x9D);
 #define _CLI _inline(0xfa);
+
+
+void __SET_RPVECTP(int INTNum,_Handler);
+unsigned long __GET_RVECT(int INTNum);
+_Far void (*__GET_PVECT(int INTNum))(void) ;
+void __SET_RVECT(int INTNum,unsigned long handler);
+void __SET_PVECT(int INTNum,_Far void (*func)(void));
 
 
 #define SNDINT_USING_TIMERB_MOUSE 1
@@ -27,8 +32,8 @@ struct SoundInterruptBIOSContext
 {
 	unsigned int flags;  // Will be initialized to zero on first call.
 
-	_Handler save_INT4DProt;
-	_real_int_handler_t save_INT4DReal;
+	_Far void (*save_INT4DProt)(void);
+	unsigned long save_INT4DReal;
 };
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
@@ -52,16 +57,16 @@ _Handler Handle_INT4DH(void)
 // I'll be worried about external usage later.  Probably games did not use this BIOS anyway.
 
 
-static void Unmask_PIC_INT4D(_Far struct SoundInterruptBIOSContext *context)
+void Unmask_PIC_INT4D(_Far struct SoundInterruptBIOSContext *context)
 {
 	if(0==(context->flags&SNDINT_PIC_ENABLED))
 	{
 		_Handler newINT4D;
 		newINT4D=Handle_INT4DH;
 		_FP_SEG(newINT4D)=SEG_TGBIOS_CODE;
-		context->save_INT4DProt=_getpvect(0x4D);
-		context->save_INT4DReal=_getrvect(0x4D);
-		_setrpvectp(0x4D,newINT4D);
+		context->save_INT4DProt=__GET_PVECT(0x4D);
+		context->save_INT4DReal=__GET_RVECT(0x4D);
+		__SET_RPVECTP(0x4D,newINT4D);
 		context->flags|=SNDINT_PIC_ENABLED;
 	}
 }
@@ -71,8 +76,8 @@ static void Mask_PIC_INT4D(_Far struct SoundInterruptBIOSContext *context)
 	if(0!=(context->flags&SNDINT_PIC_ENABLED))
 	{
 		context->flags&=~SNDINT_PIC_ENABLED;
-		_setpvect(0x4D,context->save_INT4DProt);
-		_setrvect(0x4D,context->save_INT4DReal);
+		__SET_PVECT(0x4D,context->save_INT4DProt);
+		__SET_RVECT(0x4D,context->save_INT4DReal);
 	}
 }
 
