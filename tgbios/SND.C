@@ -24,6 +24,23 @@
 #define PAD_SELECT 128
 
 
+void YM2612_Write(_Far struct SND_Work *work,unsigned char regSet,unsigned char reg,unsigned char value)
+{
+	work->FMReg[regSet][reg]=value;
+	while(0!=(_inb(TOWNSIO_SOUND_STATUS_ADDRESS0)&0x80)); // Wait BUSY clear
+
+	if(0==regSet || reg<0x30)
+	{
+		_outb(TOWNSIO_SOUND_STATUS_ADDRESS0,reg);
+		_outb(TOWNSIO_SOUND_DATA0,value);
+	}
+	else
+	{
+		_outb(TOWNSIO_SOUND_ADDRESS1,reg);
+		_outb(TOWNSIO_SOUND_DATA1,value);
+	}
+}
+
 void SND_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -377,7 +394,53 @@ void SND_FM_READ_SAVE_DATA(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_TIMER_A_SET(
+void SND_15H_FM_TIMER_A_SET(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	unsigned char sw=EBX&0xFF;
+	unsigned short count=ECX&0xFFFF;
+
+	_Far struct SND_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	// BL 0: Stop Timer and Reset Status Flag
+	//    Non-Zero:  Start Timer
+	// CX: Timer Count
+
+	if(0==sw)
+	{
+		unsigned char reg27H=work->FMReg[0][0x27];
+		reg27H&=0xC8; // Preseve Timer B flag permission, and CH3 MODE
+
+		YM2612_Write(work,0,0x27,0x10|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+	}
+	else
+	{
+		unsigned char reg27H=work->FMReg[0][0x27];
+
+		YM2612_Write(work,0,0x25,count&3);
+		YM2612_Write(work,0,0x24,count>>2);
+
+		reg27H&=0xC8; // Preseve Timer B flag permission, and CH3 MODE
+		YM2612_Write(work,0,0x27,0x15|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+	}
+
+	SND_SetError(EAX,SND_NO_ERROR);
+}
+
+void SND_16H_FM_TIMER_B_SET(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -399,7 +462,7 @@ void SND_FM_TIMER_A_SET(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_TIMER_B_SET(
+void SND_17H_FM_TIMER_A_RESTART(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -421,29 +484,7 @@ void SND_FM_TIMER_B_SET(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_TIMER_A_START(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
-}
-
-void SND_FM_TIMER_B_START(
+void SND_18H_FM_TIMER_B_RESTART(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,

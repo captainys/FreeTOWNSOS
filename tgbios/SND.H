@@ -8,7 +8,8 @@
 
 struct SND_Work
 {
-	unsigned int FMKey,PCMKey;
+	unsigned int PCMKey;
+	unsigned char FMReg[2][0x100];
 };
 
 #endif
