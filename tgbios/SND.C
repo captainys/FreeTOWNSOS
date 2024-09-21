@@ -38,9 +38,11 @@ void SND_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
+
+	MEMSETB_FAR(work,0,sizeof(struct SND_Work));
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
@@ -59,7 +61,7 @@ void SND_KEY_ON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -81,7 +83,7 @@ void SND_KEY_OFF(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -103,7 +105,7 @@ void SND_PAN_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -125,7 +127,7 @@ void SND_INST_CHANGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -147,7 +149,7 @@ void SND_INST_WRITE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -169,7 +171,7 @@ void SND_INST_READ(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -191,7 +193,7 @@ void SND_PITCH_CHANGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -213,7 +215,7 @@ void SND_VOLUME_CHANGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -235,7 +237,7 @@ void SND_KEY_ABORT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -257,7 +259,7 @@ void SND_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -279,7 +281,7 @@ void SND_FM_READ_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -301,7 +303,7 @@ void SND_FM_WRITE_DATA(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -323,7 +325,7 @@ void SND_FM_READ_DATA(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -345,7 +347,7 @@ void SND_FM_WRITE_SAVE_ATA(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -367,7 +369,7 @@ void SND_FM_READ_SAVE_DATA(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -389,7 +391,7 @@ void SND_FM_TIMER_A_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -411,7 +413,7 @@ void SND_FM_TIMER_B_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -433,7 +435,7 @@ void SND_FM_TIMER_A_START(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -455,7 +457,7 @@ void SND_FM_TIMER_B_START(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -477,7 +479,7 @@ void SND_FM_LFO_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -499,7 +501,7 @@ void SND_PCM_WAVE_TRANSFER(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -521,7 +523,7 @@ void SND_PCM_MODE_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -543,7 +545,7 @@ void SND_PCM_SOUND_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -565,7 +567,7 @@ void SND_PCM_SOUND_DELETE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -587,7 +589,7 @@ void SND_PCM_REC_START(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -609,7 +611,7 @@ void SND_PCM_PCM_VOICE_PLAY(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -631,7 +633,7 @@ void SND_PCM_REC_STOP(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -653,7 +655,7 @@ void SND_PCM_PCM_VOICE_STOP(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -675,7 +677,7 @@ void SND_PCM_PCM_VOICE_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -697,7 +699,7 @@ void SND_PCM_ABORT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -719,7 +721,7 @@ void SND_PCM_PCMRAM_TO_MAINRAM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -741,7 +743,7 @@ void SND_PCM_PCMRAM_TO_PCMRAM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -763,7 +765,7 @@ void SND_PCM_TRANSFER2(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -785,7 +787,7 @@ void SND_PCM_HIGHRES_PLAY(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -807,7 +809,7 @@ void SND_FM_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -829,7 +831,7 @@ void SND_FM_REGWRITE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -851,7 +853,7 @@ void SND_JOY_IN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -874,7 +876,7 @@ void SND_JOY_IN_2(
 	unsigned int FS)
 {
 	unsigned char port=EDX&1,pad;
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -917,7 +919,7 @@ void SND_JOY_OUT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -939,7 +941,7 @@ void SND_ELEVOL_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -961,7 +963,7 @@ void SND_ELEVOL_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -983,12 +985,57 @@ void SND_ELEVOL_READ(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned int vlmNum=EBX&0xFF;
+	unsigned short DH,DL;
+	unsigned char COM;
+
+	// vlmNum 0: LINE IN
+	//        1: CD IN
+	//        2: MIC IN
+	//        3: MODEM IN
+
+	// DH=Left 0 to 127
+	// DL=RIght 0 to 127
+	// What?  No left and right for MIC and MODEM.
+	switch(vlmNum)
+	{
+	case 0: // LINE IN
+		COM=_inb(TOWNSIO_ELEVOL_1_COM)&0x1C;
+		_outb(TOWNSIO_ELEVOL_1_COM,COM);
+		DH=_inb(TOWNSIO_ELEVOL_1_DATA);
+		_outb(TOWNSIO_ELEVOL_1_COM,COM|1);
+		DL=_inb(TOWNSIO_ELEVOL_1_DATA);
+		break;
+	case 1: // CD IN
+		COM=_inb(TOWNSIO_ELEVOL_2_COM)&0x1C;
+		_outb(TOWNSIO_ELEVOL_2_COM,COM);
+		DH=_inb(TOWNSIO_ELEVOL_2_DATA);
+		_outb(TOWNSIO_ELEVOL_2_COM,COM|1);
+		DL=_inb(TOWNSIO_ELEVOL_2_DATA);
+		break;
+	case 2: // MIC IN
+		COM=_inb(TOWNSIO_ELEVOL_2_COM)&0x1C;
+		COM|=2;
+		_outb(TOWNSIO_ELEVOL_2_COM,COM);
+		DH=DL=_inb(TOWNSIO_ELEVOL_2_DATA);
+		break;
+	case 3: // MODEM IN
+		COM=_inb(TOWNSIO_ELEVOL_2_COM)&0x1C;
+		COM|=3;
+		_outb(TOWNSIO_ELEVOL_2_COM,COM);
+		DH=DL=_inb(TOWNSIO_ELEVOL_2_DATA);
+		break;
+	}
+
+	DL&=0x3F;
+	DH&=0x3F;
+
+	DL=(DL<<1)|(DL&1);
+	DH=(DH<<1)|(DH&1);
+
+	SET_LOW_WORD(&EDX,(DH<<8)|DL);
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_ELEVOL_MUTE(
@@ -1005,7 +1052,7 @@ void SND_ELEVOL_MUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -1027,7 +1074,7 @@ void SND_ELEVOL_ALL_MUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -1049,7 +1096,7 @@ void SND_ENVELOPE_INT_HANDLER(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -1071,7 +1118,7 @@ void SND_VOICE_INT_HANDLER(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 

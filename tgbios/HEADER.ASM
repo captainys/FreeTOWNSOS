@@ -186,6 +186,10 @@ CODE					SEGMENT
 						DD		OFFSET MOS
 						DW		TGBIOS_SEG
 
+						ORG		48H
+						DD		OFFSET MOS_UPDATE
+						DW		TGBIOS_SEG
+
 						ORG		60H
 						DD		OFFSET SPR
 						DW		TGBIOS_SEG
@@ -330,6 +334,13 @@ EGB_JUMPTABLE_60H_TO_66H:
 MOS						PROC	FAR
 						RET
 MOS						ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+MOS_UPDATE				PROC	FAR
+						RET
+MOS_UPDATE				ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
