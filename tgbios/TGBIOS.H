@@ -23,6 +23,9 @@
 #define SEG_SYSROM_CODE 0x100
 #define SEG_SYSROM_DATA 0x100
 
+// Apparently it is stored in 118:0098H
+#define SND_BIOS_WORK  0x98
+
 #define SUCCESS 1
 #define FAIL    0
 

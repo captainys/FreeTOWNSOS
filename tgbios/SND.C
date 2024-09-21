@@ -55,9 +55,15 @@ void SND_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
+
+	_FP_SEG(SNDWorkStore)=SEG_TGBIOS_DATA;
+	_FP_OFF(SNDWorkStore)=SND_BIOS_WORK;
+	SNDWorkStore[0]=EDI;
+	SNDWorkStore[1]=GS;
 
 	MEMSETB_FAR(work,0,sizeof(struct SND_Work));
 
