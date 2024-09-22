@@ -37,5 +37,20 @@ def Run(argv):
 		quit()
 
 
+	proc=subprocess.Popen(["cl","../util/dosdisk.cpp","/EHsc"])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error bulding dosdisk.exe")
+		quit()
+
+
+	subprocess.Popen(["./dosdisk",
+		"-o",		"FDIMG.bin",
+		"-i",		"BUILD/SND.EXP",
+		"-i",		"CARDINAL.SND",
+	]).wait()
+
+
+
 if __name__=="__main__":
 	Run(sys.argv[1:])

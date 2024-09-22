@@ -974,7 +974,7 @@ void SND_JOY_OUT(
 		TSUGARU_BREAK;
 }
 
-void SND_ELEVOL_SET(
+void SND_43H_ELEVOL_SET(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -996,7 +996,7 @@ void SND_ELEVOL_SET(
 		TSUGARU_BREAK;
 }
 
-void SND_ELEVOL_INIT(
+void SND_44H_ELEVOL_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1018,7 +1018,7 @@ void SND_ELEVOL_INIT(
 		TSUGARU_BREAK;
 }
 
-void SND_ELEVOL_READ(
+void SND_45H_ELEVOL_READ(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1085,7 +1085,37 @@ void SND_ELEVOL_READ(
 	SND_SetError(EAX,SND_NO_ERROR);
 }
 
-void SND_ELEVOL_MUTE(
+void SND_46H_ELEVOL_MUTE(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	unsigned char flags=(unsigned char)EBX;
+	unsigned char io;
+	_Far struct SND_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	// |MODEM|MIC|CDLeft|CERight|LINELeft|LINERight|FM|PCM|
+
+	_outb(TOWNSIO_SOUND_MUTE,flags&3);
+
+	// Unless I remember previous ELEVOL I cannot just select Channel and EN bit.
+	// WTF?
+
+	SND_SetError(EAX,SND_NO_ERROR);
+}
+
+void SND_49H_ELEVOL_ALL_MUTE(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1107,7 +1137,7 @@ void SND_ELEVOL_MUTE(
 		TSUGARU_BREAK;
 }
 
-void SND_ELEVOL_ALL_MUTE(
+void SND_4AH_UNPUBLISHED_FUNCTION(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1121,12 +1151,6 @@ void SND_ELEVOL_ALL_MUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_ENVELOPE_INT_HANDLER(

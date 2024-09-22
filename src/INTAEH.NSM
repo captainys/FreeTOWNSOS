@@ -243,10 +243,10 @@ INTAEH_02H_SET_ENABLE_FLAGS:
 
 						ROL		EAX,8	; Shift the highest byte into AL
 						AND		AL,7FH	; bit 7 (Cascade) is always ON.
-						OUT		02H,AL
+						OUT		IO_PIC_PRIMARY_MASK,AL
 
 						ROL		EAX,8	; Shift the 2nd highest byte into AL
-						OUT		12H,AL
+						OUT		IO_PIC_SECONDARY_MASK,AL
 
 						JMP		INTAEH_EXIT
 

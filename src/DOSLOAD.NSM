@@ -102,6 +102,24 @@ CLONE_ENTRY:
 						MOV		AH,BIOSCMD_COMMON_INIT
 						INT		97H
 
+
+						; Apparently INT 4DH should always be enabled.
+						PUSH	EAX
+						MOV		DI,SS
+						MOV		DS,DI
+						MOV		DI,SP
+						MOV		AH,03H	; Get INT-Enabled Flags
+						INT		0AEH
+
+						MOV		EAX,DS:[DI]
+						OR		EAX,INTMANBIOS_INT0D_FLAG
+						MOV		DS:[DI],EAX
+
+						MOV		AH,02H	; Set INT-Enabled Flags
+						INT		0AEH
+						POP		EAX
+
+
 						MOV		BX,CS:[BOOT_DEVICE]
 						CMP		BL,BOOTDEV_FD
 						JNE		NOT_BOOT_FROM_FD
