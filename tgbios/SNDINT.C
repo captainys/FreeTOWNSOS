@@ -12,16 +12,22 @@
 // responsibility of this Sound INT Manager.
 
 
+
 #define _PUSHFD _inline(0x9C);
 #define _POPFD _inline(0x9D);
 #define _CLI _inline(0xfa);
 
+
+#ifdef MY_RESPONSIBILITY //
 
 void __SET_RPVECTP(int INTNum,_Handler);
 unsigned long __GET_RVECT(int INTNum);
 _Far void (*__GET_PVECT(int INTNum))(void) ;
 void __SET_RVECT(int INTNum,unsigned long handler);
 void __SET_PVECT(int INTNum,_Far void (*func)(void));
+
+#endif // MY_RESPONSIBILITY
+
 
 
 #define SNDINT_USING_TIMERB_MOUSE 1
@@ -37,8 +43,10 @@ struct SoundInterruptBIOSContext
 {
 	unsigned int flags;  // Will be initialized to zero on first call.
 
+#ifdef MY_RESPONSIBILITY
 	_Far void (*save_INT4DProt)(void);
 	unsigned long save_INT4DReal;
+#endif
 };
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
@@ -66,6 +74,7 @@ _Handler Handle_INT4DH(void)
 // It seems that INT 4DH should be enabled all the time.
 
 
+#ifdef MY_RESPONSIBILITY
 void Unmask_PIC_INT4D(_Far struct SoundInterruptBIOSContext *context)
 {
 	if(0==(context->flags&SNDINT_PIC_ENABLED))
@@ -105,6 +114,7 @@ static void Start_TimerA(_Far struct SoundInterruptBIOSContext *context)
 static void Stop_TimerA(_Far struct SoundInterruptBIOSContext *context)
 {
 }
+#endif
 
 void SNDINT_Internal_Start_Mouse(void)
 {
@@ -113,11 +123,16 @@ void SNDINT_Internal_Start_Mouse(void)
 	_CLI
 	if(0==(context->flags&SNDINT_USING_TIMERB_MOUSE))
 	{
-		if(0==(context->flags&SNDINT_PIC_ENABLED))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Unmask_PIC_INT4D(context);
+			if(0==(context->flags&SNDINT_PIC_ENABLED))
+			{
+				Unmask_PIC_INT4D(context);
+			}
+			Start_TimerB(context);
 		}
-		Start_TimerB(context);
+		#endif
+
 		context->flags|=SNDINT_USING_TIMERB_MOUSE;
 	}
 	_POPFD
@@ -129,11 +144,16 @@ void SNDINT_Internal_Start_Sound_TimerB(void)
 	_CLI
 	if(0==(context->flags&SNDINT_USING_TIMERB_SOUND))
 	{
-		if(0==(context->flags&SNDINT_PIC_ENABLED))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Unmask_PIC_INT4D(context);
+			if(0==(context->flags&SNDINT_PIC_ENABLED))
+			{
+				Unmask_PIC_INT4D(context);
+			}
 		}
 		Start_TimerB(context);
+		#endif
+
 		context->flags|=SNDINT_USING_TIMERB_SOUND;
 	}
 	_POPFD
@@ -145,11 +165,15 @@ void SNDINT_Internal_Start_Sound_TimerA(void)
 	_CLI
 	if(0==(context->flags&SNDINT_USING_TIMERA))
 	{
-		if(0==(context->flags&SNDINT_PIC_ENABLED))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Unmask_PIC_INT4D(context);
+			if(0==(context->flags&SNDINT_PIC_ENABLED))
+			{
+				Unmask_PIC_INT4D(context);
+			}
+			Start_TimerA(context);
 		}
-		Start_TimerA(context);
+		#endif
 		context->flags|=SNDINT_USING_TIMERA;
 	}
 	_POPFD
@@ -161,10 +185,14 @@ void SNDINT_Internal_Start_PCM(void)
 	_CLI
 	if(0==(context->flags&SNDINT_USING_PCM))
 	{
-		if(0==(context->flags&SNDINT_PIC_ENABLED))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Unmask_PIC_INT4D(context);
+			if(0==(context->flags&SNDINT_PIC_ENABLED))
+			{
+				Unmask_PIC_INT4D(context);
+			}
 		}
+		#endif
 		context->flags|=SNDINT_USING_PCM;
 	}
 	_POPFD
@@ -178,14 +206,18 @@ void SNDINT_Internal_Stop_Mouse(void)
 	if(0!=(context->flags&SNDINT_USING_TIMERB_MOUSE))
 	{
 		context->flags&=~SNDINT_USING_TIMERB_MOUSE;
-		if(0==(context->flags&SNDINT_TIMERB_USE_FLAGS))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Stop_TimerB(context);
+			if(0==(context->flags&SNDINT_TIMERB_USE_FLAGS))
+			{
+				Stop_TimerB(context);
+			}
+			if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
+			{
+				Mask_PIC_INT4D(context);
+			}
 		}
-		if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
-		{
-			Mask_PIC_INT4D(context);
-		}
+		#endif
 	}
 	_POPFD
 }
@@ -197,14 +229,18 @@ void SNDINT_Internal_Stop_Sound_TimerB(void)
 	if(0!=(context->flags&SNDINT_USING_TIMERB_SOUND))
 	{
 		context->flags&=~SNDINT_USING_TIMERB_SOUND;
-		if(0==(context->flags&SNDINT_TIMERB_USE_FLAGS))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Stop_TimerB(context);
+			if(0==(context->flags&SNDINT_TIMERB_USE_FLAGS))
+			{
+				Stop_TimerB(context);
+			}
+			if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
+			{
+				Mask_PIC_INT4D(context);
+			}
 		}
-		if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
-		{
-			Mask_PIC_INT4D(context);
-		}
+		#endif
 	}
 	_POPFD
 }
@@ -216,14 +252,18 @@ void SNDINT_Internal_Stop_Sound_TimerA(void)
 	if(0!=(context->flags&SNDINT_USING_TIMERA))
 	{
 		context->flags&=~SNDINT_USING_TIMERA;
-		if(0==(context->flags&SNDINT_USING_TIMERA))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Stop_TimerA(context);
+			if(0==(context->flags&SNDINT_USING_TIMERA))
+			{
+				Stop_TimerA(context);
+			}
+			if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
+			{
+				Mask_PIC_INT4D(context);
+			}
 		}
-		if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
-		{
-			Mask_PIC_INT4D(context);
-		}
+		#endif
 	}
 	_POPFD
 }
@@ -235,10 +275,14 @@ void SNDINT_Internal_Stop_PCM(void)
 	if(0!=(context->flags&SNDINT_USING_PCM))
 	{
 		context->flags&=~SNDINT_USING_PCM;
-		if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
+		#ifdef MY_RESPONSIBILITY
 		{
-			Mask_PIC_INT4D(context);
+			if(0==(context->flags&SNDINT_ALL_USE_FLAGS))
+			{
+				Mask_PIC_INT4D(context);
+			}
 		}
+		#endif
 	}
 	_POPFD
 }
@@ -259,6 +303,7 @@ void SNDINT_01H_REGISTER_MOUSE_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	SNDINT_Internal_Start_Mouse();
 }
 void SNDINT_02H_UNREGISTER_MOUSE_INT(
 	unsigned int EDI,
@@ -274,6 +319,7 @@ void SNDINT_02H_UNREGISTER_MOUSE_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	SNDINT_Internal_Stop_Mouse();
 }
 void SNDINT_03H_REGISTER_SOUND_INT(
 	unsigned int EDI,
@@ -289,6 +335,7 @@ void SNDINT_03H_REGISTER_SOUND_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	SNDINT_Internal_Start_Sound_TimerB();
 }
 void SNDINT_04H_UNREGISTER_SOUND_INT(
 	unsigned int EDI,
@@ -304,6 +351,7 @@ void SNDINT_04H_UNREGISTER_SOUND_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	SNDINT_Internal_Stop_Sound_TimerB();
 }
 void SNDINT_05H_GET_MOUSE_INT_COUNT(
 	unsigned int EDI,
@@ -319,6 +367,7 @@ void SNDINT_05H_GET_MOUSE_INT_COUNT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	TSUGARU_BREAK;
 }
 void SNDINT_06H_REGISTER_INT_PROC(
 	unsigned int EDI,
@@ -334,6 +383,7 @@ void SNDINT_06H_REGISTER_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
+	TSUGARU_BREAK;
 }
 void SNDINT_07H_UNREGISTER_INT_PROC(
 	unsigned int EDI,
@@ -349,6 +399,7 @@ void SNDINT_07H_UNREGISTER_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
+	TSUGARU_BREAK;
 }
 
 void SNDINT_08H_GET_INT_PROC(
@@ -365,6 +416,7 @@ void SNDINT_08H_GET_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
+	TSUGARU_BREAK;
 }
 void SNDINT_09H_GET_INT_STATUS(
 	unsigned int EDI,
@@ -380,6 +432,7 @@ void SNDINT_09H_GET_INT_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
+	TSUGARU_BREAK;
 }
 
 

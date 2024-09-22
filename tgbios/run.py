@@ -1,36 +1,35 @@
 import subprocess
 import os
 import sys
-import shutil
-
 
 THISFILE=os.path.realpath(__file__)
 THISDIR=os.path.dirname(THISFILE)
 
-def CopyToResources(filename):
-	shutil.copyfile(filename,os.path.join("..","resources",filename))
+ROMDIR=os.path.join(THISDIR,"..","CompROM")
+FDIMG=os.path.join(THISDIR,"FDIMG.bin")
 
-def Run(argv):
-	os.chdir(THISDIR)
+proc=subprocess.Popen([
+	"Tsugaru_CUI",
+	ROMDIR,
+	"-HIGHFIDELITY",
+	"-USEFPU",
+	"-MEMSIZE","16",
+	"-BOOTKEY",
+	"F0",
+	"-FD0",
+	FDIMG,
+	"-DEBUG",
+	"-INITCMD","ENA FDCMON",
+	# "-INITCMD","BP 31A7:00002893", # Stop in free386.com before call init_dos_malloc
+	"-SHAREDDIR",os.path.join(THISDIR,"..","tgdrv"),
+	"-SHAREDDIR",os.path.join(THISDIR,"..","..","TOWNSEMU","testc"),
+	"-SHAREDDIR",os.path.join(THISDIR,"..","tgbiostest"),
+	# "-POWEROFFAT","2B3D:100",
+	# "-UNITTEST",
 
-	proc=subprocess.Popen([
-		"Tsugaru_CUI",
-		os.path.join(THISDIR,"..","CompROM"),
-		"-FD0",
-		os.path.join(THISDIR,"FDIMG.bin"),
-		"-BOOTKEY",
-		"F0",
-		"-SHAREDDIR",
-		os.path.join(THISDIR,"..","tgbiostest"),
-		"-SHAREDDIR",
-		THISDIR,
-		"-DEBUG",
-		"-USEFPU",
-	])
-	proc.communicate()
-	if 0!=proc.returncode:
-		print("Error bulding TGBIOS.BIN")
-		quit()
+	#"-initcmd","SAVESTATEAT 50:0 00500000.tstate",
+	#"-initcmd","SAVESTATEAT B800:0 B8000000.tstate",
+	#"-initcmd","SAVESTATEAT B800:262 B8000262.tstate",
+	#"-initcmd","SAVESTATEAT B800:2CC B80002CC.tstate",
 
-if __name__=="__main__":
-	Run(sys.argv[1:])
+]+sys.argv[1:]).wait()
