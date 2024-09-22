@@ -556,7 +556,7 @@ void SND_PCM_WAVE_TRANSFER(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_MODE_SET(
+void SND_21H_PCM_MODE_SET(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
