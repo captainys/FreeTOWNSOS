@@ -5,6 +5,7 @@
 #include "MACRO.H"
 #include "IODEF.H"
 #include "UTIL.H"
+#include "SYSINFO.H"
 
 // What about SND_END?
 
@@ -55,6 +56,7 @@ void SND_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
 	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
@@ -67,8 +69,20 @@ void SND_INIT(
 
 	MEMSETB_FAR(work,0,sizeof(struct SND_Work));
 
+
+	// Mute everything.
+	sysInfo->elevol_mute=0;
+	_outb(TOWNSIO_SOUND_MUTE,0);
+	_outb(TOWNSIO_ELEVOL_1_COM,0);
+	_outb(TOWNSIO_ELEVOL_1_COM,1);
+	_outb(TOWNSIO_ELEVOL_2_COM,0);
+	_outb(TOWNSIO_ELEVOL_2_COM,1);
+	_outb(TOWNSIO_ELEVOL_2_COM,2);
+	_outb(TOWNSIO_ELEVOL_2_COM,3);
+
+
+
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 void SND_KEY_ON(
 	unsigned int EDI,
@@ -534,7 +548,7 @@ void SND_FM_LFO_SET(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_WAVE_TRANSFER(
+void SND_20H_PCM_WAVE_TRANSFER(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -578,7 +592,7 @@ void SND_21H_PCM_MODE_SET(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_SOUND_SET(
+void SND_22H_PCM_SOUND_SET(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -600,7 +614,7 @@ void SND_PCM_SOUND_SET(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_SOUND_DELETE(
+void SND_23H_PCM_SOUND_DELETE(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -622,7 +636,7 @@ void SND_PCM_SOUND_DELETE(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_REC_START(
+void SND_24H_PCM_REC_START(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -644,7 +658,7 @@ void SND_PCM_REC_START(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_PCM_VOICE_PLAY(
+void SND_25H_PCM_PCM_VOICE_PLAY(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -666,7 +680,7 @@ void SND_PCM_PCM_VOICE_PLAY(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_REC_STOP(
+void SND_26H_PCM_REC_STOP(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -688,7 +702,7 @@ void SND_PCM_REC_STOP(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_PCM_VOICE_STOP(
+void SND_27H_PCM_PCM_VOICE_STOP(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -710,7 +724,7 @@ void SND_PCM_PCM_VOICE_STOP(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_PCM_VOICE_STATUS(
+void SND_28H_PCM_PCM_VOICE_STATUS(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -732,7 +746,7 @@ void SND_PCM_PCM_VOICE_STATUS(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_ABORT(
+void SND_29H_PCM_ABORT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -754,7 +768,7 @@ void SND_PCM_ABORT(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_PCMRAM_TO_MAINRAM(
+void SND_2AH_PCM_PCMRAM_TO_MAINRAM(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -776,7 +790,7 @@ void SND_PCM_PCMRAM_TO_MAINRAM(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_PCMRAM_TO_PCMRAM(
+void SND_2BH_PCM_PCMRAM_TO_PCMRAM(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -798,7 +812,7 @@ void SND_PCM_PCMRAM_TO_PCMRAM(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_TRANSFER2(
+void SND_2CH_PCM_TRANSFER2(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -820,7 +834,7 @@ void SND_PCM_TRANSFER2(
 		TSUGARU_BREAK;
 }
 
-void SND_PCM_HIGHRES_PLAY(
+void SND_2EH_PCM_HIGHRES_PLAY(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1032,9 +1046,11 @@ void SND_45H_ELEVOL_READ(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
+
 	unsigned int vlmNum=EBX&0xFF;
 	unsigned short DH,DL;
-	unsigned char COM;
+	unsigned char EN;
 
 	// vlmNum 0: LINE IN
 	//        1: CD IN
@@ -1047,29 +1063,29 @@ void SND_45H_ELEVOL_READ(
 	switch(vlmNum)
 	{
 	case 0: // LINE IN
-		COM=_inb(TOWNSIO_ELEVOL_1_COM)&0x1C;
-		_outb(TOWNSIO_ELEVOL_1_COM,COM);
+		EN=((sysInfo->elevol_mute&SND_MUTE_LINE_L) ? 4 : 0);
+		_outb(TOWNSIO_ELEVOL_1_COM,EN);
 		DH=_inb(TOWNSIO_ELEVOL_1_DATA);
-		_outb(TOWNSIO_ELEVOL_1_COM,COM|1);
+		EN=((sysInfo->elevol_mute&SND_MUTE_LINE_R) ? 4 : 0);
+		_outb(TOWNSIO_ELEVOL_1_COM,EN|1);
 		DL=_inb(TOWNSIO_ELEVOL_1_DATA);
 		break;
 	case 1: // CD IN
-		COM=_inb(TOWNSIO_ELEVOL_2_COM)&0x1C;
-		_outb(TOWNSIO_ELEVOL_2_COM,COM);
+		EN=((sysInfo->elevol_mute&SND_MUTE_CD_L) ? 4 : 0);
+		_outb(TOWNSIO_ELEVOL_2_COM,EN);
 		DH=_inb(TOWNSIO_ELEVOL_2_DATA);
-		_outb(TOWNSIO_ELEVOL_2_COM,COM|1);
+		EN=((sysInfo->elevol_mute&SND_MUTE_CD_R) ? 4 : 0);
+		_outb(TOWNSIO_ELEVOL_2_COM,EN|1);
 		DL=_inb(TOWNSIO_ELEVOL_2_DATA);
 		break;
 	case 2: // MIC IN
-		COM=_inb(TOWNSIO_ELEVOL_2_COM)&0x1C;
-		COM|=2;
-		_outb(TOWNSIO_ELEVOL_2_COM,COM);
+		EN=((sysInfo->elevol_mute&SND_MUTE_MIC) ? 4 : 0);
+		_outb(TOWNSIO_ELEVOL_2_COM,EN|2);
 		DH=DL=_inb(TOWNSIO_ELEVOL_2_DATA);
 		break;
 	case 3: // MODEM IN
-		COM=_inb(TOWNSIO_ELEVOL_2_COM)&0x1C;
-		COM|=3;
-		_outb(TOWNSIO_ELEVOL_2_COM,COM);
+		EN=((sysInfo->elevol_mute&SND_MUTE_MODEM) ? 4 : 0);
+		_outb(TOWNSIO_ELEVOL_2_COM,EN|3);
 		DH=DL=_inb(TOWNSIO_ELEVOL_2_DATA);
 		break;
 	}
@@ -1099,8 +1115,9 @@ void SND_46H_ELEVOL_MUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
 	unsigned char flags=(unsigned char)EBX;
-	unsigned char io;
+	unsigned char EN;
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
@@ -1109,8 +1126,20 @@ void SND_46H_ELEVOL_MUTE(
 
 	_outb(TOWNSIO_SOUND_MUTE,flags&3);
 
-	// Unless I remember previous ELEVOL I cannot just select Channel and EN bit.
-	// WTF?
+	EN=((flags&SND_MUTE_LINE_L) ? 4 : 0);
+	_outb(TOWNSIO_ELEVOL_1_COM,EN);
+	EN=((flags&SND_MUTE_LINE_R) ? 4 : 0);
+	_outb(TOWNSIO_ELEVOL_1_COM,EN|1);
+	EN=((flags&SND_MUTE_CD_L) ? 4 : 0);
+	_outb(TOWNSIO_ELEVOL_2_COM,EN);
+	EN=((flags&SND_MUTE_CD_R) ? 4 : 0);
+	_outb(TOWNSIO_ELEVOL_2_COM,EN|1);
+	EN=((flags&SND_MUTE_MIC) ? 4 : 0);
+	_outb(TOWNSIO_ELEVOL_2_COM,EN|2);
+	EN=((flags&SND_MUTE_MODEM) ? 4 : 0);
+	_outb(TOWNSIO_ELEVOL_2_COM,EN|3);
+
+	sysInfo->elevol_mute=flags;
 
 	SND_SetError(EAX,SND_NO_ERROR);
 }
@@ -1214,3 +1243,4 @@ void SND_NOP(
 	// Not supposed to be called.
 		TSUGARU_BREAK;
 }
+
