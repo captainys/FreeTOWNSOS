@@ -7,6 +7,11 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+
+// If the Red-Book Appendix C.9 example is correct, registering INT 4DH and masking/unmasking PIC is NOT the
+// responsibility of this Sound INT Manager.
+
+
 #define _PUSHFD _inline(0x9C);
 #define _POPFD _inline(0x9D);
 #define _CLI _inline(0xfa);
