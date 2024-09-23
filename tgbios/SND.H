@@ -69,4 +69,6 @@ struct SND_Status
 
 _Far struct SND_Status *SND_GetStatus(void);
 
+void SND_PCM_Voice_Mode_Interrupt(void); // Called from SNDINT.C
+
 #endif

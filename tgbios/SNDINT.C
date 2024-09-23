@@ -3,6 +3,7 @@
 #include <DOS.H>
 #include "TGBIOS.H"
 #include "SNDINT.H"
+#include "SND.H"
 #include "MACRO.H"
 #include "IODEF.H"
 #include "UTIL.H"
@@ -59,6 +60,16 @@ _Handler Handle_INT4DH(void)
 	// DOS-Extender intercepts INT 46H in its own handler, then redirect to this handler by CALLF.
 	// Must return by RETF.
 	// _Far is the keyword in High-C.
+	unsigned char INTReason=_inb(TOWNSIO_SOUND_INT_REASON);
+	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
+	if(INTReason&1)
+	{
+	}
+	if((INTReason&8) && (context->flags&SNDINT_USING_PCM))
+	{
+		SND_PCM_Voice_Mode_Interrupt();
+	}
+	_outb(TOWNSIO_PIC_SECONDARY_ICW1,0x65); // Specific EOI + INT (13-8=5)(4DH).
 	return 0;
 }
 #pragma Calling_convention();
@@ -336,6 +347,7 @@ void SNDINT_03H_REGISTER_SOUND_INT(
 	unsigned int FS)
 {
 	SNDINT_Internal_Start_Sound_TimerB();
+	SNDINT_Internal_Start_PCM();
 }
 void SNDINT_04H_UNREGISTER_SOUND_INT(
 	unsigned int EDI,
@@ -352,6 +364,7 @@ void SNDINT_04H_UNREGISTER_SOUND_INT(
 	unsigned int FS)
 {
 	SNDINT_Internal_Stop_Sound_TimerB();
+	SNDINT_Internal_Stop_PCM();
 }
 void SNDINT_05H_GET_MOUSE_INT_COUNT(
 	unsigned int EDI,

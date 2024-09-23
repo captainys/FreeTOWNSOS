@@ -1012,7 +1012,7 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 			unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
 			MOVSB_FAR(waveRAM,info->pcmPlayInfo[ch].playPtr,oneTransferSize);
-			if(oneTransferSize<0x1000)
+			if(oneTransferSize<PCM_BANK_SIZE)
 			{
 				waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
 			}
@@ -1420,6 +1420,55 @@ void SND_VOICE_INT_HANDLER(
 		TSUGARU_BREAK;
 }
 
+void SND_PCM_Voice_Mode_Interrupt(void)
+{
+	_Far struct SND_Status *stat=SND_GetStatus();
+	unsigned char INTBank=_inb(TOWNSIO_SOUND_PCM_INT);
+	int i,ch=7;
+
+	for(i=0; i<stat->numVoiceModeChannels; ++i)
+	{
+		unsigned char CHFlag=(1<<ch);
+		unsigned char INTBankFlag=1;
+		INTBankFlag<<=(stat->voiceChannelBank[ch]/2);
+		if(INTBank&INTBankFlag)
+		{
+			if(stat->pcmPlayInfo->header->totalBytes<=stat->pcmPlayInfo[ch].curPos)
+			{
+				// Not respecting loop for the time being.
+				stat->PCMKey|=CHFlag;
+				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey); // Key Off
+				stat->pcmPlayInfo[ch].playing=0;
+			}
+			else
+			{
+				unsigned int bytesLeft=stat->pcmPlayInfo->header->totalBytes-stat->pcmPlayInfo[ch].curPos;
+				unsigned int transferSize=PCM_BANK_SIZE;
+				_Far unsigned char *waveRAM;
+				_FP_SEG(waveRAM)=SEG_WAVE_RAM;
+				_FP_OFF(waveRAM)=0;
+
+				if(stat->pcmPlayInfo[ch].nextFillBank&1)
+				{
+					transferSize-=256;
+				}
+				transferSize=_min(transferSize,bytesLeft);
+
+				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->pcmPlayInfo[ch].nextFillBank);
+				MOVSB_FAR(waveRAM,stat->pcmPlayInfo[ch].playPtr+stat->pcmPlayInfo[ch].curPos,transferSize);
+				if(transferSize<PCM_BANK_SIZE)
+				{
+					waveRAM[transferSize]=PCM_LOOP_STOP_CODE;
+				}
+
+				stat->pcmPlayInfo[ch].curPos+=transferSize;
+				stat->pcmPlayInfo[ch].nextFillBank^=1;
+			}
+		}
+		--ch;
+	}
+}
+
 void SND_NOP(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -1445,7 +1494,7 @@ static struct SND_Status status=
 	0,  // REG2H
 	0,  // voiceModeBank
 	0,  // usedBank
-	0,  // numVOiceModeChannels
+	0,  // numVoiceModeChannels
 	0,  // PCMKey
 	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak
 	{{NULL,NULL,0,0}},
