@@ -57,17 +57,38 @@ static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
 #pragma Calling_convention(_INTERRUPT|_CALLING_CONVENTION);
 _Handler Handle_INT4DH(void)
 {
+	_Far struct SND_Status *SND_GetStatus();
 	// DOS-Extender intercepts INT 46H in its own handler, then redirect to this handler by CALLF.
 	// Must return by RETF.
 	// _Far is the keyword in High-C.
 	unsigned char INTReason=_inb(TOWNSIO_SOUND_INT_REASON);
+
 	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
 	if(INTReason&1)
 	{
+		unsigned char timerUP=_inb(TOWNSIO_SOUND_STATUS_ADDRESS0);
+		timerUP&=3;
+
+		if(timerUP&1)
+		{
+			SND_FM_Timer_A_Restart();
+		}
+		if(timerUP&2)
+		{
+			SND_FM_Timer_B_Restart();
+		}
 	}
-	if((INTReason&8) && (context->flags&SNDINT_USING_PCM))
+	if(INTReason&8)
 	{
-		SND_PCM_Voice_Mode_Interrupt();
+		if(context->flags&SNDINT_USING_PCM)
+		{
+			SND_PCM_Voice_Mode_Interrupt();
+		}
+		else
+		{
+			// Just remoe IRR
+			_inb(TOWNSIO_SOUND_PCM_INT); // Was it good?
+		}
 	}
 	_outb(TOWNSIO_PIC_SECONDARY_ICW1,0x65); // Specific EOI + INT (13-8=5)(4DH).
 	return 0;

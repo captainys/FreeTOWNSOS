@@ -464,15 +464,9 @@ void SND_15H_FM_TIMER_A_SET(
 	}
 	else
 	{
-		unsigned char reg27H=info->YM2612_REG27H;
-
 		YM2612_Write(0,0x25,count&3);
 		YM2612_Write(0,0x24,count>>2);
-
-		reg27H&=0xCA; // Preseve Timer B flag permission, and CH3 MODE
-		YM2612_Write(0,0x27,0x15|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
-
-		info->YM2612_REG27H=reg27H;
+		SND_FM_Timer_A_Restart();
 	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
@@ -517,15 +511,9 @@ void SND_16H_FM_TIMER_B_SET(
 	}
 	else
 	{
-		unsigned char reg27H=info->YM2612_REG27H;
-
 		YM2612_Write(0,0x25,count&3);
 		YM2612_Write(0,0x24,count>>2);
-
-		reg27H&=0xC5; // Preseve Timer B flag permission, and CH3 MODE
-		YM2612_Write(0,0x27,0x2A|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
-
-		info->YM2612_REG27H=reg27H;
+		SND_FM_Timer_B_Restart();
 	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
@@ -545,12 +533,18 @@ void SND_17H_FM_TIMER_A_RESTART(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
+	SND_FM_Timer_A_Restart();
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_STATE;
+}
+
+void SND_FM_Timer_A_Restart(void)
+{
+	_Far struct SND_Status *info=SND_GetStatus();
+	unsigned char reg27H=info->YM2612_REG27H;
+	reg27H&=0xCA; // Preseve Timer B flag permission, and CH3 MODE
+	YM2612_Write(0,0x27,0x15|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+	info->YM2612_REG27H=reg27H;
 }
 
 void SND_18H_FM_TIMER_B_RESTART(
@@ -567,12 +561,18 @@ void SND_18H_FM_TIMER_B_RESTART(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
+	SND_FM_Timer_B_Restart();
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_STATE;
+}
+
+void SND_FM_Timer_B_Restart(void)
+{
+	_Far struct SND_Status *info=SND_GetStatus();
+	unsigned char reg27H=info->YM2612_REG27H;
+	reg27H&=0xC5; // Preseve Timer B flag permission, and CH3 MODE
+	YM2612_Write(0,0x27,0x2A|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+	info->YM2612_REG27H=reg27H;
 }
 
 void SND_FM_LFO_SET(
@@ -850,7 +850,7 @@ void SND_28H_PCM_PCM_VOICE_STATUS(
 		return;
 	}
 
-	SET_LOW_BYTE(&EAX,sndStat->pcmPlayInfo[ch].playing);
+	SET_LOW_BYTE(&EDX,sndStat->pcmPlayInfo[ch].playing);
 	SND_SetError(EAX,SND_NO_ERROR);
 }
 
@@ -1429,7 +1429,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 		INTBankFlag<<=(stat->voiceChannelBank[ch]/2);
 		if(INTBank&INTBankFlag)
 		{
-			if(stat->pcmPlayInfo->header->totalBytes<=stat->pcmPlayInfo[ch].curPos)
+			if(stat->pcmPlayInfo[ch].header->totalBytes<=stat->pcmPlayInfo[ch].curPos)
 			{
 				// Not respecting loop for the time being.
 				stat->PCMKey|=CHFlag;
@@ -1438,7 +1438,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 			}
 			else
 			{
-				unsigned int bytesLeft=stat->pcmPlayInfo->header->totalBytes-stat->pcmPlayInfo[ch].curPos;
+				unsigned int bytesLeft=stat->pcmPlayInfo[ch].header->totalBytes-stat->pcmPlayInfo[ch].curPos;
 				unsigned int transferSize=PCM_BANK_SIZE;
 				_Far unsigned char *waveRAM;
 				_FP_SEG(waveRAM)=SEG_WAVE_RAM;

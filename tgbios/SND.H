@@ -71,4 +71,9 @@ _Far struct SND_Status *SND_GetStatus(void);
 
 void SND_PCM_Voice_Mode_Interrupt(void); // Called from SNDINT.C
 
+void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value);
+
+void SND_FM_Timer_A_Restart(void);
+void SND_FM_Timer_B_Restart(void);
+
 #endif
