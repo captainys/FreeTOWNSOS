@@ -303,7 +303,7 @@ void SND_STATUS(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_READ_STATUS(
+void SND_10H_FM_READ_STATUS(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -325,7 +325,7 @@ void SND_FM_READ_STATUS(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_WRITE_DATA(
+void SND_11H_FM_WRITE_DATA(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -347,7 +347,7 @@ void SND_FM_WRITE_DATA(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_READ_DATA(
+void SND_12H_FM_READ_DATA(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -369,7 +369,7 @@ void SND_FM_READ_DATA(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_WRITE_SAVE_ATA(
+void SND_13H_FM_WRITE_SAVE_ATA(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -391,7 +391,7 @@ void SND_FM_WRITE_SAVE_ATA(
 		TSUGARU_BREAK;
 }
 
-void SND_FM_READ_SAVE_DATA(
+void SND_14H_FM_READ_SAVE_DATA(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
