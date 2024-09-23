@@ -652,8 +652,8 @@ void SND_21H_PCM_MODE_SET(
 				voiceModeBank|=bankFlag;
 				break;
 			}
-			--bank;
-			bankFlag>>=1;
+			bank-=2;
+			bankFlag>>=2;
 		}
 
 		if(bank<0)
@@ -827,6 +827,15 @@ void SND_28H_PCM_PCM_VOICE_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
+	// Input
+	//   BL=Channel (64-71)
+	// Output
+	//   DL=0:Not playing  Non-Zero:Playing
+	//   AL=0 No Error
+	//   AL=1 Wrong Channel
+
+	// How can I check if the play-back is over?
+
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
