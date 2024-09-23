@@ -4,6 +4,8 @@
 						PUBLIC	MEMSETB_FAR
 						PUBLIC	MEMSETW_FAR
 
+						PUBLIC	MOVSB_FAR	; It does use MOVSB only.  Good for copy to wave RAM.
+
 						PUBLIC	SET_SECOND_BYTE
 						PUBLIC	SET_LOW_BYTE
 						PUBLIC	SET_LOW_WORD
@@ -120,6 +122,33 @@ MEMSETW_FAR				PROC
 						RET
 
 MEMSETW_FAR				ENDP
+
+
+
+MOVSB_FAR				PROC
+;void MOVSB_FAR(_Far void *dst,_Far void *src,unsigned int count);
+						PUSH	ES   ; +16
+						PUSH	DS   ; +12
+						PUSH	EDI  ; +8
+						PUSH	ESI  ; +4
+						PUSH	ECX  ; +0
+
+						MOV		EDI,[ESP+24]
+						MOV		ES,[ESP+28]
+						MOV		ESI,[ESP+32]
+						MOV		DS,[ESP+36]
+						MOV		ECX,[ESP+40]
+						CLD
+						REP		MOVSB
+
+						POP		ECX
+						POP		ESI
+						POP		EDI
+						POP		DS
+						POP		ES
+						RET
+MOVSB_FAR				ENDP
+
 
 
 

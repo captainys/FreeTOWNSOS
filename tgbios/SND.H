@@ -29,4 +29,7 @@ struct SND_Work
 	unsigned char quack;
 };
 
+#define PCM_BANK_SIZE 4096
+#define PCM_LOOP_STOP_CODE 0xFF
+
 #endif

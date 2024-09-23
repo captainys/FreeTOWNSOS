@@ -937,6 +937,13 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 	unsigned int GS,
 	unsigned int FS)
 {
+	// BL=Channel
+	// DH=Note
+	// DL=Volume
+	// DS:ESI=Data
+
+	// What's the difference from 25H?
+
 	unsigned char ch=(unsigned char)EBX;
 	unsigned char note=(unsigned char)(EDX>>8);
 	unsigned char volume=(unsigned char)EDX;
@@ -966,17 +973,28 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 	_FP_SEG(sndData)=DS;
 	_FP_OFF(sndData)=ESI;
 
-	// BL=Channel
-	// DH=Note
-	// DL=Volume
-	// DS:ESI=Data
+	info->pcmPlayInfo[ch].header=sndData;
+	info->pcmPlayInfo[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
 
-	// What's the difference from 25H?
+	{
+		unsigned int bank=info->voiceChannelBank[ch];
+		unsigned int transferSize=_min(PCM_BANK_SIZE*2-256,sndData->totalBytes);
+		_Far unsigned char *waveRAM;
+		_FP_SEG(waveRAM)=SEG_WAVE_RAM;
+		_FP_OFF(waveRAM)=0;
 
-
-
-
-
+		while(0<transferSize)
+		{
+			unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
+			_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+			MOVSB_FAR(waveRAM,info->pcmPlayInfo[ch].playPtr,oneTransferSize);
+			if(oneTransferSize<0x1000)
+			{
+				waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
+			}
+			transferSize-=oneTransferSize;
+		}
+	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
