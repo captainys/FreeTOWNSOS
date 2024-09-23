@@ -996,6 +996,31 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 		}
 	}
 
+	{
+		unsigned short FD=0x1000;  // Address Step.  1x times=4096
+		unsigned short ST=info->voiceChannelBank[ch];
+
+		// ST is the high-byte of the starting address, therefore, ST<<=12 to make it full address,
+		// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
+		ST<<=4;
+
+		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+		_outb(TOWNSIO_SOUND_PCM_INT_MASK,0xFF);  // Just give me an INT for all banks.
+		_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
+		_outb(TOWNSIO_SOUND_PCM_PAN,0xFF);  // I'll be worried about it later.
+
+		_outb(TOWNSIO_SOUND_PCM_FDL,FD);
+		_outb(TOWNSIO_SOUND_PCM_FDH,FD>>8);
+
+		_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
+		_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
+		_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
+
+		info->PCMKey&=~keyFlag;
+		_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
+	}
+
+
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
 }
