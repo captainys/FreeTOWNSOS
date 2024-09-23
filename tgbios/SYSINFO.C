@@ -88,8 +88,14 @@ void SYSINFO_31H_RETRIEVE_INTVEC(
 // Unless some initial values are given, -RELEXE will place it at the end, and chops off.
 struct TBIOS_System_Info sysInfo=
 {
-	0,0,
+	// Sound
+	0,
+	0,
+	// Mouse
+	0,
+	// Misc.
 	{0,0,0,0},
+	// A Duck.
 	0
 };
 

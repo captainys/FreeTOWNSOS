@@ -25,9 +25,8 @@
 #define PAD_SELECT 128
 
 
-void YM2612_Write(_Far struct SND_Work *work,unsigned char regSet,unsigned char reg,unsigned char value)
+void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
 {
-	work->FMReg[regSet][reg]=value;
 	while(0!=(_inb(TOWNSIO_SOUND_STATUS_ADDRESS0)&0x80)); // Wait BUSY clear
 
 	if(0==regSet || reg<0x30)
@@ -428,12 +427,17 @@ void SND_15H_FM_TIMER_A_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
 	unsigned char sw=EBX&0xFF;
 	unsigned short count=ECX&0xFFFF;
 
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	// Observation:
+	//   SND_timer_a_set(1,?); writes 1FH to reg27H
+	//   SND_timer_b_set(1,?); writes 2FH to reg27H
+	//   SND_timer_a_set(0,?); writes 1AH to reg27H
+	//   SND_timer_b_set(0,?); writes 20H to reg27H
+	//   SND_timer_a_start();  writes 15H to reg27H
+	//   SND_timer_b_start();  writes 2FH to reg27H
 
 	// BL 0: Stop Timer and Reset Status Flag
 	//    Non-Zero:  Start Timer
@@ -441,20 +445,22 @@ void SND_15H_FM_TIMER_A_SET(
 
 	if(0==sw)
 	{
-		unsigned char reg27H=work->FMReg[0][0x27];
-		reg27H&=0xC8; // Preseve Timer B flag permission, and CH3 MODE
-
-		YM2612_Write(work,0,0x27,0x10|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+		unsigned char reg27H=info->YM2612_REG27H;
+		reg27H&=0xCA; // Preserve MODE, TimerB enable, TimerB Load
+		YM2612_Write(0,0x27,0x10|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+		info->YM2612_REG27H=reg27H;
 	}
 	else
 	{
-		unsigned char reg27H=work->FMReg[0][0x27];
+		unsigned char reg27H=info->YM2612_REG27H;
 
-		YM2612_Write(work,0,0x25,count&3);
-		YM2612_Write(work,0,0x24,count>>2);
+		YM2612_Write(0,0x25,count&3);
+		YM2612_Write(0,0x24,count>>2);
 
-		reg27H&=0xC8; // Preseve Timer B flag permission, and CH3 MODE
-		YM2612_Write(work,0,0x27,0x15|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+		reg27H&=0xCA; // Preseve Timer B flag permission, and CH3 MODE
+		YM2612_Write(0,0x27,0x15|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+
+		info->YM2612_REG27H=reg27H;
 	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
@@ -474,12 +480,43 @@ void SND_16H_FM_TIMER_B_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	unsigned char sw=EBX&0xFF;
+	unsigned short count=ECX&0xFFFF;
+
+	// Observation:
+	//   SND_timer_a_set(1,?); writes 1FH to reg27H
+	//   SND_timer_b_set(1,?); writes 2FH to reg27H
+	//   SND_timer_a_set(0,?); writes 1AH to reg27H
+	//   SND_timer_b_set(0,?); writes 20H to reg27H
+	//   SND_timer_a_start();  writes 15H to reg27H
+	//   SND_timer_b_start();  writes 2FH to reg27H
+
+	// BL 0: Stop Timer and Reset Status Flag
+	//    Non-Zero:  Start Timer
+	// CX: Timer Count
+
+	if(0==sw)
+	{
+		unsigned char reg27H=info->YM2612_REG27H;
+		reg27H&=0xC5; // Preserve MODE, TimerA enable, TimerA Load
+		YM2612_Write(0,0x27,0x20|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+		info->YM2612_REG27H=reg27H;
+	}
+	else
+	{
+		unsigned char reg27H=info->YM2612_REG27H;
+
+		YM2612_Write(0,0x25,count&3);
+		YM2612_Write(0,0x24,count>>2);
+
+		reg27H&=0xC5; // Preseve Timer B flag permission, and CH3 MODE
+		YM2612_Write(0,0x27,0x2A|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+
+		info->YM2612_REG27H=reg27H;
+	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_17H_FM_TIMER_A_RESTART(

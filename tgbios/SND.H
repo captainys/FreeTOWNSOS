@@ -18,8 +18,7 @@
 
 struct SND_Work
 {
-	unsigned int PCMKey;
-	unsigned char FMReg[2][0x100];
+	unsigned char quack;
 };
 
 #endif
