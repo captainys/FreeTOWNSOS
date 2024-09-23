@@ -89,6 +89,7 @@ void SND_INIT(
 	{
 		sysInfo->voiceChannelBank[i]=0;
 	}
+	sysInfo->PCMKey=0xFF;
 
 
 	SND_SetError(EAX,SND_NO_ERROR);
@@ -936,9 +937,34 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned char ch=(unsigned char)EBX;
+	unsigned char note=(unsigned char)(EDX>>8);
+	unsigned char volume=(unsigned char)EDX;
+	_Far struct PCM_Voice_Header *sndData;
+	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	unsigned char keyFlag;
+
+	if(ch<64 || 71<ch)
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		return;
+	}
+	ch-=64;
+	keyFlag=(1<<ch);
+	if((info->PCMKey&keyFlag)==0)
+	{
+		SND_SetError(EAX,SND_ERROR_KEY_ALREADY_ON);
+		return;
+	}
+
+	if(ch<SND_NUM_PCM_CHANNELS-info->numVoiceModeChannels)
+	{
+		SND_SetError(EAX,SND_ERROR_CH_NOT_VOICE_MODE);
+		return;
+	}
+
+	_FP_SEG(sndData)=DS;
+	_FP_OFF(sndData)=ESI;
 
 	// BL=Channel
 	// DH=Note
@@ -946,6 +972,10 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 	// DS:ESI=Data
 
 	// What's the difference from 25H?
+
+
+
+
 
 
 	SND_SetError(EAX,SND_NO_ERROR);
