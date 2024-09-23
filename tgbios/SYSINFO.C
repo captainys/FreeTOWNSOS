@@ -2,6 +2,7 @@
 #include "SYSINFO.H"
 #include "TGBIOS.H"
 #include "UTIL.H"
+#include "SND.H"
 
 void SYSINFO_NOP(void)
 {
@@ -21,7 +22,7 @@ void SYSINFO_22H_GET_ELEVOL_MUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	_Far struct SND_Status *info=SND_GetStatus();
 	SET_DWORD(&EAX,info->elevol_mute);
 }
 
@@ -88,16 +89,6 @@ void SYSINFO_31H_RETRIEVE_INTVEC(
 // Unless some initial values are given, -RELEXE will place it at the end, and chops off.
 struct TBIOS_System_Info sysInfo=
 {
-	// Sound
-	0,  // elevol_mute
-	0,  // REG2H
-	0,  // voiceModeBank
-	0,  // usedBank
-	0,  // numVOiceModeChannels
-	0,  // PCMKey
-	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak
-	{{NULL,NULL}},
-	0, // padding0
 	// Mouse
 	0, // mouseINTCount
 	// Misc.

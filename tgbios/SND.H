@@ -32,4 +32,41 @@ struct SND_Work
 #define PCM_BANK_SIZE 4096
 #define PCM_LOOP_STOP_CODE 0xFF
 
+
+struct PCM_Voice_Header
+{
+	char name[8];
+	unsigned int soundID;
+	unsigned int totalBytes;
+	unsigned int loopStart;
+	unsigned int loopLength;
+	unsigned short sampleFreq;
+	unsigned short sampleFreqCorrection;
+	unsigned char baseNote;
+	unsigned char padding[3];
+};
+
+struct SND_PCM_Play_Info
+{
+	_Far struct PCM_Voice_Header *header;
+	_Far unsigned char *playPtr;
+	unsigned int curPos;
+	unsigned char playing;
+	unsigned char nextFillBank;
+};
+
+struct SND_Status
+{
+	unsigned int elevol_mute; // Set by SND BIOS.  In High-C library, it is accessed from SND_get_elevol_mute, but is done by 0110:01C0
+	unsigned int YM2612_REG27H;
+	unsigned short voiceModeBank;
+	unsigned short usedBank;
+	unsigned char numVoiceModeChannels;
+	unsigned char PCMKey;
+	unsigned char voiceChannelBank[SND_NUM_PCM_CHANNELS];
+	struct SND_PCM_Play_Info pcmPlayInfo[SND_NUM_PCM_CHANNELS];
+};
+
+_Far struct SND_Status *SND_GetStatus(void);
+
 #endif

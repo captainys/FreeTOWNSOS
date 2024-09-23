@@ -5,7 +5,6 @@
 #include "MACRO.H"
 #include "IODEF.H"
 #include "UTIL.H"
-#include "SYSINFO.H"
 
 // What about SND_END?
 
@@ -23,6 +22,7 @@
 #define PAD_BBUTTON 32
 #define PAD_RUN 64
 #define PAD_SELECT 128
+
 
 
 void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
@@ -56,7 +56,7 @@ void SND_INIT(
 	unsigned int FS)
 {
 	int i;
-	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
+	_Far struct SND_Status *sysInfo=SND_GetStatus();
 	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
@@ -88,6 +88,7 @@ void SND_INIT(
 	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
 	{
 		sysInfo->voiceChannelBank[i]=0;
+		sysInfo->pcmPlayInfo[i].playing=0;
 	}
 	sysInfo->PCMKey=0xFF;
 
@@ -438,7 +439,7 @@ void SND_15H_FM_TIMER_A_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	_Far struct SND_Status *info=SND_GetStatus();
 	unsigned char sw=EBX&0xFF;
 	unsigned short count=ECX&0xFFFF;
 
@@ -491,7 +492,7 @@ void SND_16H_FM_TIMER_B_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	_Far struct SND_Status *info=SND_GetStatus();
 	unsigned char sw=EBX&0xFF;
 	unsigned short count=ECX&0xFFFF;
 
@@ -632,7 +633,7 @@ void SND_21H_PCM_MODE_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	_Far struct SND_Status *info=SND_GetStatus();
 	unsigned char numRequested=EBX&0xFF;
 
 	unsigned short bankFlag=0xC000,voiceModeBank=0,usedBank=0;
@@ -834,14 +835,23 @@ void SND_28H_PCM_PCM_VOICE_STATUS(
 	//   AL=0 No Error
 	//   AL=1 Wrong Channel
 
-	// How can I check if the play-back is over?
+	unsigned char ch=(unsigned char)EBX;
+	_Far struct SND_Status *sndStat=SND_GetStatus();
 
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	if(ch<64 || 71<ch)
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		return;
+	}
+	ch-=64;
+	if(ch<SND_NUM_PCM_CHANNELS-sndStat->numVoiceModeChannels)
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		return;
+	}
 
+	SET_LOW_BYTE(&EAX,sndStat->pcmPlayInfo[ch].playing);
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_29H_PCM_ABORT(
@@ -957,7 +967,8 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 	unsigned char note=(unsigned char)(EDX>>8);
 	unsigned char volume=(unsigned char)EDX;
 	_Far struct PCM_Voice_Header *sndData;
-	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	_Far struct SND_Status *info=SND_GetStatus();
+
 	unsigned char keyFlag;
 
 	if(ch<64 || 71<ch)
@@ -984,6 +995,10 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 
 	info->pcmPlayInfo[ch].header=sndData;
 	info->pcmPlayInfo[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
+	info->pcmPlayInfo[ch].nextFillBank=info->voiceChannelBank[ch];
+	info->pcmPlayInfo[ch].playing=1;
+	info->pcmPlayInfo[ch].curPos=0;
+
 
 	{
 		unsigned int bank=info->voiceChannelBank[ch];
@@ -1002,6 +1017,8 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 				waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
 			}
 			transferSize-=oneTransferSize;
+			info->pcmPlayInfo[ch].curPos+=oneTransferSize;
+			++bank;
 		}
 	}
 
@@ -1031,7 +1048,6 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_FM_INIT(
@@ -1224,7 +1240,7 @@ void SND_45H_ELEVOL_READ(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
+	_Far struct SND_Status *sysInfo=SND_GetStatus();
 
 	unsigned int vlmNum=EBX&0xFF;
 	unsigned short DH,DL;
@@ -1293,7 +1309,7 @@ void SND_46H_ELEVOL_MUTE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
+	_Far struct SND_Status *sysInfo=SND_GetStatus();
 	unsigned char flags=(unsigned char)EBX;
 	unsigned char EN;
 	_Far struct SND_Work *work;
@@ -1422,3 +1438,23 @@ void SND_NOP(
 		TSUGARU_BREAK;
 }
 
+static struct SND_Status status=
+{
+	// Sound
+	0,  // elevol_mute
+	0,  // REG2H
+	0,  // voiceModeBank
+	0,  // usedBank
+	0,  // numVOiceModeChannels
+	0,  // PCMKey
+	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak
+	{{NULL,NULL,0,0}},
+};
+
+_Far struct SND_Status *SND_GetStatus(void)
+{
+	_Far struct SND_Status *ptr;
+	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
+	_FP_OFF(ptr)=(unsigned int)&status;
+	return ptr;
+}
