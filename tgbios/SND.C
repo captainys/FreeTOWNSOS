@@ -1412,12 +1412,8 @@ void SND_VOICE_INT_HANDLER(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
+	SND_PCM_Voice_Mode_Interrupt();
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_PCM_Voice_Mode_Interrupt(void)
