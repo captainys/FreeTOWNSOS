@@ -55,6 +55,7 @@ void SND_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	int i;
 	_Far struct TBIOS_System_Info *sysInfo=SYSINFO_GetStruct();
 	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
@@ -79,6 +80,15 @@ void SND_INIT(
 	_outb(TOWNSIO_ELEVOL_2_COM,2);
 	_outb(TOWNSIO_ELEVOL_2_COM,3);
 
+
+	// PCM Voice Mode Allocation
+	sysInfo->voiceModeBank=0;
+	sysInfo->usedBank=0;
+	sysInfo->numVoiceModeChannels=0;
+	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
+	{
+		sysInfo->voiceChannelBank[i]=0;
+	}
 
 
 	SND_SetError(EAX,SND_NO_ERROR);
@@ -621,12 +631,47 @@ void SND_21H_PCM_MODE_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct TBIOS_System_Info *info=SYSINFO_GetStruct();
+	unsigned char numRequested=EBX&0xFF;
+
+	unsigned short bankFlag=0xC000,voiceModeBank=0,usedBank=0;
+	int bank=14;
+	int channelBank[SND_NUM_PCM_CHANNELS];
+	int i;
+
+	usedBank=info->usedBank&~info->voiceModeBank;
+	for(i=0; i<numRequested; ++i)
+	{
+		while(0<=bank)
+		{
+			if(0==(usedBank&bankFlag))
+			{
+				channelBank[i]=bank;
+				usedBank|=bankFlag;
+				voiceModeBank|=bankFlag;
+				break;
+			}
+			--bank;
+			bankFlag>>=1;
+		}
+
+		if(bank<0)
+		{
+			SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
+			return;
+		}
+	}
+
+	// Found banks for all requests.
+	info->numVoiceModeChannels=numRequested;
+	info->usedBank=usedBank;
+	info->voiceModeBank=voiceModeBank;
+	for(i=0; i<numRequested; ++i)
+	{
+		info->voiceChannelBank[7-i]=channelBank[i];
+	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_22H_PCM_SOUND_SET(
@@ -712,6 +757,12 @@ void SND_25H_PCM_PCM_VOICE_PLAY(
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
+
+	// BL=Channel
+	// DH=Note
+	// DL=Volume
+	// DS:ESI=Data
+
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
@@ -871,7 +922,7 @@ void SND_2CH_PCM_TRANSFER2(
 		TSUGARU_BREAK;
 }
 
-void SND_2EH_PCM_HIGHRES_PLAY(
+void SND_2EH_PCM_HIGHQUAL_PLAY(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -888,6 +939,14 @@ void SND_2EH_PCM_HIGHRES_PLAY(
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
+
+	// BL=Channel
+	// DH=Note
+	// DL=Volume
+	// DS:ESI=Data
+
+	// What's the difference from 25H?
+
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;

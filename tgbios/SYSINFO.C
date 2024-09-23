@@ -89,10 +89,17 @@ void SYSINFO_31H_RETRIEVE_INTVEC(
 struct TBIOS_System_Info sysInfo=
 {
 	// Sound
-	0,
-	0,
+	0,  // elevol_mute
+	0,  // REG2H
+	0,  // voiceModeBank
+	0,  // usedBank
+	0,  // numVOiceModeChannels
+	0,  // PCMKey
+	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak
+	{{NULL,NULL}},
+	0, // padding0
 	// Mouse
-	0,
+	0, // mouseINTCount
 	// Misc.
 	{0,0,0,0},
 	// A Duck.

@@ -29,4 +29,8 @@
 #define SUCCESS 1
 #define FAIL    0
 
+
+#define SND_NUM_PCM_CHANNELS 8
+#define SND_NUM_FM_CHANNELS 6
+
 #endif
