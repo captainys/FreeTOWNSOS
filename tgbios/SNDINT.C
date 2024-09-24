@@ -14,11 +14,6 @@
 
 
 
-#define _PUSHFD _inline(0x9C);
-#define _POPFD _inline(0x9D);
-#define _CLI _inline(0xfa);
-
-
 #ifdef MY_RESPONSIBILITY //
 
 void __SET_RPVECTP(int INTNum,_Handler);
@@ -42,8 +37,8 @@ void __SET_PVECT(int INTNum,_Far void (*func)(void));
 
 struct SoundInterruptBIOSContext
 {
+	char ID[8];
 	unsigned int flags;  // Will be initialized to zero on first call.
-
 #ifdef MY_RESPONSIBILITY
 	_Far void (*save_INT4DProt)(void);
 	unsigned long save_INT4DReal;
@@ -57,11 +52,13 @@ static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
 #pragma Calling_convention(_INTERRUPT|_CALLING_CONVENTION);
 _Handler Handle_INT4DH(void)
 {
-	_Far struct SND_Status *SND_GetStatus();
 	// DOS-Extender intercepts INT 46H in its own handler, then redirect to this handler by CALLF.
 	// Must return by RETF.
 	// _Far is the keyword in High-C.
 	unsigned char INTReason=_inb(TOWNSIO_SOUND_INT_REASON);
+
+	_PUSH_FS;
+	_PUSH_GS;
 
 	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
 	if(INTReason&1)
@@ -88,9 +85,13 @@ _Handler Handle_INT4DH(void)
 		{
 			// Just remoe IRR
 			_inb(TOWNSIO_SOUND_PCM_INT); // Was it good?
+			TSUGARU_BREAK;
 		}
 	}
 	_outb(TOWNSIO_PIC_SECONDARY_ICW1,0x65); // Specific EOI + INT (13-8=5)(4DH).
+
+	_POP_GS;
+	_POP_FS;
 	return 0;
 }
 #pragma Calling_convention();
@@ -212,6 +213,7 @@ void SNDINT_Internal_Start_Sound_TimerA(void)
 }
 void SNDINT_Internal_Start_PCM(void)
 {
+TSUGARU_STATE;
 	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
 	_PUSHFD
 	_CLI
@@ -401,7 +403,7 @@ void SNDINT_05H_GET_MOUSE_INT_COUNT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_STATE;
 }
 void SNDINT_06H_REGISTER_INT_PROC(
 	unsigned int EDI,
@@ -417,7 +419,7 @@ void SNDINT_06H_REGISTER_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_STATE;
 }
 void SNDINT_07H_UNREGISTER_INT_PROC(
 	unsigned int EDI,
@@ -433,7 +435,7 @@ void SNDINT_07H_UNREGISTER_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_STATE;
 }
 
 void SNDINT_08H_GET_INT_PROC(
@@ -450,7 +452,7 @@ void SNDINT_08H_GET_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_STATE;
 }
 void SNDINT_09H_GET_INT_STATUS(
 	unsigned int EDI,
@@ -466,7 +468,7 @@ void SNDINT_09H_GET_INT_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_STATE;
 }
 
 
@@ -481,6 +483,14 @@ static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void)
 	if(0!=firstTime)
 	{
 		MEMSETB_FAR(ptr,0,sizeof(context));
+		ptr->ID[0]='S';
+		ptr->ID[1]='N';
+		ptr->ID[2]='D';
+		ptr->ID[3]='I';
+		ptr->ID[4]='N';
+		ptr->ID[5]='T';
+		ptr->ID[6]=0;
+		ptr->ID[7]=0;
 		firstTime=0;
 	}
 	return ptr;

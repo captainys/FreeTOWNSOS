@@ -59,6 +59,10 @@ void SND_INIT(
 	_Far struct SND_Status *sysInfo=SND_GetStatus();
 	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
+
+	_PUSHFD
+	_CLI
+
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
@@ -93,7 +97,16 @@ void SND_INIT(
 	sysInfo->PCMKey=0xFF;
 
 
+	// Stop YM2612 Timers
+	YM2612_Write(0,0x27,0x30);
+
+	// Disable RF5C68 INT
+	_outb(TOWNSIO_SOUND_PCM_INT_MASK,0);
+
+
 	SND_SetError(EAX,SND_NO_ERROR);
+
+	_POPFD
 }
 void SND_KEY_ON(
 	unsigned int EDI,
@@ -351,12 +364,11 @@ void SND_11H_FM_WRITE_DATA(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
+	unsigned char regSet=(unsigned char)((EBX>>8)&1);
+	unsigned char reg=(unsigned char)(EDX>>8);
+	unsigned char data=(unsigned char)EDX;
+	YM2612_Write(regSet,reg,data);
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_12H_FM_READ_DATA(
@@ -1031,7 +1043,6 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 		ST<<=4;
 
 		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-		_outb(TOWNSIO_SOUND_PCM_INT_MASK,0xFF);  // Just give me an INT for all banks.
 		_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
 		_outb(TOWNSIO_SOUND_PCM_PAN,0xFF);  // I'll be worried about it later.
 
@@ -1041,6 +1052,8 @@ void SND_2EH_PCM_HIGHQUAL_PLAY(
 		_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
 		_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
 		_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
+
+		_outb(TOWNSIO_SOUND_PCM_INT_MASK,0xFF);  // Just give me an INT for all banks.
 
 		info->PCMKey&=~keyFlag;
 		_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
