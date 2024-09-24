@@ -3,6 +3,7 @@
 						ASSUME CS:CODE
 						PUBLIC	MEMSETB_FAR
 						PUBLIC	MEMSETW_FAR
+						PUBLIC	MEMCPY_FAR
 
 						PUBLIC	MOVSB_FAR	; It does use MOVSB only.  Good for copy to wave RAM.
 
@@ -122,6 +123,45 @@ MEMSETW_FAR				PROC
 						RET
 
 MEMSETW_FAR				ENDP
+
+
+
+MEMCPY_FAR				PROC
+;void MEMCPY_FAR(_Far void *dst,const _Far void *src,unsigned int bytes);
+
+						PUSH	ES   ; +16
+						PUSH	DS   ; +12
+						PUSH	EDI  ; +8
+						PUSH	ESI  ; +4
+						PUSH	ECX  ; +0
+
+						MOV		EDI,[ESP+24]
+						MOV		ES,[ESP+28]
+						MOV		ESI,[ESP+32]
+						MOV		DS,[ESP+36]
+						CLD
+
+						MOV		ECX,[ESP+40]
+						SHR		ECX,2
+						REP		MOVSD
+
+						MOV		ECX,[ESP+40]
+						SHR		ECX,1
+						AND		ECX,1
+						REP		MOVSW
+
+						MOV		ECX,[ESP+40]
+						AND		ECX,1
+						REP		MOVSB
+
+						POP		ECX
+						POP		ESI
+						POP		EDI
+						POP		DS
+						POP		ES
+						RET
+
+MEMCPY_FAR				ENDP
 
 
 

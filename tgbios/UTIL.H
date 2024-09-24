@@ -3,6 +3,7 @@
 
 void MEMSETB_FAR(_Far void *ptr,unsigned int value,unsigned int count);
 void MEMSETW_FAR(_Far void *ptr,unsigned int value,unsigned int count);
+void MEMCPY_FAR(_Far void *dst,const _Far void *src,unsigned int bytes);
 
 // MOVSB_FAR only uses MOVSB.  It does not use MOVSD or MOVSW no matter how large count is.
 // Good for wave-RAM access.

@@ -216,16 +216,36 @@ void SND_INST_WRITE(
 	//   DH=Instrument Index (0 to 127)
 	//   DS:ESI=Instrument Data
 	unsigned char ch=(unsigned char)EBX;
+	unsigned char instIndex=(unsigned char)EDX;
+	_Far struct SND_Status *stat=SND_GetStatus();
 
 	if(ch<6)
 	{
 		// YM2612
-		TSUGARU_BREAK;
+		_Far struct FMB_INSTRUMENT *src;
+		if(FM_NUM_INSTRUMENTS<=instIndex)
+		{
+			SND_SetError(EAX,SND_ERROR_PARAMETER);
+			return;
+		}
+		_FP_SEG(src)=DS;
+		_FP_OFF(src)=ESI;
+		MEMCPY_FAR(&stat->FMInst[instIndex],src,sizeof(struct FMB_INSTRUMENT));
+		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	else if(64<=ch && ch<72)
 	{
 		// RF5C68
-		TSUGARU_BREAK;
+		_Far struct PMB_INSTRUMENT *src;
+		if(PCM_NUM_INSTRUMENTS<=instIndex)
+		{
+			SND_SetError(EAX,SND_ERROR_PARAMETER);
+			return;
+		}
+		_FP_SEG(src)=DS;
+		_FP_OFF(src)=ESI;
+		MEMCPY_FAR(&stat->FMInst[instIndex],src,sizeof(struct PMB_INSTRUMENT));
+		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	SND_SetError(EAX,SND_ERROR_WRONG_CH);
 }
