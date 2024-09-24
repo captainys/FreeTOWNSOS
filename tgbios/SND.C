@@ -339,12 +339,29 @@ void SND_VOLUME_CHANGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned char ch=(unsigned char)EBX;
+	unsigned char vol=(unsigned char)EDX;
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	if(128<=vol)
+	{
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
+		return;
+	}
+
+	if(SND_Is_FM_Channel(ch))
+	{
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		ch-=SND_PCM_CHANNEL_START;
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+	}
+	TSUGARU_BREAK;
 }
 
 void SND_KEY_ABORT(

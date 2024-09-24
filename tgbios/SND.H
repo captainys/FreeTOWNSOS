@@ -15,6 +15,12 @@
 
 #define SND_SetError(reg,err) {SET_LOW_BYTE(&reg,err);}
 
+#define SND_Is_FM_Channel(ch) ((ch)<6)
+#define SND_Is_PCM_Channel(ch) (64<=(ch) && (ch)<=71)
+
+#define SND_FM_CHANNEL_START  0
+#define SND_PCM_CHANNEL_START 64
+
 // Active-Low (or zero means mute)
 #define SND_MUTE_PCM    1
 #define SND_MUTE_FM     2
