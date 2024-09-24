@@ -754,34 +754,6 @@ void SND_24H_PCM_REC_START(
 		TSUGARU_BREAK;
 }
 
-void SND_25H_PCM_PCM_VOICE_PLAY(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
-	// BL=Channel
-	// DH=Note
-	// DL=Volume
-	// DS:ESI=Data
-
-
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
-}
-
 void SND_26H_PCM_REC_STOP(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -954,7 +926,7 @@ void SND_2CH_PCM_TRANSFER2(
 		TSUGARU_BREAK;
 }
 
-void SND_2EH_PCM_HIGHQUAL_PLAY(
+void SND_25H_2EH_PCM_VOICE_PLAY(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
