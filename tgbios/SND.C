@@ -113,8 +113,7 @@ void SND_INIT(
 
 
 	// PCM Voice Mode Allocation
-	status->voiceModeBank=0;
-	status->usedBank=0;
+	status->voiceModeINTMask=0;
 	status->numVoiceModeChannels=0;
 	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
 	{
@@ -607,7 +606,6 @@ void SND_17H_FM_TIMER_A_RESTART(
 {
 	SND_FM_Timer_A_Restart();
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_STATE;
 }
 
 void SND_FM_Timer_A_Restart(void)
@@ -705,45 +703,43 @@ void SND_21H_PCM_MODE_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Status *info=SND_GetStatus();
+	_Far struct SND_Status *status=SND_GetStatus();
 	unsigned char numRequested=EBX&0xFF;
+	unsigned int newVoiceModeStartAddr;
 
-	unsigned short bankFlag=0xC000,voiceModeBank=0,usedBank=0;
-	int bank=14;
-	int channelBank[SND_NUM_PCM_CHANNELS];
+	unsigned short bankFlag,voiceModeBank=0,bank;
 	int i;
 
-	usedBank=info->usedBank&~info->voiceModeBank;
-	for(i=0; i<numRequested; ++i)
+	if(8<numRequested)
 	{
-		while(0<=bank)
-		{
-			if(0==(usedBank&bankFlag))
-			{
-				channelBank[i]=bank;
-				usedBank|=bankFlag;
-				voiceModeBank|=bankFlag;
-				break;
-			}
-			bank-=2;
-			bankFlag>>=2;
-		}
-
-		if(bank<0)
-		{
-			SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
-			return;
-		}
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
+		return;
 	}
 
-	// Found banks for all requests.
-	info->numVoiceModeChannels=numRequested;
-	info->usedBank=usedBank;
-	info->voiceModeBank=voiceModeBank;
+	newVoiceModeStartAddr=PCM_WAVE_RAM_SIZE-0x2000*numRequested;
+	if(newVoiceModeStartAddr<status->instSoundLastAddr)
+	{
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
+		return;
+	}
+
+	status->voiceModeStartAddr=newVoiceModeStartAddr;
+	status->numVoiceModeChannels=numRequested;
+
+	// Assign banks to channels, and make voiceModeBankFlags.
+	// voiceModeBank is for INT flags.
+	bank=14;
+	bankFlag=0x80;
 	for(i=0; i<numRequested; ++i)
 	{
-		info->voiceChannelBank[7-i]=channelBank[i];
+		voiceModeBank|=bankFlag;
+		bankFlag>>=1;
+
+		status->voiceChannelBank[7-i]=bank;
+		bank-=2;
 	}
+
+	status->voiceModeINTMask=voiceModeBank;
 
 	SND_SetError(EAX,SND_NO_ERROR);
 }
@@ -1131,7 +1127,7 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
 		_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
 
-		_outb(TOWNSIO_SOUND_PCM_INT_MASK,0xFF);  // Just give me an INT for all banks.
+		_outb(TOWNSIO_SOUND_PCM_INT_MASK,info->voiceModeINTMask);
 
 		info->PCMKey&=~keyFlag;
 		_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
@@ -1583,7 +1579,6 @@ static struct SND_Status status=
 	0,  // instSoundLastAddr
 
 	0,  // voiceModeBank
-	0,  // usedBank
 	0,  // numVoiceModeChannels
 	0,  // PCMKey
 	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak

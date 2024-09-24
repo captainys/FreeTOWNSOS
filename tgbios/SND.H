@@ -109,8 +109,7 @@ struct SND_Status
 	unsigned int voiceModeStartAddr;
 	unsigned int instSoundLastAddr;
 
-	unsigned short voiceModeBank;
-	unsigned short usedBank;
+	unsigned short voiceModeINTMask;
 	unsigned char numVoiceModeChannels;
 	unsigned char PCMKey;
 	unsigned char voiceChannelBank[SND_NUM_PCM_CHANNELS];
