@@ -72,6 +72,7 @@ void SND_INIT(
 	SNDWorkStore[1]=GS;
 
 	MEMSETB_FAR(work,0,sizeof(struct SND_Work));
+	MEMSETB_FAR(sysInfo,0,sizeof(struct SND_Status));
 
 
 	// Mute everything.
@@ -210,12 +211,23 @@ void SND_INST_WRITE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	// Input
+	//   BL=Channel
+	//   DH=Instrument Index (0 to 127)
+	//   DS:ESI=Instrument Data
+	unsigned char ch=(unsigned char)EBX;
 
-	SND_SetError(EAX,SND_NO_ERROR);
+	if(ch<6)
+	{
+		// YM2612
 		TSUGARU_BREAK;
+	}
+	else if(64<=ch && ch<72)
+	{
+		// RF5C68
+		TSUGARU_BREAK;
+	}
+	SND_SetError(EAX,SND_ERROR_WRONG_CH);
 }
 
 void SND_INST_READ(
@@ -342,12 +354,8 @@ void SND_10H_FM_READ_STATUS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
+	SET_LOW_BYTE(&EDX,_inb(TOWNSIO_SOUND_STATUS_ADDRESS0)&0x83);
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_11H_FM_WRITE_DATA(
@@ -1479,6 +1487,7 @@ static struct SND_Status status=
 	0,  // PCMKey
 	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak
 	{{NULL,NULL,0,0}},
+	{{0}},
 };
 
 _Far struct SND_Status *SND_GetStatus(void)

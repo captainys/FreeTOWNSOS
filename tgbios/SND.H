@@ -32,6 +32,7 @@ struct SND_Work
 #define PCM_BANK_SIZE 4096
 #define PCM_LOOP_STOP_CODE 0xFF
 
+#define FM_NUM_INSTRUMENTS 128
 
 struct PCM_Voice_Header
 {
@@ -44,6 +45,20 @@ struct PCM_Voice_Header
 	unsigned short sampleFreqCorrection;
 	unsigned char baseNote;
 	unsigned char padding[3];
+};
+
+struct FMB_INSTRUMENT
+{
+	char name[8];
+	unsigned int DT_MULTI;
+	unsigned int TL;
+	unsigned int KS_AR;
+	unsigned int AMON_DR;
+	unsigned int SR;
+	unsigned int SL_RR;
+	unsigned char FB_CNCT;
+	unsigned char LR_AMS_PMS;
+	char unused[14];
 };
 
 struct SND_PCM_Play_Info
@@ -65,6 +80,8 @@ struct SND_Status
 	unsigned char PCMKey;
 	unsigned char voiceChannelBank[SND_NUM_PCM_CHANNELS];
 	struct SND_PCM_Play_Info pcmPlayInfo[SND_NUM_PCM_CHANNELS];
+	struct FMB_INSTRUMENT FMInst[FM_NUM_INSTRUMENTS]; // Seriously it was using 6KB for 128 FM instruments?
+	// Then I have no idea how to manage PCM instruments.  Maximum 64KB times 128 instruments=8MB?  No way.
 };
 
 _Far struct SND_Status *SND_GetStatus(void);

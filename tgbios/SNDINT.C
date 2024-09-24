@@ -472,15 +472,16 @@ void SNDINT_09H_GET_INT_STATUS(
 }
 
 
-static unsigned char firstTime=1;
-static struct SoundInterruptBIOSContext context;
+// Do not use a static variable.  DS may be different.
+// static unsigned char firstTime=1;
+static struct SoundInterruptBIOSContext context={{0,0,0,0,0,0,0,0}};
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void)
 {
 	_Far struct SoundInterruptBIOSContext *ptr;
 	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
 	_FP_OFF(ptr)=(unsigned long int)&context;
-	if(0!=firstTime)
+	if(0==ptr->ID[0])
 	{
 		MEMSETB_FAR(ptr,0,sizeof(context));
 		ptr->ID[0]='S';
@@ -491,7 +492,6 @@ static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void)
 		ptr->ID[5]='T';
 		ptr->ID[6]=0;
 		ptr->ID[7]=0;
-		firstTime=0;
 	}
 	return ptr;
 }
