@@ -8,6 +8,7 @@
 #define SND_ERROR_KEY_ALREADY_ON 2
 #define SND_ERROR_PARAMETER      3
 #define SND_ERROR_OUT_OF_PCM_RAM 4
+#define SND_ERROR_OUT_OF_PCM_RAM2  5  // WTF?
 #define SND_ERROR_NO_DATA_LENGTH 6
 #define SND_ERROR_CH_NOT_VOICE_MODE 7
 #define SND_ERROR_BAD_DATA_HEADER 8
@@ -29,11 +30,13 @@ struct SND_Work
 	unsigned char quack;
 };
 
+#define PCM_WAVE_RAM_SIZE 0x10000
 #define PCM_BANK_SIZE 4096
 #define PCM_LOOP_STOP_CODE 0xFF
 
 #define FM_NUM_INSTRUMENTS 128
 #define PCM_NUM_INSTRUMENTS 32
+#define PCM_MAX_NUM_SOUND       32
 
 struct PCM_Voice_Header
 {
@@ -83,6 +86,12 @@ struct PMB_INSTRUMENT
 	struct PCM_ENVELOPE env[8];
 };
 
+struct PCM_Sound
+{
+	unsigned int addrInWaveRAM;
+	struct PCM_Voice_Header snd;
+};
+
 struct SND_PCM_Play_Info
 {
 	_Far struct PCM_Voice_Header *header;
@@ -96,6 +105,10 @@ struct SND_Status
 {
 	unsigned int elevol_mute; // Set by SND BIOS.  In High-C library, it is accessed from SND_get_elevol_mute, but is done by 0110:01C0
 	unsigned int YM2612_REG27H;
+
+	unsigned int voiceModeStartAddr;
+	unsigned int instSoundLastAddr;
+
 	unsigned short voiceModeBank;
 	unsigned short usedBank;
 	unsigned char numVoiceModeChannels;
@@ -104,6 +117,9 @@ struct SND_Status
 	struct SND_PCM_Play_Info pcmPlayInfo[SND_NUM_PCM_CHANNELS];
 	struct FMB_INSTRUMENT FMInst[FM_NUM_INSTRUMENTS];   // Seriously it was using 6KB for 128 FM instruments?  Looks like it is.
 	struct PMB_INSTRUMENT PCMInst[PCM_NUM_INSTRUMENTS]; // Although there was no mention
+
+	int numSound;
+	struct PCM_Sound PCMSound[PCM_MAX_NUM_SOUND];
 };
 
 _Far struct SND_Status *SND_GetStatus(void);

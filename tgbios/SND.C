@@ -41,6 +41,32 @@ void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
 	}
 }
 
+void SND_WriteToWaveRAM(unsigned short addr,unsigned char byteData)
+{
+	unsigned short bank;
+	_Far unsigned char *ptr;
+	_FP_SEG(ptr)=SEG_WAVE_RAM;
+	_FP_OFF(ptr)=(addr&0xFFF);
+
+	bank=addr>>12;
+	_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+
+	*ptr=byteData;
+}
+
+unsigned char SND_ReadFromWaveRAM(unsigned short addr)
+{
+	unsigned short bank;
+	_Far unsigned char *ptr;
+	_FP_SEG(ptr)=SEG_WAVE_RAM;
+	_FP_OFF(ptr)=(addr&0xFFF);
+
+	bank=addr>>12;
+	_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+
+	return *ptr;
+}
+
 void SND_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -56,7 +82,7 @@ void SND_INIT(
 	unsigned int FS)
 {
 	int i;
-	_Far struct SND_Status *sysInfo=SND_GetStatus();
+	_Far struct SND_Status *status=SND_GetStatus();
 	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
 
@@ -72,11 +98,11 @@ void SND_INIT(
 	SNDWorkStore[1]=GS;
 
 	MEMSETB_FAR(work,0,sizeof(struct SND_Work));
-	MEMSETB_FAR(sysInfo,0,sizeof(struct SND_Status));
+	MEMSETB_FAR(status,0,sizeof(struct SND_Status));
 
 
 	// Mute everything.
-	sysInfo->elevol_mute=0;
+	status->elevol_mute=0;
 	_outb(TOWNSIO_SOUND_MUTE,0);
 	_outb(TOWNSIO_ELEVOL_1_COM,0);
 	_outb(TOWNSIO_ELEVOL_1_COM,1);
@@ -87,15 +113,21 @@ void SND_INIT(
 
 
 	// PCM Voice Mode Allocation
-	sysInfo->voiceModeBank=0;
-	sysInfo->usedBank=0;
-	sysInfo->numVoiceModeChannels=0;
+	status->voiceModeBank=0;
+	status->usedBank=0;
+	status->numVoiceModeChannels=0;
 	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
 	{
-		sysInfo->voiceChannelBank[i]=0;
-		sysInfo->pcmPlayInfo[i].playing=0;
+		status->voiceChannelBank[i]=0;
+		status->pcmPlayInfo[i].playing=0;
 	}
-	sysInfo->PCMKey=0xFF;
+	status->PCMKey=0xFF;
+
+
+	// PCM Instrument Allocation
+	status->voiceModeStartAddr=PCM_WAVE_RAM_SIZE;
+	// status->instSoundLastAddr=0; already taken care by MEMSETB_FAR
+	// status->numSound=0;          already taken care by MEMSETB_FAR
 
 
 	// Stop YM2612 Timers
@@ -730,12 +762,52 @@ void SND_22H_PCM_SOUND_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *status=SND_GetStatus();
+	unsigned int required,addr,i;
+	_Far struct PCM_Voice_Header *soundData;
+	_Far unsigned char *wave;
+	_FP_SEG(soundData)=DS;
+	_FP_OFF(soundData)=ESI;
+
+	if(PCM_MAX_NUM_SOUND<=status->numSound)
+	{
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+		return;
+	}
+
+	required=(soundData->totalBytes+32+255)&0xFFFFFF00;
+	if(status->voiceModeStartAddr<status->instSoundLastAddr+required)
+	{
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+		return;
+	}
+
+	if(0==soundData->totalBytes)
+	{
+		SND_SetError(EAX,SND_ERROR_NO_DATA_LENGTH);
+		return;
+	}
+
+	status->PCMSound[status->numSound].addrInWaveRAM=status->instSoundLastAddr;
+	status->PCMSound[status->numSound].snd=*soundData;
+	++status->numSound;
+
+	wave=((_Far unsigned char *)soundData);
+	wave+=sizeof(struct PCM_Voice_Header);
+
+	addr=status->instSoundLastAddr;
+	for(i=0; i<soundData->totalBytes; ++i)
+	{
+		SND_WriteToWaveRAM(addr++,*(wave++));
+	}
+	for(i=0; i<32; ++i)
+	{
+		SND_WriteToWaveRAM(addr++,PCM_LOOP_STOP_CODE);
+	}
+
+	status->instSoundLastAddr+=required;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_23H_PCM_SOUND_DELETE(
@@ -752,12 +824,18 @@ void SND_23H_PCM_SOUND_DELETE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *status=SND_GetStatus();
 
-	SND_SetError(EAX,SND_NO_ERROR);
+	if(0xFFFFFFFF==EDX)
+	{
+		status->numSound=0;
+		status->instSoundLastAddr=0;
+	}
+	else
+	{
 		TSUGARU_BREAK;
+	}
+	SND_SetError(EAX,SND_NO_ERROR);
 }
 
 void SND_24H_PCM_REC_START(
@@ -1500,7 +1578,10 @@ static struct SND_Status status=
 {
 	// Sound
 	0,  // elevol_mute
-	0,  // REG2H
+	0,  // REG27H
+	0x10000, // voiceModeStartAddr
+	0,  // instSoundLastAddr
+
 	0,  // voiceModeBank
 	0,  // usedBank
 	0,  // numVoiceModeChannels
