@@ -1,15 +1,18 @@
 
-/*TBIOS Sprite function compatible code*/
-/*Write by bcc2528*/
+/* TBIOS Sprite function compatible code */
+/* Write by bcc2528 */
 
 #include <string.h>
 #include <dos.h>
+#include "TGBIOS.H"
 #include "MACRO.H"
+#include "IODEF.H"
+#include "UTIL.H"
 
 #define SPR_ERROR_MASK (~0xFF00)
 #define SPR_GENERAL_ERROR 0xFF00
 #define SPR_NO_ERROR 0
-#define SPR_SetError(reg,err) {reg&=SPR_ERROR_MASK;reg|=err;}
+#define SPR_SetError(reg,err) {SET_LOW_BYTE(&reg,err);}
 
 void SPR_INIT(
 	unsigned int EDI,
@@ -28,24 +31,15 @@ void SPR_INIT(
 	int i;
 
 	/* Clear all sprite registers */
-	_outb(0x450, 0);
-	_outb(0x452, 0);
-	_outb(0x450, 1);
-	_outb(0x452, 0);
-	_outb(0x450, 2);
-	_outb(0x452, 0);
-	_outb(0x450, 3);
-	_outb(0x452, 0);
-	_outb(0x450, 4);
-	_outb(0x452, 0);
-	_outb(0x450, 5);
-	_outb(0x452, 0);
-	_outb(0x450, 6);
-	_outb(0x452, 0);
+	for(i = 0;i < 7;i++)
+	{
+		_outb(TOWNSIO_SPRITE_ADDRESS, i);
+		_outb(TOWNSIO_SPRITE_DATA, 0);
+	}
 
 	/* Clear Sprite layer frame buffer with 0x8000 */
 	_Far unsigned int *vram;
-	_FP_SEG(vram) = 0x104;
+	_FP_SEG(vram) = SEG_VRAM_2PG;
 	_FP_OFF(vram) = 0x0;
 	vram += 0x10000;
 
@@ -57,7 +51,7 @@ void SPR_INIT(
 
 	/* Clear Sprite RAM */
 	_Far unsigned short *spr_ram;
-	_FP_SEG(spr_ram) = 0x114;
+	_FP_SEG(spr_ram) = SEG_PATTERN_RAM;
 	_FP_OFF(spr_ram) = 0x0;
 
 	for(i = 0;i < 65536;i++)
@@ -88,21 +82,21 @@ void SPR_DISPLAY(
 	switch(EAX & 0x3)
 	{
 		case 0: /* Stop sprite */
-			_outb(0x450, 0);
-			_outb(0x452, (i & 0xff));
-			_outb(0x450, 1);
-			_outb(0x452, ((i >> 8) & 0x3));
+			_outb(TOWNSIO_SPRITE_ADDRESS, 0);
+			_outb(TOWNSIO_SPRITE_DATA, (i & 0xff));
+			_outb(TOWNSIO_SPRITE_ADDRESS, 1);
+			_outb(TOWNSIO_SPRITE_DATA, ((i >> 8) & 0x3));
 			break;
 		case 1: /* Start sprite */
-			_outb(0x450, 0);
-			_outb(0x452, (i & 0xff));
-			_outb(0x450, 1);
-			_outb(0x452, 0x80 | ((i >> 8) & 0x3));
+			_outb(TOWNSIO_SPRITE_ADDRESS, 0);
+			_outb(TOWNSIO_SPRITE_DATA, (i & 0xff));
+			_outb(TOWNSIO_SPRITE_ADDRESS, 1);
+			_outb(TOWNSIO_SPRITE_DATA, 0x80 | ((i >> 8) & 0x3));
 			break;
 		case 2: /* Wait sprite ready */
-			_outb( 0x0440, 30 );
-			while(!(_inb(0x443) & 4)){}
-			while((_inb(0x44c) & 2)){}
+			_outb( TOWNSIO_CRTC_ADDRESS, 30 );
+			while(!(_inb(TOWNSIO_CRTC_DATA_HIGH) & 4)){}
+			while((_inb(TOWNSIO_DPMD_SPRITEBUSY_SPRITEPAGE) & 2)){}
 			break;
 	}
 
@@ -139,7 +133,7 @@ void SPR_DEFINE(
 	_FP_OFF(ram) = ESI;
 
 	_Far unsigned char *sprram;
-	_FP_SEG(sprram) = 0x114;
+	_FP_SEG(sprram) = SEG_PATTERN_RAM;
 	_FP_OFF(sprram) = 0x0;
 
 	sprram += 128 * (ECX & 1023);
@@ -152,7 +146,7 @@ void SPR_DEFINE(
 		sprram++
 	}*/
 
-	_movedata(DS, ESI, 0x114, 128 * (ECX & 1023), (EDX & 0xff) * ((EDX >> 8) & 0xff) * byte);
+	_movedata(DS, ESI, SEG_PATTERN_RAM, 128 * (ECX & 1023), (EDX & 0xff) * ((EDX >> 8) & 0xff) * byte);
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
 }
@@ -176,7 +170,7 @@ void SPR_SETPALETTEBLOCK(
 	_FP_OFF(ram) = ESI;
 
 	_Far unsigned char *sprram;
-	_FP_SEG(sprram) = 0x114;
+	_FP_SEG(sprram) = SEG_PATTERN_RAM;
 	_FP_OFF(sprram) = 0x0;
 
 	sprram += 32 * (ECX & 511);
@@ -189,7 +183,7 @@ void SPR_SETPALETTEBLOCK(
 		sprram++
 	}*/
 
-	_movedata(DS, ESI, 0x114, 32 * (ECX & 511), (EDX & 0xff) * 32);
+	_movedata(DS, ESI, SEG_PATTERN_RAM, 32 * (ECX & 511), (EDX & 0xff) * 32);
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
 }
@@ -212,7 +206,7 @@ void SPR_SETPOSITION(
 	int x_add, y_add;
 
 	_Far unsigned short *spr_ram;
-	_FP_SEG(spr_ram) = 0x114;
+	_FP_SEG(spr_ram) = SEG_PATTERN_RAM;
 	_FP_OFF(spr_ram) = 0x0;
 
 	spr_ram += 4 * (ECX & 1023);
@@ -275,7 +269,7 @@ void SPR_SETATTRIBUTE(
 	int i, y;
 
 	_Far unsigned short *spr_ram;
-	_FP_SEG(spr_ram) = 0x114;
+	_FP_SEG(spr_ram) = SEG_PATTERN_RAM;
 	_FP_OFF(spr_ram) = 0x0;
 
 	spr_ram += (4 * (ECX & 1023)) + 2;
@@ -310,7 +304,7 @@ void SPR_SETMOTION(
 	int i, y;
 
 	_Far unsigned short *spr_ram;
-	_FP_SEG(spr_ram) = 0x114;
+	_FP_SEG(spr_ram) = SEG_PATTERN_RAM;
 	_FP_OFF(spr_ram) = 0x0;
 
 	spr_ram += (4 * (ECX & 1023));
@@ -341,14 +335,14 @@ void SPR_SETOFFSET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_outb(0x450, 2);
-	_outb(0x452, (ESI & 0xff));
-	_outb(0x450, 3);
-	_outb(0x452, ((ESI >> 8) & 0x1));
-	_outb(0x450, 4);
-	_outb(0x452, (EDI & 0xff));
-	_outb(0x450, 5);
-	_outb(0x452, ((EDI >> 8) & 0x1));
+	_outb(TOWNSIO_SPRITE_ADDRESS, 2);
+	_outb(TOWNSIO_SPRITE_DATA, (ESI & 0xff));
+	_outb(TOWNSIO_SPRITE_ADDRESS, 3);
+	_outb(TOWNSIO_SPRITE_DATA, ((ESI >> 8) & 0x1));
+	_outb(TOWNSIO_SPRITE_ADDRESS, 4);
+	_outb(TOWNSIO_SPRITE_DATA, (EDI & 0xff));
+	_outb(TOWNSIO_SPRITE_ADDRESS, 5);
+	_outb(TOWNSIO_SPRITE_DATA, ((EDI >> 8) & 0x1));
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
 }
@@ -372,7 +366,7 @@ void SPR_READATTRIBUTE(
 	_FP_OFF(ram) = ESI;
 
 	_Far unsigned char *sprram;
-	_FP_SEG(sprram) = 0x114;
+	_FP_SEG(sprram) = SEG_PATTERN_RAM;
 	_FP_OFF(sprram) = 0x0;
 
 	sprram += 8 * (ECX & 1023);
@@ -385,7 +379,7 @@ void SPR_READATTRIBUTE(
 		sprram++
 	}*/
 
-	_movedata(0x114, 8 * (ECX & 1023), DS, ESI, (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8);
+	_movedata(SEG_PATTERN_RAM, 8 * (ECX & 1023), DS, ESI, (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8);
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
 }
