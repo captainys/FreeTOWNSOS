@@ -6,10 +6,20 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+void EGB_WaitVSYNC(void)
+{
+	while(0!=(_inb(TOWNSIO_HSYNC_VSYNC)&1));
+	while(0==(_inb(TOWNSIO_HSYNC_VSYNC)&1));
+}
+
 static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 {
 	int reg;
 	_Far unsigned short *regSet=EGB_GetCRTCRegs(modeComb);
+
+	_PUSHFD
+	_CLI
+
 	if(NULL==regSet || EGB_INVALID_SCRNMODE==regSet[0])
 	{
 		// Register Set does not exist, or the set is unused.
@@ -31,6 +41,8 @@ static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 		_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,reg);
 		_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,regSet[2+32+reg]);
 	}
+
+	_POPFD
 }
 
 struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
@@ -268,7 +280,7 @@ void EGB_RESOLUTION(
 	}
 }
 
-void EGB_DISPLAYSTART(
+void EGB_02H_DISPLAYSTART(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -282,8 +294,34 @@ void EGB_DISPLAYSTART(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_PUSHFD;
+	unsigned char mode=(unsigned char)EAX;
+	unsigned short horizontal=(unsigned short)EDX;
+	unsigned short vertical=(unsigned short)EBX;
+
+	if(0==(mode&0x40))
+	{
+		_CLI;
+		EGB_WaitVSYNC();
+		mode&=0x3F;
+	}
+
+	switch(mode)
+	{
+	case 0:  // Top-Left corner
+		break;
+	case 1:  // Scroll
+		break;
+	case 2:  // Zoom
+		break;
+	case 3:  // Display Size
+		break;
+	}
+
 	TSUGARU_BREAK;
 	EGB_SetError(EAX,EGB_NO_ERROR);
+
+	_POPFD;
 }
 
 void EGB_VIEWPORT(
@@ -358,7 +396,7 @@ void EGB_WRITEPAGE(
 	EGB_SetError(EAX,EGB_GENERAL_ERROR);
 }
 
-void EGB_DISPLAYPAGE(
+void EGB_06H_DISPLAYPAGE(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,

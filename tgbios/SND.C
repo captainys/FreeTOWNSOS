@@ -348,20 +348,29 @@ void SND_VOLUME_CHANGE(
 		return;
 	}
 
+	// I postpone implementation.  Controlling volume is not simple.
+	// YM2612 does not have a register that controls overall volume of a channel.
+	// I need to change TL values of the output slots, then I need to know the connection.
+	// If so, I cannot control the volume unless I know what instrument has been selected.
+	// PCM volume the same.  Should I just write value to the ENV register?
+	// Or should I also update the envelop that will be controlled by the 10ms timer?
+	// Too many unknowns and poor documentation.
 	if(SND_Is_FM_Channel(ch))
 	{
 		SND_SetError(EAX,SND_NO_ERROR);
+		TSUGARU_STATE;
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
 		ch-=SND_PCM_CHANNEL_START;
 		SND_SetError(EAX,SND_NO_ERROR);
+		TSUGARU_STATE;
 	}
 	else
 	{
 		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		TSUGARU_BREAK;
 	}
-	TSUGARU_BREAK;
 }
 
 void SND_KEY_ABORT(
