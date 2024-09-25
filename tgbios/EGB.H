@@ -152,6 +152,17 @@ struct EGB_PagePointerSet
 	unsigned int vramSize;
 };
 
+struct EGB_Palette
+{
+	unsigned int colorIndex;
+	unsigned char brg[4];
+};
+struct EGB_PaletteSet
+{
+	unsigned char numPalettes;
+	struct EGB_Palette palettes[1];
+};
+
 _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode);
 _Far unsigned short *EGB_GetCRTCRegs(int modeComb);
 

@@ -529,8 +529,78 @@ void EGB_PALETTE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	// AL=VSYNC Flag 0:No Wait  1:Wait for VSYNC
+	// DS:ESI Palette
+	//    +0 DW Number of palettes
+	//    +4 DW Color Index
+	//    +5 B  B
+	//    +6 B  R
+	//    +7 B  G
+	//    +8 B  Zero(Ignored)
+	//    Repea +4 to +8 times nuber of palettes
+
+	int i;
+	unsigned char writePage;
+	unsigned char waitVSYNC=(unsigned char)EAX;
+	_Far struct EGB_PaletteSet *paletteSet;
+	_Far struct EGB_Work *work;
+	_Far struct EGB_ScreenMode *scrnModeProp;
+
+	_PUSHFD;
+
+	_FP_SEG(paletteSet)=DS;
+	_FP_OFF(paletteSet)=ESI;
+
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	writePage=work->writePage;
+	if(1<writePage ||
+	   EGB_INVALID_SCRNMODE==work->perPage[writePage].screenMode)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+	scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+	if(8==scrnModeProp->bitsPerPixel)
+	{
+		work->sifter[1]|=0x30;
+	}
+	else if(4==scrnModeProp->bitsPerPixel)
+	{
+		if(0==writePage)
+		{
+			work->sifter[1]&=0x0F;
+		}
+		else
+		{
+			work->sifter[1]&=0x0F;
+			work->sifter[1]|=0x20;
+		}
+	}
+	else
+	{
+		// No palette for 16-bit color.
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		goto POPFD_AND_RETURN;
+	}
+
+	_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,1);
+	_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,work->sifter[1]);
+
+	for(i=0; i<paletteSet->numPalettes; ++i)
+	{
+		_outb(TOWNSIO_ANALOGPALETTE_CODE,(unsigned char)paletteSet->palettes[i].colorIndex);
+		_outb(TOWNSIO_ANALOGPALETTE_BLUE,paletteSet->palettes[i].brg[0]);
+		_outb(TOWNSIO_ANALOGPALETTE_RED,paletteSet->palettes[i].brg[1]);
+		_outb(TOWNSIO_ANALOGPALETTE_GREEN,paletteSet->palettes[i].brg[2]);
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
+
+POPFD_AND_RETURN:
+	_POPFD;
 }
 
 void EGB_WRITEPAGE(
