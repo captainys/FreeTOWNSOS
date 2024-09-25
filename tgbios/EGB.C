@@ -341,6 +341,79 @@ void EGB_02H_DISPLAYSTART(
 	case 0:  // Top-Left corner
 		break;
 	case 1:  // Scroll
+		// Based on Tsugaru implementation, which must be reasonably coorect,
+		//   VRAM address offset = FAx*N
+		//   Where N is
+		//     4 in 4-bits per pixel mode
+		//     8 in 8-bits per pixel mode
+		//     8 if 16-bits per pixel and single-page mode
+		//     4 if 16-bits per pixel and double-page mode
+
+		// unsigned int TownsCRTC::GetPageVRAMAddressOffset(unsigned char page) const
+		// {
+		//	// [2] pp. 145
+		// 	auto FA0=state.crtcReg[REG_FA0+page*4];
+		// 	switch(GetPageBitsPerPixel(page))
+		// 	{
+		// 	case 4:
+		// 		return FA0*4;  // 8 pixels for 1 count.
+		// 	case 8:
+		// 		return FA0*8;  // 8 pixels for 1 count.
+		// 	case 16:
+		// 		return (LowResCrtcIsInSinglePageMode() ? FA0*8 : FA0*4); // 4 pixels or 2 pixels depending on the single-page or 2-page mode.
+		// 	}
+		// 	return 0;
+		{
+			_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+			if(NULL!=scrnModeProp)
+			{
+				if(0==(scrnModeProp->flags&(SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL)) ||
+				   (0==(scrnModeProp->flags&SCRNMODE_FLAG_HSCROLL) && 0!=horizontal))
+				{
+					EGB_SetError(EAX,EGB_GENERAL_ERROR);
+				}
+				else
+				{
+					unsigned int FAx=(vertical*scrnModeProp->size.x)+horizontal;
+					switch(scrnModeProp->bitsPerPixel)
+					{
+					case 4:
+						// FA0*=4;
+						FAx/=8; // Now FA0 is byte offset into VRAM.
+						//  FA0*4=offset  ->  FA0=offset/4
+						// FA0/=4;
+						break;
+					case 8:
+						// FA0 is byte offset into VRAM.
+						//  FA0*8=offset -> FA0=offset/8
+						FAx/=8;
+						break;
+					case 16:
+						FAx*=2; // Now FA0 is byte offset into VRAM.
+						if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
+						{
+							// Single-page mode  offset=FA0*8 -> FA0=offset/8
+							FAx/=8;
+						}
+						else
+						{
+							// Double-page mode   offset=FA0*4 -> FA0=offset/4
+							FAx/=4;
+						}
+						break;
+					}
+					if(0==writePage)
+					{
+						_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_FA0);
+					}
+					else
+					{
+						_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_FA1);
+					}
+					_outw(TOWNSIO_CRTC_DATA_LOW,FAx);
+				}
+			}
+		}
 		break;
 	case 2:  // Zoom
 		{
@@ -420,7 +493,6 @@ void EGB_02H_DISPLAYSTART(
 		break;
 	}
 
-	TSUGARU_BREAK;
 
 	_POPFD;
 }
