@@ -42,6 +42,19 @@ static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 		_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,regSet[2+32+reg]);
 	}
 
+	work->perPage[0].ZOOM=regSet[2+CRTC_REG_ZOOM]&0xFF;
+	work->perPage[1].ZOOM=regSet[2+CRTC_REG_ZOOM]>>8;
+
+	work->perPage[0].HDS=regSet[2+CRTC_REG_HDS0];
+	work->perPage[0].HDE=regSet[2+CRTC_REG_HDE0];
+	work->perPage[1].HDS=regSet[2+CRTC_REG_HDS1];
+	work->perPage[1].HDE=regSet[2+CRTC_REG_HDE1];
+
+	work->perPage[0].VDS=regSet[2+CRTC_REG_VDS0];
+	work->perPage[0].VDE=regSet[2+CRTC_REG_VDE0];
+	work->perPage[1].VDS=regSet[2+CRTC_REG_VDS1];
+	work->perPage[1].VDE=regSet[2+CRTC_REG_VDE1];
+
 	_POPFD
 }
 
@@ -294,10 +307,27 @@ void EGB_02H_DISPLAYSTART(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_PUSHFD;
+	unsigned char writePage;
 	unsigned char mode=(unsigned char)EAX;
 	unsigned short horizontal=(unsigned short)EDX;
 	unsigned short vertical=(unsigned short)EBX;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
+
+
+	writePage=work->writePage;
+	if(1<writePage || EGB_INVALID_SCRNMODE==work->perPage[writePage].screenMode)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+
+	_PUSHFD;
 
 	if(0==(mode&0x40))
 	{
@@ -313,13 +343,84 @@ void EGB_02H_DISPLAYSTART(
 	case 1:  // Scroll
 		break;
 	case 2:  // Zoom
+		{
+			_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+			if(NULL!=scrnModeProp)
+			{
+				if(horizontal<scrnModeProp->defZoom.x || vertical<scrnModeProp->defZoom.y)
+				{
+					EGB_SetError(EAX,EGB_GENERAL_ERROR);
+				}
+				else
+				{
+					unsigned short ZOOM;
+					unsigned char Z=((vertical-1)<<4)|(horizontal-1);
+					work->perPage[writePage].ZOOM=Z;
+					ZOOM=(work->perPage[1].ZOOM<<8)|work->perPage[0].ZOOM;
+					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_ZOOM);
+					_outw(TOWNSIO_CRTC_DATA_LOW,ZOOM);
+				}
+			}
+			else
+			{
+				EGB_SetError(EAX,EGB_GENERAL_ERROR);
+			}
+		}
 		break;
 	case 3:  // Display Size
+		// Size is basically HDEx-HDSx,VDEx-VDSx
+		// However, in 15KHz mode, 
+		//    wid=(HDEx-HDSx)/2  ->  (HDEx-HDSx)=wid*2
+		//    hei=(VDEx-VDSx)*2  ->  (VDEx-VDSx)=hei/2
+		// Also this wid and hei are in 1x scale (640x480 pixels resolution)
+		{
+			_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+			if(NULL!=scrnModeProp)
+			{
+				unsigned int wid1X,hei1X,zoomX,zoomY,HDE,VDE;
+
+				zoomX=(work->perPage[writePage].ZOOM&0x0F)+1;
+				zoomY=(work->perPage[writePage].ZOOM>>4)+1;
+
+				wid1X=horizontal*zoomX/scrnModeProp->defZoom.x;
+				hei1X=vertical*zoomY/scrnModeProp->defZoom.y;
+
+				if(15==scrnModeProp->KHz)
+				{
+					wid1X*=2;
+					hei1X/=2;
+				}
+
+				HDE=work->perPage[writePage].HDS+wid1X;
+				VDE=work->perPage[writePage].VDS+hei1X;
+
+				if(0==writePage)
+				{
+					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_HDE0);
+					_outw(TOWNSIO_CRTC_DATA_LOW,HDE);
+					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_VDE0);
+					_outw(TOWNSIO_CRTC_DATA_LOW,VDE);
+				}
+				else
+				{
+					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_HDE1);
+					_outw(TOWNSIO_CRTC_DATA_LOW,HDE);
+					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_VDE1);
+					_outw(TOWNSIO_CRTC_DATA_LOW,VDE);
+				}
+
+				work->perPage[writePage].HDE=HDE;
+				work->perPage[writePage].VDE=VDE;
+			}
+			else
+			{
+				EGB_SetError(EAX,EGB_GENERAL_ERROR);
+			}
+		}
 		break;
 	}
 
 	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
 
 	_POPFD;
 }

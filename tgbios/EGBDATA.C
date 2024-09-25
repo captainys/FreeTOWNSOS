@@ -6,6 +6,7 @@
 struct EGB_ScreenMode EGB_SCREENMODES[19]=
 {
 	{ // Zero is not used
+		0,
 		{0,0}, //struct POINTW visiSize;
 		{0,0}, //struct POINTW size;
 		0,//unsigned short bytesPerLine;
@@ -19,6 +20,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 1
+		24, // KHz
 		{640,400}, //struct POINTW visiSize;
 		{640,819}, //struct POINTW size;
 		320,//unsigned short bytesPerLine;
@@ -32,6 +34,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 2
+		24, // KHz
 		{640,200}, //struct POINTW visiSize;
 		{640,819}, //struct POINTW size;
 		320,//unsigned short bytesPerLine;
@@ -45,6 +48,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 3
+		31, // KHz
 		{640,480}, //struct POINTW visiSize;
 		{1024,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
@@ -58,6 +62,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 4
+		31, // KHz
 		{640,400}, //struct POINTW visiSize;
 		{1024,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
@@ -71,6 +76,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 5
+		31, // KHz
 		{256,256}, //struct POINTW visiSize;
 		{256,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
@@ -84,6 +90,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 6
+		31, // KHz
 		{256,256}, //struct POINTW visiSize;
 		{256,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
@@ -97,6 +104,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 7
+		15, // KHz
 		{256,240}, //struct POINTW visiSize;
 		{256,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
@@ -110,6 +118,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 8
+		15, // KHz
 		{256,240}, //struct POINTW visiSize;
 		{256,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
@@ -123,6 +132,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 9
+		15, // KHz
 		{360,240}, //struct POINTW visiSize;
 		{512,256}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -136,6 +146,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 10
+		31, // KHz
 		{320,240}, //struct POINTW visiSize;
 		{512,256}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -149,6 +160,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 11
+		15, // KHz
 		{320,240}, //struct POINTW visiSize;
 		{512,256}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -162,6 +174,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 12
+		31, // KHz
 		{640,480}, //struct POINTW visiSize;
 		{1024,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -175,6 +188,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 13
+		31, // KHz
 		{640,400}, //struct POINTW visiSize;
 		{1024,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -188,6 +202,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 14
+		15, // KHz
 		{720,480}, //struct POINTW visiSize;
 		{1024,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -201,6 +216,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 15
+		31, // KHz
 		{320,480}, //struct POINTW visiSize;
 		{512,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -214,6 +230,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 16
+		15, // KHz
 		{320,480}, //struct POINTW visiSize;
 		{512,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -227,6 +244,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 17
+		31, // KHz
 		{512,480}, //struct POINTW visiSize;
 		{512,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -240,6 +258,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		NULL,//_Far unsigned char *vram;
 	},
 	{ // Mode 18
+		15, // KHz
 		{512,480}, //struct POINTW visiSize;
 		{512,512}, //struct POINTW size;
 		1024,//unsigned short bytesPerLine;
@@ -258,7 +277,10 @@ _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode)
 {
 	if(mode<19)
 	{
-		return &EGB_SCREENMODES[mode];
+		_Far struct EGB_ScreenMode *ptr;
+		_FP_SEG(ptr)=SEG_TGBIOS_CODE; // Read-access from CS is good enough.
+		_FP_OFF(ptr)=(unsigned int)&EGB_SCREENMODES[mode];
+		return ptr;
 	}
 	return NULL;
 }
@@ -536,7 +558,7 @@ _Far unsigned short *EGB_GetCRTCRegs(int modeComb)
 	if(modeComb<33)
 	{
 		_Far unsigned short *ptr;
-		_FP_SEG(ptr)=SEG_TGBIOS_DATA;
+		_FP_SEG(ptr)=SEG_TGBIOS_CODE; // Read-access from CS is good enough.
 		_FP_OFF(ptr)=(unsigned int)(EGB_CRTCREGS[modeComb]);
 		return ptr;
 	}
