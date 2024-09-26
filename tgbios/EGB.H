@@ -108,7 +108,7 @@ struct EGB_PerPage
 	unsigned short fontSpacing;
 	unsigned char fontRotation;
 	unsigned char stringRotation;
-	unsigned short textX,textY;
+	short textX,textY;
 
 	unsigned char paintMode;
 	unsigned char drawingMode;
@@ -157,6 +157,14 @@ struct EGB_Palette
 	unsigned int colorIndex;
 	unsigned char brg[4];
 };
+
+struct EGB_String
+{
+	short x,y;
+	unsigned short len;
+	char str[1];
+};
+
 struct EGB_PaletteSet
 {
 	unsigned char numPalettes;

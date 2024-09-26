@@ -1732,6 +1732,39 @@ void EGB_BOW2(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
+static void EGB_SJISSTRING_PSET(
+	_Far struct EGB_Work *work,
+	_Far struct EGB_PagePointerSet *ptrSet,
+	_Far struct EGB_String *strInfo)
+{
+	// if(viewport is entire screen)
+	{
+		int sx=strInfo->x;
+		int sy=strInfo->y;
+		int i=0;
+
+		while(i<strInfo->len)
+		{
+			// if(strInfo->str[i] is first byte of Kanji)
+			// {
+				sx+=16;
+				i+=2;
+			// }
+			// else
+			// {
+				sx+=8;
+				++i;
+			// }
+		}
+
+		ptrSet->settings->textX=sx;
+		ptrSet->settings->textY=sy;
+	}
+	// else
+	{
+	}
+}
+
 void EGB_SJISSTRING(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -1746,6 +1779,27 @@ void EGB_SJISSTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
+	_Far struct EGB_Work *work;
+	struct EGB_PagePointerSet ptrSet;
+	_Far struct EGB_String *strInfo;
+
+	_FP_SEG(strInfo)=DS;
+	_FP_OFF(strInfo)=ESI;
+
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	ptrSet=EGB_GetPagePointerSet(work);
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
+
+	//switch(drawingMode)
+	//{
+	//case EGB_PSET:
+		EGB_SJISSTRING_PSET(work,&ptrSet,strInfo);
+	//	break;
+	//}
+
 	TSUGARU_BREAK;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
