@@ -1795,10 +1795,10 @@ static unsigned short EGB_JIS2SJIS(unsigned short jis)
 	return (s1<<8)|s2;
 }
 
-void EGB_PUT16X16BW_NOCHECK(
+void EGB_PUTX16BW_NOCHECK(
 	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
 	int sx,int sy,
-	_Far unsigned char *ptnBase)
+	_Far unsigned char *ptnBase,int wid)
 {
 	switch(ptrSet->mode->bitsPerPixel)
 	{
@@ -1829,11 +1829,11 @@ void EGB_PUT16X16BW_NOCHECK(
 
 			for(y=0; y<16; ++y)
 			{
-				unsigned short ptn=*(((_Far unsigned short *)ptnBase)+y);
-				for(x=0; x<16; ++x)
+				unsigned char ptn=*ptnBase;
+				for(x=0; x<wid; ++x)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x8000)
+					if(ptn&0x80)
 					{
 						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
 						//{
@@ -1849,31 +1849,21 @@ void EGB_PUT16X16BW_NOCHECK(
 					{
 						andPtn=0xF0;
 						color>>=4;
+						++vramAddr;
 					}
 					else
 					{
-						andPtn=0xF0;
+						andPtn=0x0F;
 						color<<=4;
 					}
+					if(7==(x&7))
+					{
+						++ptnBase;
+					}
 				}
+				vramAddr+=(ptrSet->mode->bytesPerLine-wid/2);
 			}
 		}
-		break;
-	case 8:
-		break;
-	case 16:
-		break;
-	}
-}
-
-void EGB_PUT16X8BW_NOCHECK(
-	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
-	int sx,int sy,
-	_Far unsigned char *ptn)
-{
-	switch(ptrSet->mode->bitsPerPixel)
-	{
-	case 4:
 		break;
 	case 8:
 		break;
@@ -2000,7 +1990,7 @@ void EGB_SJISSTRING(
 				unsigned int ptnAddr;
 				SJISPointerToROMAddress(strInfo->str+i,ptnAddr);
 
-				EGB_PUT16X16BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr);
+				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr,16);
 
 				sx+=16;
 				i+=2;
@@ -2009,7 +1999,7 @@ void EGB_SJISSTRING(
 			{
 				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)strInfo->str[i])*16;
 
-				EGB_PUT16X8BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr);
+				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr,8);
 
 				sx+=8;
 				++i;
