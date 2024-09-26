@@ -1113,8 +1113,7 @@ void EGB_CLEARSCREEN(
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
 	if(NULL!=pointerSet.mode)
 	{
-		_Far unsigned char *vram;
-		unsigned int vramOffset,wordData,count;
+		unsigned int wordData;
 		if(4==pointerSet.mode->bitsPerPixel)
 		{
 			unsigned short wd;
@@ -1796,6 +1795,93 @@ static unsigned short EGB_JIS2SJIS(unsigned short jis)
 	return (s1<<8)|s2;
 }
 
+void EGB_PUT16X16BW_NOCHECK(
+	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
+	int sx,int sy,
+	_Far unsigned char *ptnBase)
+{
+	switch(ptrSet->mode->bitsPerPixel)
+	{
+	case 4:
+		{
+			int x,y;
+			unsigned int vramAddr;
+			unsigned char andPtn,color;
+
+			if(0!=ptrSet->mode->bytesPerLineShift)
+			{
+				vramAddr=(sy<<ptrSet->mode->bytesPerLineShift)+(sx>>1);
+			}
+			else
+			{
+				vramAddr=(sy*ptrSet->mode->bytesPerLine+sx)>>1;
+			}
+			if(0==(sx&1))
+			{
+				andPtn=0x0F;
+				color=ptrSet->page->color[EGB_FOREGROUND_COLOR]<<4;
+			}
+			else
+			{
+				andPtn=0xF0;
+				color=ptrSet->page->color[EGB_FOREGROUND_COLOR];
+			}
+
+			for(y=0; y<16; ++y)
+			{
+				unsigned short ptn=*(((_Far unsigned short *)ptnBase)+y);
+				for(x=0; x<16; ++x)
+				{
+					// Can I do SHL and use CF in C rather?
+					if(ptn&0x8000)
+					{
+						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
+						//{
+						//case EGB_PSET:
+							ptrSet->vram[vramAddr]&=andPtn;
+							ptrSet->vram[vramAddr]|=color;
+						//	break;
+						//}
+						//
+					}
+					ptn<<=1;
+					if(0x0F==andPtn)
+					{
+						andPtn=0xF0;
+						color>>=4;
+					}
+					else
+					{
+						andPtn=0xF0;
+						color<<=4;
+					}
+				}
+			}
+		}
+		break;
+	case 8:
+		break;
+	case 16:
+		break;
+	}
+}
+
+void EGB_PUT16X8BW_NOCHECK(
+	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
+	int sx,int sy,
+	_Far unsigned char *ptn)
+{
+	switch(ptrSet->mode->bitsPerPixel)
+	{
+	case 4:
+		break;
+	case 8:
+		break;
+	case 16:
+		break;
+	}
+}
+
 // https://ja.wikipedia.org/wiki/Shift_JIS
 // JIS  1st byte=K   2nd byte=T
 //
@@ -1891,7 +1977,7 @@ void EGB_SJISSTRING(
 		int sy=strInfo->y;
 		int i=0;
 		unsigned int addr;
-		_Far unsigned short *fontROM;
+		_Far unsigned char *fontROM;
 
 		_FP_SEG(fontROM)=SEG_KANJI_FONT_ROM;
 		_FP_OFF(fontROM)=0;
@@ -1914,12 +2000,16 @@ void EGB_SJISSTRING(
 				unsigned int ptnAddr;
 				SJISPointerToROMAddress(strInfo->str+i,ptnAddr);
 
+				EGB_PUT16X16BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr);
+
 				sx+=16;
 				i+=2;
 			}
 			else
 			{
 				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)strInfo->str[i])*16;
+
+				EGB_PUT16X8BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr);
 
 				sx+=8;
 				++i;
