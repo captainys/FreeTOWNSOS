@@ -1847,12 +1847,21 @@ unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis)
 	}
 }
 
+#define TextToROMIndex(from,to) \
+{ \
+	unsigned short sjis=(from)[0],jis; \
+	sjis<<=8; \
+	sjis|=(from)[1]; \
+	jis=EGB_SJIS2JIS(sjis); \
+	(to)=EGB_JIS_TO_FONTROMINDEX(jis); \
+}
+
 static void EGB_SJISSTRING_PSET(
 	_Far struct EGB_Work *work,
 	_Far struct EGB_PagePointerSet *ptrSet,
 	_Far struct EGB_String *strInfo)
 {
-	// if(viewport is entire screen)
+	// if(viewport is entire screen && xy coordinate is inside of the viewport)
 	{
 		int sx=strInfo->x;
 		int sy=strInfo->y;
@@ -1874,11 +1883,23 @@ static void EGB_SJISSTRING_PSET(
 		{
 			if(IS_SJIS_FIRST_BYTE(strInfo->str[i]))
 			{
+				_Far unsigned short *ptnPtr;
+				unsigned int ROMIndex;
+				TextToROMIndex(strInfo->str+i,ROMIndex);
+
+				_FP_SEG(ptnPtr)=SEG_KANJI_FONT_ROM;
+				_FP_OFF(ptnPtr)=(ROMIndex<<5);
+
 				sx+=16;
 				i+=2;
 			}
 			else
 			{
+				_Far unsigned short *ptnPtr;
+
+				_FP_SEG(ptnPtr)=SEG_KANJI_FONT_ROM;
+				_FP_OFF(ptnPtr)=ANK16_FONT_ADDR_BASE+((unsigned short)strInfo->str[i])*16;
+
 				sx+=8;
 				++i;
 			}
