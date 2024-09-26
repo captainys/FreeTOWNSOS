@@ -81,6 +81,8 @@ struct POINTW
 #define EGB_NO_ERROR 0
 #define EGB_SetError(reg,err) {reg&=EGB_ERROR_MASK;reg|=err;}
 
+#define IS_SJIS_FIRST_BYTE(ch) ((0x81<=(unsigned char)(ch) && (unsigned char)(ch)<0xA0)||(0xE0<=(unsigned char)(ch) && (unsigned char)(ch)<0xFD))
+
 struct EGB_ScreenMode
 {
 	unsigned int KHz;
@@ -162,7 +164,7 @@ struct EGB_String
 {
 	short x,y;
 	unsigned short len;
-	char str[1];
+	unsigned char str[1];
 };
 
 struct EGB_PaletteSet

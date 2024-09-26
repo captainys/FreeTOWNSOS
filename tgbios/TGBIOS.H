@@ -33,4 +33,9 @@
 #define SND_NUM_PCM_CHANNELS 8
 #define SND_NUM_FM_CHANNELS 6
 
+
+#define ANK8_FONT_ADDR_BASE            0x3D000 // Error in [2] pp.12 Figue I-1-6?  Offset 1E800 is •Þ not A
+#define ANK16_FONT_ADDR_BASE           0x3D800 // Error in [2] pp.12 Figure I-1-6?  Offset 1F000 is –Þ not wide-A
+
+
 #endif

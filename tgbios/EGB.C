@@ -1732,6 +1732,121 @@ void EGB_BOW2(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
+static unsigned short EGB_SJIS2JIS(unsigned short sjis)
+{
+	unsigned s1=sjis>>8;
+	unsigned s2=sjis&0xff;
+
+	unsigned k,t;
+
+	if(224<=s1)
+	{
+		k=s1*2-385;
+	}
+	else
+	{
+		k=s1*2-257;
+	}
+
+	if(s2<=126)
+	{
+		t=s2-63;
+	}
+	else if(s2<=158)
+	{
+		t=s2-64;
+	}
+	else
+	{
+		t=s2-158;
+		++k;
+	}
+
+	return ((k+0x20)<<8)|(t+0x20);
+}
+
+static unsigned short EGB_JIS2SJIS(unsigned short jis)
+{
+	unsigned k=(jis>>8)-0x20;
+	unsigned t=(jis&0xFF)-0x20;
+	unsigned s1,s2;
+
+	if(k<=62)
+	{
+		s1=(k+257)/2;
+	}
+	else
+	{
+		s1=(k+385)/2;
+	}
+
+	if(0!=(k&1) && t<64)
+	{
+		s2=t+63;
+	}
+	else if(0!=(k&1) && t<=94)
+	{
+		s2=t+64;
+	}
+	else
+	{
+		s2=t+158;
+	}
+
+	return (s1<<8)|s2;
+}
+
+// https://ja.wikipedia.org/wiki/Shift_JIS
+// JIS  1st byte=K   2nd byte=T
+//
+//Sjis 1st=[(k+257)/2] if 1<=k<=62        (129 to 159)
+//         [(k+385)/2] if 63<=k<=94       (224 to 239)  <- Incorrect.  Must be 224 to 254.
+//     2nd=t+63 if k is odd and 1<=t<=63  (64 to 126)
+//         t+64 if k is odd and 64<=t<=94 (128 to 158)
+//         t+158 if k is even.            (158 to 255)
+//
+//JIS
+//224<=s1 -> (k+385)/2=s1 -> j1=s1*2-385+x  (x=0 or 1)
+//else    -> (k+257)/2=s1 -> j1=s1*2-257+x  (x=0 or 1)
+//
+//64<=s2<=126 -> j2=s2-63, x=1
+//128<=x2<=158-> j2=s2-64, x=1
+//else        -> j2=s2-158, x=0
+
+// Multiply by 32 to get to the font pattern.
+unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis)
+{
+	unsigned int JISCodeLow=(unsigned char)jis;
+	unsigned int JISCodeHigh=(unsigned char)(jis>>8);
+
+	if(JISCodeHigh<0x28)
+	{
+		// 32x8 Blocks
+		unsigned int BLK=(JISCodeLow-0x20)>>5;
+		unsigned int x=JISCodeLow&0x1F;
+		unsigned int y=JISCodeHigh&7;
+		if(BLK==1)
+		{
+			BLK=2;
+		}
+		else if(BLK==2)
+		{
+			BLK=1;
+		}
+		return BLK*32*8+y*32+x;
+	}
+	else
+	{
+		// 32x16 Blocks;
+		unsigned int BlkX=(JISCodeLow-0x20)>>5;
+		unsigned int BlkY=(JISCodeHigh-0x30)>>4;
+		unsigned int BLK=BlkY*3+BlkX;
+		unsigned int x=JISCodeLow&0x1F;
+		unsigned int y=JISCodeHigh&0x0F;
+		return 0x400+BLK*32*16+y*32+x;
+	}
+}
+
 static void EGB_SJISSTRING_PSET(
 	_Far struct EGB_Work *work,
 	_Far struct EGB_PagePointerSet *ptrSet,
@@ -1742,19 +1857,31 @@ static void EGB_SJISSTRING_PSET(
 		int sx=strInfo->x;
 		int sy=strInfo->y;
 		int i=0;
+		unsigned int addr;
+
+		addr=strInfo->y;
+		if(ptrSet->modeProp->bytesPerLineShift)
+		{
+			addr<<=ptrSet->modeProp->bytesPerLineShift;
+		}
+		else
+		{
+			addr*=ptrSet->modeProp->bytesPerLine;
+		}
+		addr+=(strInfo->x*ptrSet->modeProp->bitsPerPixel)/8;
 
 		while(i<strInfo->len)
 		{
-			// if(strInfo->str[i] is first byte of Kanji)
-			// {
+			if(IS_SJIS_FIRST_BYTE(strInfo->str[i]))
+			{
 				sx+=16;
 				i+=2;
-			// }
-			// else
-			// {
+			}
+			else
+			{
 				sx+=8;
 				++i;
-			// }
+			}
 		}
 
 		ptrSet->settings->textX=sx;
