@@ -149,7 +149,7 @@ struct EGB_Work
 struct EGB_PagePointerSet
 {
 	_Far struct EGB_ScreenMode *mode;
-	_Far struct EGB_PerPage *settings;
+	_Far struct EGB_PerPage *page;
 	_Far unsigned char *vram;
 	unsigned int vramSize;
 };

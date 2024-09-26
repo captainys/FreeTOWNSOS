@@ -63,10 +63,10 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 	struct EGB_PagePointerSet pointerSet;
 	if(work->writePage<2)
 	{
-		pointerSet.settings=&work->perPage[work->writePage];
-		if(EGB_INVALID_SCRNMODE!=pointerSet.settings->screenMode)
+		pointerSet.page=&work->perPage[work->writePage];
+		if(EGB_INVALID_SCRNMODE!=pointerSet.page->screenMode)
 		{
-			pointerSet.mode=EGB_GetScreenModeProp(pointerSet.settings->screenMode);
+			pointerSet.mode=EGB_GetScreenModeProp(pointerSet.page->screenMode);
 			if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
 			{
 				_FP_SEG(pointerSet.vram)=SEG_VRAM_1PG;
@@ -87,14 +87,14 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 		unsigned int vPageIdx=(work->writePage&3);
 		if(NULL!=work->virtualPage[vPageIdx].vram)
 		{
-			pointerSet.settings=&work->perVirtualPage[vPageIdx];
+			pointerSet.page=&work->perVirtualPage[vPageIdx];
 			pointerSet.mode=&work->virtualPage[vPageIdx];
 			pointerSet.vram=work->virtualPage[vPageIdx].vram;
 			pointerSet.vramSize=(pointerSet.mode->bytesPerLine*pointerSet.mode->size.y);
 			return pointerSet;
 		}
 	}
-	pointerSet.settings=NULL;
+	pointerSet.page=NULL;
 	pointerSet.mode=NULL;
 	pointerSet.vram=NULL;
 	return pointerSet;
@@ -697,9 +697,9 @@ void EGB_COLOR(
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	if(NULL!=pointerSet.settings)
+	if(NULL!=pointerSet.page)
 	{
-		pointerSet.settings->color[EAX&3]=EDX;
+		pointerSet.page->color[EAX&3]=EDX;
 	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -759,9 +759,9 @@ void EGB_WRITEMODE(
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	if(NULL!=pointerSet.settings)
+	if(NULL!=pointerSet.page)
 	{
-		pointerSet.settings->drawingMode=EAX&0xFF;
+		pointerSet.page->drawingMode=EAX&0xFF;
 	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -1118,18 +1118,18 @@ void EGB_CLEARSCREEN(
 		if(4==pointerSet.mode->bitsPerPixel)
 		{
 			unsigned short wd;
-			wd=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
+			wd=pointerSet.page->color[EGB_BACKGROUND_COLOR];
 			wd<<=4;
-			wd|=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
+			wd|=pointerSet.page->color[EGB_BACKGROUND_COLOR];
 			wordData=wd|(wd<<8);
 		}
 		else if(8==pointerSet.mode->bitsPerPixel)
 		{
-			wordData=pointerSet.settings->color[EGB_BACKGROUND_COLOR]|(pointerSet.settings->color[EGB_BACKGROUND_COLOR]<<8);
+			wordData=pointerSet.page->color[EGB_BACKGROUND_COLOR]|(pointerSet.page->color[EGB_BACKGROUND_COLOR]<<8);
 		}
 		else
 		{
-			wordData=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
+			wordData=pointerSet.page->color[EGB_BACKGROUND_COLOR];
 		}
 
 		MEMSETW_FAR(pointerSet.vram,wordData,pointerSet.vramSize/2);
@@ -1926,8 +1926,8 @@ void EGB_SJISSTRING(
 			}
 		}
 
-		ptrSet.settings->textX=sx;
-		ptrSet.settings->textY=sy;
+		ptrSet.page->textX=sx;
+		ptrSet.page->textY=sy;
 	}
 	// else
 	{
