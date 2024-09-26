@@ -66,7 +66,7 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 		pointerSet.settings=&work->perPage[work->writePage];
 		if(EGB_INVALID_SCRNMODE!=pointerSet.settings->screenMode)
 		{
-			pointerSet.modeProp=EGB_GetScreenModeProp(pointerSet.settings->screenMode);
+			pointerSet.mode=EGB_GetScreenModeProp(pointerSet.settings->screenMode);
 			if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
 			{
 				_FP_SEG(pointerSet.vram)=SEG_VRAM_1PG;
@@ -88,14 +88,14 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 		if(NULL!=work->virtualPage[vPageIdx].vram)
 		{
 			pointerSet.settings=&work->perVirtualPage[vPageIdx];
-			pointerSet.modeProp=&work->virtualPage[vPageIdx];
+			pointerSet.mode=&work->virtualPage[vPageIdx];
 			pointerSet.vram=work->virtualPage[vPageIdx].vram;
-			pointerSet.vramSize=(pointerSet.modeProp->bytesPerLine*pointerSet.modeProp->size.y);
+			pointerSet.vramSize=(pointerSet.mode->bytesPerLine*pointerSet.mode->size.y);
 			return pointerSet;
 		}
 	}
 	pointerSet.settings=NULL;
-	pointerSet.modeProp=NULL;
+	pointerSet.mode=NULL;
 	pointerSet.vram=NULL;
 	return pointerSet;
 }
@@ -1111,11 +1111,11 @@ void EGB_CLEARSCREEN(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	if(NULL!=pointerSet.modeProp)
+	if(NULL!=pointerSet.mode)
 	{
 		_Far unsigned char *vram;
 		unsigned int vramOffset,wordData,count;
-		if(4==pointerSet.modeProp->bitsPerPixel)
+		if(4==pointerSet.mode->bitsPerPixel)
 		{
 			unsigned short wd;
 			wd=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
@@ -1123,7 +1123,7 @@ void EGB_CLEARSCREEN(
 			wd|=pointerSet.settings->color[EGB_BACKGROUND_COLOR];
 			wordData=wd|(wd<<8);
 		}
-		else if(8==pointerSet.modeProp->bitsPerPixel)
+		else if(8==pointerSet.mode->bitsPerPixel)
 		{
 			wordData=pointerSet.settings->color[EGB_BACKGROUND_COLOR]|(pointerSet.settings->color[EGB_BACKGROUND_COLOR]<<8);
 		}
@@ -1897,15 +1897,15 @@ void EGB_SJISSTRING(
 		_FP_OFF(fontROM)=0;
 
 		addr=strInfo->y;
-		if(ptrSet.modeProp->bytesPerLineShift)
+		if(ptrSet.mode->bytesPerLineShift)
 		{
-			addr<<=ptrSet.modeProp->bytesPerLineShift;
+			addr<<=ptrSet.mode->bytesPerLineShift;
 		}
 		else
 		{
-			addr*=ptrSet.modeProp->bytesPerLine;
+			addr*=ptrSet.mode->bytesPerLine;
 		}
-		addr+=(strInfo->x*ptrSet.modeProp->bitsPerPixel)/8;
+		addr+=(strInfo->x*ptrSet.mode->bitsPerPixel)/8;
 
 		while(i<strInfo->len)
 		{

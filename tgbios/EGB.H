@@ -148,7 +148,7 @@ struct EGB_Work
 
 struct EGB_PagePointerSet
 {
-	_Far struct EGB_ScreenMode *modeProp;
+	_Far struct EGB_ScreenMode *mode;
 	_Far struct EGB_PerPage *settings;
 	_Far unsigned char *vram;
 	unsigned int vramSize;
