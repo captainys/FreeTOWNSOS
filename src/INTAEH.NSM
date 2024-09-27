@@ -154,6 +154,44 @@ DEFAULT_INT_DATA_BLOCK:	DB		0,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; In case stray int 4D comes in.
+INT_SOUND_NOP:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,TOWNSIO_SOUND_INT_REASON
+						IN		AL,DX
+						MOV		DX,TOWNSIO_SOUND_STATUS_ADDRESS0
+						IN		AL,DX
+						MOV		DX,TOWNSIO_SOUND_PCM_INT
+						IN		AL,DX
+
+INT_SOUND_WAITREADY:
+						MOV		DX,TOWNSIO_SOUND_STATUS_ADDRESS0
+						IN		AL,DX
+						SHL		AL,1
+						JC		INT_SOUND_WAITREADY
+
+						MOV		AL,027H
+						OUT		DX,AL
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+
+						MOV		AL,030H
+						MOV		DX,TOWNSIO_SOUND_DATA0
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RETF
+
+DEFAULT_INT_4D_DATA_BLOCK:	DB		0,0
+						DW		INT_SOUND_NOP
+						DW		0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 NUM_INTS				EQU		32
 INT_DATA_BLOCKS:		DD		NUM_INTS dup (0)
 
@@ -166,6 +204,7 @@ INTAEH_INIT:
 
 						MOV		AX,CS
 						MOV		CS:[DEFAULT_INT_DATA_BLOCK+4],AX
+						MOV		CS:[DEFAULT_INT_4D_DATA_BLOCK+4],AX
 
 						SHL		EAX,16
 						MOV		AX,DEFAULT_INT_DATA_BLOCK
@@ -178,6 +217,8 @@ INTAEH_INIT:
 						MOV		DI,INT_DATA_BLOCKS
 						REP		STOSD
 
+						MOV		AX,DEFAULT_INT_4D_DATA_BLOCK
+						MOV		ES:[INT_DATA_BLOCKS+0DH*4],EAX
 
 						XOR		AX,AX
 						MOV		ES,AX

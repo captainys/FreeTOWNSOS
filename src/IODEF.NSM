@@ -87,6 +87,13 @@ IO_RTC_DATA				EQU		0070H
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+TOWNSIO_SOUND_STATUS_ADDRESS0   EQU		04D8H
+TOWNSIO_SOUND_DATA0             EQU		04DAH
+TOWNSIO_SOUND_INT_REASON        EQU		04E9H
+TOWNSIO_SOUND_PCM_INT           EQU		04EBH
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 IO_CDC_MASTER_CONTROL	EQU		04C0H
 IO_CDC_MASTER_STATUS	EQU		04C0H

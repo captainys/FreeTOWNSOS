@@ -1243,7 +1243,7 @@ void SND_JOY_IN_2(
 	unsigned int GS,
 	unsigned int FS)
 {
-	unsigned char port=EDX&1,pad;
+	unsigned char port=(EDX>>8)&1,pad;
 	_Far struct SND_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;

@@ -32,4 +32,6 @@ proc=subprocess.Popen([
 	#"-initcmd","SAVESTATEAT B800:262 B8000262.tstate",
 	#"-initcmd","SAVESTATEAT B800:2CC B80002CC.tstate",
 
+	"-keyboard","trans",
+	"-gameport0","phys0",
 ]+sys.argv[1:]).wait()
