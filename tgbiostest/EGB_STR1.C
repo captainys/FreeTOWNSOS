@@ -75,6 +75,8 @@ void SetString(struct EGB_String *egbStr,int x,int y,char *str)
 {
 	strcpy(egbStr->str,str);
 	egbStr->len=strlen(str);
+	egbStr->x=x;
+	egbStr->y=y;
 }
 
 void WaitForPad(void)

@@ -2097,7 +2097,7 @@ void EGB_SJISSTRING(
 				unsigned int ptnAddr;
 				SJISPointerToROMAddress(strInfo->str+i,ptnAddr);
 
-				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr,16);
+				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy,fontROM+ptnAddr,16);
 
 				sx+=16;
 				i+=2;
@@ -2106,7 +2106,7 @@ void EGB_SJISSTRING(
 			{
 				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)strInfo->str[i])*16;
 
-				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy-16,fontROM+ptnAddr,8);
+				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy,fontROM+ptnAddr,8);
 
 				sx+=8;
 				++i;
