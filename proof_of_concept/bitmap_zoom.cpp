@@ -1,4 +1,5 @@
 #include <fssimplewindow.h>
+#include <algorithm>
 
 #define VRAMW 640
 #define VRAMH 480
@@ -108,10 +109,11 @@ void PutWithZoomAndViewportClipping(
 {
 	int x1=x0+dx-1;
 	int y1=y0+dy-1;
+	int X,srcX,Y,srcY;
 
-	int balanceX=0,balanceY=0;
+	int balanceX=dx,balanceY=dy;
 	int xStart=x0,yStart=y0;
-	int xEnd=x1,int yEnd=y1;
+	int xEnd=std::min(x1,vx1),yEnd=std::min(y1,vy1);
 
 	if(0==dx || 0==dy) // Not visible.
 	{
@@ -120,17 +122,57 @@ void PutWithZoomAndViewportClipping(
 
 	if(x0<vx0)
 	{
+		int yIntercept;
 		unsigned left,right;
 		left=vx0-x0;
 		right=x1-vx0;
 		yIntercept=(left*y1+right*y0)/dx;
 
-		if(bw<=dx)
+		xStart=vx0;
+		balanceX=-srcw*(vx0-x0)+dx*(yIntercept-y0+1);
+	}
+	if(y0<vy0)
+	{
+		int xIntercept;
+		unsigned up,down;
+		up=vy0-y0;
+		down=y1-vy0;
+		xIntercept=(up*y1+down*y0)/dy;
+
+		yStart=vy0;
+		balanceY=-srch*(vy0-y0)+dy*(xIntercept-x0+1);
+	}
+
+	srcY=0;
+	for(Y=yStart; Y<=yEnd; ++Y)
+	{
+		srcX=0;
+		for(X=xStart; X<=xEnd; ++X)
 		{
-			xStart=vx0;
-			balanceX=-srcw*(vx0-x0)+dx*(yIntercept-y0+1);
+			unsigned short pix=bmp[srcY*srcw+srcY];
+			unsigned char *pixPtr=vram+4*(VRAMW*Y+X);
+
+			unsigned int b=pix&0x1F;
+			unsigned int r=(pix>>5)&0x1F;
+			unsigned int g=(pix>>10)&0x1F;
+			b=(b<<3)|(b>>2);
+			r=(r<<3)|(r>>2);
+			g=(g<<3)|(g>>2);
+
+			balanceX-=srcw;
+			while(balanceX<0)
+			{
+				++srcX;
+				balanceX+=dx;
+			}
 		}
-		// WIP
+
+		balanceY-=srch;
+		while(balanceY<0)
+		{
+			++srcY;
+			balanceY+=dy;
+		}
 	}
 }
 
@@ -151,7 +193,9 @@ int main(void)
 			break;
 		}
 
-		PutNoZoomNoClip(100,100,32,32,duck);
+		//PutNoZoomNoClip(100,100,32,32,duck);
+
+		PutWithZoomAndViewportClipping(100,100,32,32,32,32,duck,0,0,639,479);
 
 
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
