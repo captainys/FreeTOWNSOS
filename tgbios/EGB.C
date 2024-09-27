@@ -132,15 +132,16 @@ void EGB_INIT(
 		p->color[EGB_TRANSPARENT_COLOR]=0;
 		p->color[EGB_FILL_COLOR]=0;
 		p->alpha=128;
-		p->viewport[0]=0;
-		p->viewport[1]=0;
-		p->viewport[2]=639;
-		p->viewport[3]=479;
+		p->viewport[0].x=0;
+		p->viewport[0].y=0;
+		p->viewport[1].x=639;
+		p->viewport[1].y=479;
 		p->fontSpacing=0;
 		p->fontRotation=0;
 		p->stringRotation=0;
 		p->textX=0;
-		p->textY=0;
+		p->textY=16;
+		p->textZoom=EGB_NO_TEXT_ZOOM;
 		p->paintMode=0;
 		p->drawingMode=0;
 		p->penWidth=1;
@@ -1950,6 +1951,8 @@ void EGB_SJISSTRING(
 	_Far struct EGB_Work *work;
 	struct EGB_PagePointerSet ptrSet;
 	_Far struct EGB_String *strInfo;
+	struct POINTUW dimension,ankDim,kanjiDim;
+	struct POINTW minmax[2];
 
 	_FP_SEG(strInfo)=DS;
 	_FP_OFF(strInfo)=ESI;
@@ -1961,7 +1964,46 @@ void EGB_SJISSTRING(
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 
-	// if(viewport is entire screen && xy coordinate is inside of the viewport)
+	kanjiDim.x=ptrSet.page->textZoom&0xFF;
+	kanjiDim.y=(ptrSet.page->textZoom>>8)&0xFF;
+	ankDim.x=(ptrSet.page->textZoom>>16)&0xFF;
+	ankDim.y=(ptrSet.page->textZoom>>24)&0xFF;
+
+	if(0==ptrSet.page->fontSpacing &&
+	   EGB_NO_TEXT_ZOOM==ptrSet.page->textZoom)
+	{
+		dimension.x=strInfo->len*8;
+		dimension.y=16;
+	}
+	else
+	{
+		int i;
+		dimension.x=0;
+		dimension.y=0;
+		for(i=0; i<strInfo->len; ++i)
+		{
+			if(IS_SJIS_FIRST_BYTE(strInfo->str[i]))
+			{
+				dimension.x+=ptrSet.page->fontSpacing+kanjiDim.x;
+				dimension.y=_max(dimension.y,kanjiDim.y);
+			}
+			else
+			{
+				dimension.x+=ptrSet.page->fontSpacing+ankDim.x;
+				dimension.y=_max(dimension.y,ankDim.y);
+			}
+		}
+	}
+
+	minmax[0].x=strInfo->x;
+	minmax[0].y=strInfo->y-dimension.y+1;
+	minmax[1].x=strInfo->x+dimension.x-1;
+	minmax[1].y=strInfo->y;
+
+
+	if(EGB_NO_TEXT_ZOOM==ptrSet.page->textZoom &&
+	   ptrSet.page->viewport[0].x<=minmax[0].x && minmax[1].x<=ptrSet.page->viewport[1].x &&
+	   ptrSet.page->viewport[0].y<=minmax[0].y && minmax[1].y<=ptrSet.page->viewport[1].y)
 	{
 		int sx=strInfo->x;
 		int sy=strInfo->y;
@@ -2004,6 +2046,7 @@ void EGB_SJISSTRING(
 				sx+=8;
 				++i;
 			}
+			sx+=ptrSet.page->fontSpacing;
 		}
 
 		ptrSet.page->textX=sx;

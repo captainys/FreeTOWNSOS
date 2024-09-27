@@ -71,6 +71,11 @@ struct POINTW
 	short x,y;
 };
 
+struct POINTUW
+{
+	unsigned short x,y;
+};
+
 #define SCRNMODE_FLAG_VSCROLL	1
 #define SCRNMODE_FLAG_HSCROLL	2
 #define SCRNMODE_FLAG_STARTPOS  4
@@ -82,6 +87,8 @@ struct POINTW
 #define EGB_SetError(reg,err) {reg&=EGB_ERROR_MASK;reg|=err;}
 
 #define IS_SJIS_FIRST_BYTE(ch) ((0x81<=(unsigned char)(ch) && (unsigned char)(ch)<0xA0)||(0xE0<=(unsigned char)(ch) && (unsigned char)(ch)<0xFD))
+
+#define EGB_NO_TEXT_ZOOM 0x10081010
 
 struct EGB_ScreenMode
 {
@@ -106,11 +113,12 @@ struct EGB_PerPage
 
 	unsigned short color[4];
 	unsigned short alpha;
-	unsigned short viewport[4];
+	struct POINTUW viewport[2];
 	unsigned short fontSpacing;
 	unsigned char fontRotation;
 	unsigned char stringRotation;
 	short textX,textY;
+	unsigned int textZoom;  // ANK-H|ANK-W|KANJI-H|KANJI-W
 
 	unsigned char paintMode;
 	unsigned char drawingMode;
