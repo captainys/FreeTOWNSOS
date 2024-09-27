@@ -102,6 +102,64 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 
 ////////////////////////////////////////////////////////////
 
+void EGB_ResetPalette(_Far struct EGB_Work *work,int writePage)
+{
+	if(work->perPage[writePage].screenMode!=EGB_INVALID_SCRNMODE)
+	{
+		int i;
+		_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+		if(8==scrnModeProp->bitsPerPixel)
+		{
+			_Far unsigned int *pal=EGB_GetDefaultPalette256();
+
+			work->sifter[1]|=0x30;
+			_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,1);
+			_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,work->sifter[1]);
+
+			for(i=0; i<256; ++i)
+			{
+				unsigned char b= pal[i];
+				unsigned char r=(pal[i]>>8);
+				unsigned char g=(pal[i]>>16);
+
+				_outb(TOWNSIO_ANALOGPALETTE_CODE,(unsigned char)i);
+				_outb(TOWNSIO_ANALOGPALETTE_BLUE,b);
+				_outb(TOWNSIO_ANALOGPALETTE_RED,r);
+				_outb(TOWNSIO_ANALOGPALETTE_GREEN,g);
+			}
+		}
+		else if(4==scrnModeProp->bitsPerPixel)
+		{
+			_Far unsigned int *pal=EGB_GetDefaultPalette16();
+
+			if(0==writePage)
+			{
+				work->sifter[1]&=0x0F;
+			}
+			else
+			{
+				work->sifter[1]&=0x0F;
+				work->sifter[1]|=0x20;
+			}
+
+			_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,1);
+			_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,work->sifter[1]);
+
+			for(i=0; i<16; ++i)
+			{
+				unsigned char b= pal[i];
+				unsigned char r=(pal[i]>>8);
+				unsigned char g=(pal[i]>>16);
+
+				_outb(TOWNSIO_ANALOGPALETTE_CODE,(unsigned char)i);
+				_outb(TOWNSIO_ANALOGPALETTE_BLUE,b);
+				_outb(TOWNSIO_ANALOGPALETTE_RED,r);
+				_outb(TOWNSIO_ANALOGPALETTE_GREEN,g);
+			}
+		}
+	}
+}
+
 void EGB_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -126,8 +184,8 @@ void EGB_INIT(
 	for(i=0; i<2; ++i)
 	{
 		_Far struct EGB_PerPage *p=&(work->perPage[i]);
-		p->screenMode=12;
-		p->color[EGB_FOREGROUND_COLOR]=15;
+		p->screenMode=3;
+		p->color[EGB_FOREGROUND_COLOR]=32767;
 		p->color[EGB_BACKGROUND_COLOR]=0;
 		p->color[EGB_TRANSPARENT_COLOR]=0;
 		p->color[EGB_FILL_COLOR]=0;
@@ -207,7 +265,10 @@ void EGB_INIT(
 	}
 	_outb(TOWNSIO_CRTC_OUTPUT_CONTROL,0x0A);  // FM-R CRTC Output Control
 
-	// Need to initialize palette
+
+	// Initialize palette
+	EGB_ResetPalette(work,0);
+	EGB_ResetPalette(work,1);
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -275,6 +336,7 @@ void EGB_RESOLUTION(
 				if(0==(EDX&0x40))
 				{
 					EGB_SetUpCRTC(work,modeComb);
+					EGB_ResetPalette(work,AL);
 				}
 			}
 			else
@@ -1125,7 +1187,7 @@ void EGB_CLEARSCREEN(
 		}
 		else if(8==pointerSet.mode->bitsPerPixel)
 		{
-			wordData=pointerSet.page->color[EGB_BACKGROUND_COLOR]|(pointerSet.page->color[EGB_BACKGROUND_COLOR]<<8);
+			wordData=pointerSet.page->color[EGB_BACKGROUND_COLOR]|(((unsigned short)pointerSet.page->color[EGB_BACKGROUND_COLOR])<<8);
 		}
 		else
 		{
@@ -1921,7 +1983,7 @@ void EGB_PUTX16BW_NOCHECK(
 						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
 						//{
 						//case EGB_PSET:
-							*(unsigned short *)(ptrSet->vram+vramAddr)=color;
+							*(_Far unsigned short *)(ptrSet->vram+vramAddr)=color;
 						//	break;
 						//}
 						//
@@ -2120,13 +2182,11 @@ void EGB_SJISSTRING(
 		ptrSet.page->textX=sx;
 		ptrSet.page->textY=sy;
 	}
-	// else
+	else
 	{
 		TSUGARU_BREAK;
 	}
 
-
-	TSUGARU_BREAK;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 

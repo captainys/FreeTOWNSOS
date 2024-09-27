@@ -99,9 +99,11 @@ int main(void)
 	EGB_init(EGB_work,EgbWorkSize);
 
 	EGB_resolution(EGB_work,0,3);
-	EGB_resolution(EGB_work,1,3);
+	EGB_resolution(EGB_work,1,10);
 
 	EGB_writePage(EGB_work,1);
+	EGB_displayStart(EGB_work,2,2,2);
+	EGB_displayStart(EGB_work,3,320,240);
 	EGB_clearScreen(EGB_work);
 
 	EGB_writePage(EGB_work,0);
@@ -113,6 +115,24 @@ int main(void)
 	EGB_writePage(EGB_work,0);
 	SetString(str,0,16,"ページ0 画面モード3");
 	EGB_sjisString(EGB_work,str);
+
+	EGB_writePage(EGB_work,1);
+	EGB_color(EGB_work,0,32767);
+	SetString(str,80,32,"ページ1 画面モード10");
+	EGB_sjisString(EGB_work,str);
+
+
+	WaitForPad();
+
+
+	EGB_resolution(EGB_work,0,12);
+
+	EGB_writePage(EGB_work,0);
+	EGB_clearScreen(EGB_work);
+	EGB_color(EGB_work,0,255);
+	SetString(str,0,16,"ページ0 画面モード12");
+	EGB_sjisString(EGB_work,str);
+
 
 	WaitForPad();
 

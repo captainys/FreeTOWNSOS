@@ -66,17 +66,17 @@ MEMSETB_FAR				PROC
 
 						MOV		ECX,[EBP+20]
 						SHR		ECX,2
-						STOSD
+						REP STOSD
 
 						MOV		ECX,[EBP+20]
 						SHR		ECX,1
 						AND		ECX,1
-						STOSW
+						REP STOSW
 
 						MOV		ECX,[EBP+20]
 						SHR		ECX,2
 						AND		ECX,1
-						STOSB
+						REP STOSB
 
 						POP		EDI
 						POP		ECX
@@ -110,11 +110,11 @@ MEMSETW_FAR				PROC
 
 						MOV		ECX,[EBP+20]
 						SHR		ECX,1
-						STOSD
+						REP STOSD
 
 						MOV		ECX,[EBP+20]
 						AND		ECX,1
-						STOSW
+						REP STOSW
 
 						POP		EDI
 						POP		ECX

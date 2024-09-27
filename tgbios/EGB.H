@@ -184,4 +184,7 @@ struct EGB_PaletteSet
 _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode);
 _Far unsigned short *EGB_GetCRTCRegs(int modeComb);
 
+_Far unsigned int *EGB_GetDefaultPalette256(void);
+_Far unsigned int *EGB_GetDefaultPalette16(void);
+
 #endif
