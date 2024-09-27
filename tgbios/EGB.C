@@ -1863,6 +1863,7 @@ void EGB_PUTX16BW_NOCHECK(
 					if(7==(x&7))
 					{
 						++ptnBase;
+						ptn=*ptnBase;
 					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid/2);
@@ -1896,6 +1897,7 @@ void EGB_PUTX16BW_NOCHECK(
 					if(7==(x&7))
 					{
 						++ptnBase;
+						ptn=*ptnBase;
 					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid);
@@ -1929,6 +1931,7 @@ void EGB_PUTX16BW_NOCHECK(
 					if(7==(x&7))
 					{
 						++ptnBase;
+						ptn=*ptnBase;
 					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid*2);
