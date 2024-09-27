@@ -102,6 +102,38 @@ void PutNoZoomNoClip(int x,int y,unsigned int bw,unsigned int bh,const unsigned 
 	}
 }
 
+void PutWithZoomAndViewportClipping(
+	int x0,int y0,int dx,int dy,unsigned int srcw,unsigned int srch,const unsigned short bmp[],
+	int vx0,int vy0,int vx1,int vy1)
+{
+	int x1=x0+dx-1;
+	int y1=y0+dy-1;
+
+	int balanceX=0,balanceY=0;
+	int xStart=x0,yStart=y0;
+	int xEnd=x1,int yEnd=y1;
+
+	if(0==dx || 0==dy) // Not visible.
+	{
+		return;
+	}
+
+	if(x0<vx0)
+	{
+		unsigned left,right;
+		left=vx0-x0;
+		right=x1-vx0;
+		yIntercept=(left*y1+right*y0)/dx;
+
+		if(bw<=dx)
+		{
+			xStart=vx0;
+			balanceX=-srcw*(vx0-x0)+dx*(yIntercept-y0+1);
+		}
+		// WIP
+	}
+}
+
 int main(void)
 {
 	for(auto &v : vram)
