@@ -1801,22 +1801,25 @@ void EGB_PUTX16BW_NOCHECK(
 	int sx,int sy,
 	_Far unsigned char *ptnBase,int wid)
 {
+	unsigned int vramAddr;
+	int x,y;
+
+	if(0!=ptrSet->mode->bytesPerLineShift)
+	{
+		vramAddr=((sy-15)<<ptrSet->mode->bytesPerLineShift);
+		vramAddr+=((sx*ptrSet->mode->bitsPerPixel)/8);
+	}
+	else
+	{
+		vramAddr=((sy-15)*ptrSet->mode->bytesPerLine+sx)>>1;
+	}
+
 	switch(ptrSet->mode->bitsPerPixel)
 	{
 	case 4:
 		{
-			int x,y;
-			unsigned int vramAddr;
 			unsigned char andPtn,color;
 
-			if(0!=ptrSet->mode->bytesPerLineShift)
-			{
-				vramAddr=(sy<<ptrSet->mode->bytesPerLineShift)+(sx>>1);
-			}
-			else
-			{
-				vramAddr=(sy*ptrSet->mode->bytesPerLine+sx)>>1;
-			}
 			if(0==(sx&1))
 			{
 				andPtn=0x0F;
@@ -1867,8 +1870,70 @@ void EGB_PUTX16BW_NOCHECK(
 		}
 		break;
 	case 8:
+		{
+			unsigned char color;
+
+			color=ptrSet->page->color[EGB_FOREGROUND_COLOR];
+
+			for(y=0; y<16; ++y)
+			{
+				unsigned char ptn=*ptnBase;
+				for(x=0; x<wid; ++x)
+				{
+					// Can I do SHL and use CF in C rather?
+					if(ptn&0x80)
+					{
+						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
+						//{
+						//case EGB_PSET:
+							ptrSet->vram[vramAddr]=color;
+						//	break;
+						//}
+						//
+					}
+					ptn<<=1;
+					++vramAddr;
+					if(7==(x&7))
+					{
+						++ptnBase;
+					}
+				}
+				vramAddr+=(ptrSet->mode->bytesPerLine-wid);
+			}
+		}
 		break;
 	case 16:
+		{
+			unsigned short color;
+
+			color=ptrSet->page->color[EGB_FOREGROUND_COLOR];
+
+			for(y=0; y<16; ++y)
+			{
+				unsigned short ptn=*ptnBase;
+				for(x=0; x<wid; ++x)
+				{
+					// Can I do SHL and use CF in C rather?
+					if(ptn&0x80)
+					{
+						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
+						//{
+						//case EGB_PSET:
+							*(unsigned short *)(ptrSet->vram+vramAddr)=color;
+						//	break;
+						//}
+						//
+					}
+					ptn<<=1;
+					vramAddr+=2;
+					if(7==(x&7))
+					{
+						++ptnBase;
+					}
+				}
+				vramAddr+=(ptrSet->mode->bytesPerLine-wid*2);
+			}
+		}
 		break;
 	}
 }
