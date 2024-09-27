@@ -111,8 +111,8 @@ void PutWithZoomAndViewportClipping(
 	int y1=y0+dy-1;
 	int X,srcX,Y,srcY;
 
-	int balanceX=dx,balanceY=dy;
-	int xStart=x0,yStart=y0;
+	int balanceX0=dx,balanceY=dy;
+	int xStart=x0,yStart=y0,srcXStart=0,srcYStart=0;
 	int xEnd=std::min(x1,vx1),yEnd=std::min(y1,vy1);
 
 	if(0==dx || 0==dy) // Not visible.
@@ -122,34 +122,28 @@ void PutWithZoomAndViewportClipping(
 
 	if(x0<vx0)
 	{
-		int yIntercept;
-		unsigned left,right;
-		left=vx0-x0;
-		right=x1-vx0;
-		yIntercept=(left*y1+right*y0)/dx;
+		unsigned left=vx0-x0;
 
 		xStart=vx0;
-		balanceX=-srcw*(vx0-x0)+dx*(yIntercept-y0+1);
+		srcXStart=srcw*left/dx;
+		balanceX0=-srcw*(vx0-x0)+dx*(srcXStart+1);
 	}
 	if(y0<vy0)
 	{
-		int xIntercept;
-		unsigned up,down;
-		up=vy0-y0;
-		down=y1-vy0;
-		xIntercept=(up*y1+down*y0)/dy;
-
+		unsigned up=vy0-y0;
 		yStart=vy0;
-		balanceY=-srch*(vy0-y0)+dy*(xIntercept-x0+1);
+		srcYStart=up*srch/dy;
+		balanceY=-srch*(vy0-y0)+dy*(srcYStart+1);
 	}
 
-	srcY=0;
+	srcY=srcYStart;
 	for(Y=yStart; Y<=yEnd; ++Y)
 	{
-		srcX=0;
+		int balanceX=balanceX0;
+		srcX=srcXStart;
 		for(X=xStart; X<=xEnd; ++X)
 		{
-			unsigned short pix=bmp[srcY*srcw+srcY];
+			unsigned short pix=bmp[srcY*srcw+srcX];
 			unsigned char *pixPtr=vram+4*(VRAMW*Y+X);
 
 			unsigned int b=pix&0x1F;
@@ -159,8 +153,13 @@ void PutWithZoomAndViewportClipping(
 			r=(r<<3)|(r>>2);
 			g=(g<<3)|(g>>2);
 
+			pixPtr[0]=r;
+			pixPtr[1]=g;
+			pixPtr[2]=b;
+			pixPtr[3]=255;
+
 			balanceX-=srcw;
-			while(balanceX<0)
+			while(balanceX<=0)
 			{
 				++srcX;
 				balanceX+=dx;
@@ -168,7 +167,7 @@ void PutWithZoomAndViewportClipping(
 		}
 
 		balanceY-=srch;
-		while(balanceY<0)
+		while(balanceY<=0)
 		{
 			++srcY;
 			balanceY+=dy;
@@ -183,6 +182,9 @@ int main(void)
 		v=0;
 	}
 
+	int zoomW=32,zoomH=32;
+	int x=0,y=0;
+
 	FsOpenWindow(0,0,VRAMW,VRAMH,1);
 	for(;;)
 	{
@@ -193,9 +195,37 @@ int main(void)
 			break;
 		}
 
+		if(FSKEY_Z==key)
+		{
+			zoomW+=4;
+			zoomH+=4;
+		}
+		if(FSKEY_M==key)
+		{
+			zoomW-=4;
+			zoomH-=4;
+		}
+
+		if(0!=FsGetKeyState(FSKEY_LEFT))
+		{
+			--x;
+		}
+		if(0!=FsGetKeyState(FSKEY_RIGHT))
+		{
+			++x;
+		}
+		if(0!=FsGetKeyState(FSKEY_UP))
+		{
+			--y;
+		}
+		if(0!=FsGetKeyState(FSKEY_DOWN))
+		{
+			++y;
+		}
+
 		//PutNoZoomNoClip(100,100,32,32,duck);
 
-		PutWithZoomAndViewportClipping(100,100,32,32,32,32,duck,0,0,639,479);
+		PutWithZoomAndViewportClipping(x,y,zoomW,zoomH,32,32,duck,0,0,639,479);
 
 
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
