@@ -92,6 +92,13 @@ static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 	_POPFD
 }
 
+static void EGB_WriteCRTCReg(_Far struct EGB_Work *work,unsigned char reg,unsigned short value)
+{
+	_outb(TOWNSIO_CRTC_ADDRESS,reg);
+	_outw(TOWNSIO_CRTC_DATA_LOW,value);
+	work->crtcRegs[reg]=value;
+}
+
 struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 {
 	struct EGB_PagePointerSet pointerSet;
@@ -501,13 +508,12 @@ void EGB_02H_DISPLAYSTART(
 					}
 					if(0==writePage)
 					{
-						_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_FA0);
+						EGB_WriteCRTCReg(work,CRTC_REG_FA0,FAx);
 					}
 					else
 					{
-						_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_FA1);
+						EGB_WriteCRTCReg(work,CRTC_REG_FA1,FAx);
 					}
-					_outw(TOWNSIO_CRTC_DATA_LOW,FAx);
 				}
 			}
 		}
@@ -527,8 +533,7 @@ void EGB_02H_DISPLAYSTART(
 					unsigned char Z=((vertical-1)<<4)|(horizontal-1);
 					work->perPage[writePage].ZOOM=Z;
 					ZOOM=(work->perPage[1].ZOOM<<8)|work->perPage[0].ZOOM;
-					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_ZOOM);
-					_outw(TOWNSIO_CRTC_DATA_LOW,ZOOM);
+					EGB_WriteCRTCReg(work,CRTC_REG_ZOOM,ZOOM);
 				}
 			}
 			else
@@ -547,7 +552,26 @@ void EGB_02H_DISPLAYSTART(
 			_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
 			if(NULL!=scrnModeProp)
 			{
-				unsigned int wid1X,hei1X,zoomX,zoomY,HDE,VDE;
+				unsigned int wid1X,hei1X,zoomX,zoomY,HDS,VDS,HDE,VDE,FO,LO;
+
+				if(0==writePage)
+				{
+					HDS=work->crtcRegs[CRTC_REG_HDS0];
+					VDS=work->crtcRegs[CRTC_REG_VDS0];
+					HDE=work->crtcRegs[CRTC_REG_HDE0];
+					VDE=work->crtcRegs[CRTC_REG_VDE0];
+					FO=work->crtcRegs[CRTC_REG_FO0];
+					LO=work->crtcRegs[CRTC_REG_LO0];
+				}
+				else
+				{
+					HDS=work->crtcRegs[CRTC_REG_HDS1];
+					VDS=work->crtcRegs[CRTC_REG_VDS1];
+					HDE=work->crtcRegs[CRTC_REG_HDE1];
+					VDE=work->crtcRegs[CRTC_REG_VDE1];
+					FO=work->crtcRegs[CRTC_REG_FO1];
+					LO=work->crtcRegs[CRTC_REG_LO1];
+				}
 
 				zoomX=(work->perPage[writePage].ZOOM&0x0F)+1;
 				zoomY=(work->perPage[writePage].ZOOM>>4)+1;
@@ -561,26 +585,24 @@ void EGB_02H_DISPLAYSTART(
 					hei1X/=2;
 				}
 
-				HDE=work->perPage[writePage].HDS+wid1X;
-				VDE=work->perPage[writePage].VDS+hei1X;
+				if(0==FO || FO==LO)
+				{
+					hei1X*=2;
+				}
+
+				HDE=HDS+wid1X;
+				VDE=VDS+hei1X;
 
 				if(0==writePage)
 				{
-					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_HDE0);
-					_outw(TOWNSIO_CRTC_DATA_LOW,HDE);
-					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_VDE0);
-					_outw(TOWNSIO_CRTC_DATA_LOW,VDE);
+					EGB_WriteCRTCReg(work,CRTC_REG_HDE0,HDE);
+					EGB_WriteCRTCReg(work,CRTC_REG_VDE0,VDE);
 				}
 				else
 				{
-					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_HDE1);
-					_outw(TOWNSIO_CRTC_DATA_LOW,HDE);
-					_outb(TOWNSIO_CRTC_ADDRESS,CRTC_REG_VDE1);
-					_outw(TOWNSIO_CRTC_DATA_LOW,VDE);
+					EGB_WriteCRTCReg(work,CRTC_REG_HDE1,HDE);
+					EGB_WriteCRTCReg(work,CRTC_REG_VDE1,VDE);
 				}
-
-				work->perPage[writePage].HDE=HDE;
-				work->perPage[writePage].VDE=VDE;
 			}
 			else
 			{
