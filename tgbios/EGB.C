@@ -103,7 +103,18 @@ unsigned int EGB_CoordToVRAMOffset(_Far struct EGB_ScreenMode *mode,int x,int y)
 	{
 		addr=(y*mode->bytesPerLine);
 	}
-	addr+=((x<<mode->bitsPerPixel)>>8);
+	switch(mode->bitsPerPixel)
+	{
+	case 1:
+		addr+=(x>>3);
+		break;
+	case 4:
+		addr+=(x>>1);
+		break;
+	case 16:
+		addr+=(x<<1);
+		break;
+	}
 	return addr;
 }
 
