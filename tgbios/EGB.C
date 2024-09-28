@@ -6,6 +6,40 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+void SwapShort(short *a,short *b)
+{
+	short c=*a;
+	*a=*b;
+	*b=c;
+}
+
+void EGB_MakeP0SmallerThanP1(struct POINTW *p0,struct POINTW *p1)
+{
+	if(p0->x>p1->x)
+	{
+		SwapShort(&p0->x,&p1->x);
+	}
+	if(p0->y>p1->y)
+	{
+		SwapShort(&p0->y,&p1->y);
+	}
+}
+
+unsigned int EGB_CoordToVRAMOffset(_Far struct EGB_ScreenMode *mode,int x,int y)
+{
+	unsigned int addr=0;
+	if(0!=mode->bytesPerLineShift)
+	{
+		addr=(y<<mode->bytesPerLineShift);
+	}
+	else
+	{
+		addr=(y*mode->bytesPerLine);
+	}
+	addr+=((x<<mode->bitsPerPixel)>>8);
+	return addr;
+}
+
 void EGB_WaitVSYNC(void)
 {
 	while(0!=(_inb(TOWNSIO_HSYNC_VSYNC)&1));
@@ -781,7 +815,38 @@ void EGB_COLORIGRB(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+
+	if(NULL!=pointerSet.page)
+	{
+		unsigned int color=0;
+		switch(pointerSet.mode->bitsPerPixel)
+		{
+		case 1:
+		case 4:
+			color|=((EDX>>28)&8);
+			color|=((EDX>>21)&4);
+			color|=((EDX>>14)&2);
+			color|=((EDX>> 7)&1);
+			break;
+		case 8:
+			color|=((EDX>> 6)&   3);
+			color|=((EDX>>11)&0x1C);
+			color|=((EDX>>16)&0xE0);
+			break;
+		case 16:
+			color|=((EDX>> 3)&  0x1F);
+			color|=((EDX>> 6)& 0x3E0);
+			color|=((EDX>> 9)&0x7C00);
+			color|=((EDX>>16)&0x8000);
+			break;
+		}
+		pointerSet.page->color[EAX&3]=color;
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1218,7 +1283,7 @@ void EGB_PARTCLEARSCREEN(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_GETBLOCKCOLOR(
+void EGB_22H_GETBLOCK1BIT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1236,7 +1301,7 @@ void EGB_GETBLOCKCOLOR(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_PUTBLOCKCOLOR(
+void EGB_23H_PUTBLOCK1BIT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1254,7 +1319,7 @@ void EGB_PUTBLOCKCOLOR(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_GETBLOCK(
+void EGB_24H_GETBLOCK(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1272,7 +1337,145 @@ void EGB_GETBLOCK(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_PUTBLOCK(
+void EGB_25H_PUTBLOCK(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	unsigned char flags=EAX;
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+	struct POINTW p0,p1;
+
+	if(NULL==pointerSet.page)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+	if(flags&2)
+	{
+		// I don't think mask is of very high priority.
+		TSUGARU_BREAK;
+	}
+
+	p0=blkInfo->p0;
+	p1=blkInfo->p1;
+	EGB_MakeP0SmallerThanP1(&p0,&p1);
+
+	if(flags&1) // View-port flag
+	{
+		// Out of the screen?
+		if(p1.x<0 || pointerSet.mode->size.x<=p0.x ||
+		   p1.y<0 || pointerSet.mode->size.y<=p0.y)
+		{
+			EGB_SetError(EAX,EGB_NO_ERROR);
+			return;
+		}
+
+		// If not using viewport, coordinates must fit inside the screen.
+		if(p0.x<0 || pointerSet.mode->size.x<=p1.x ||
+		   p0.y<0 || pointerSet.mode->size.y<=p1.y)
+		{
+			EGB_SetError(EAX,EGB_GENERAL_ERROR);
+			return;
+		}
+	}
+	else
+	{
+		// Out of the viewport?
+		if(p1.x<pointerSet.page->viewport[0].x || pointerSet.page->viewport[1].x<p0.x ||
+		   p1.y<pointerSet.page->viewport[0].y || pointerSet.page->viewport[1].y<p0.y)
+		{
+			EGB_SetError(EAX,EGB_NO_ERROR);
+			return;
+		}
+
+		if(pointerSet.page->viewport[0].x<=p0.x && p1.x<=pointerSet.page->viewport[1].x &&
+		   pointerSet.page->viewport[0].y<=p0.y && p1.y<=pointerSet.page->viewport[1].y)
+		{
+			flags&=0xFE; // Entirely inide the viewport.  Don't have to be worried about the viewport.
+		}
+	}
+
+
+	unsigned int dx=(p1.x-p0.x+1);
+	unsigned int srcBytesPerLine=0,transferBytesPerLine=0;
+	switch(pointerSet.mode->bitsPerPixel)
+	{
+	case 1:
+		srcBytesPerLine=(dx+7)/8;
+		transferBytesPerLine=dx/8;
+		break;
+	case 4:
+		srcBytesPerLine=((dx+7)/8)*4;
+		transferBytesPerLine=dx/2;
+		break;
+	case 8:
+		srcBytesPerLine=dx;
+		transferBytesPerLine=dx;
+		break;
+	case 16:
+		srcBytesPerLine=dx*2;
+		transferBytesPerLine=dx*2;
+		break;
+	}
+
+	if(0==(flags&1))
+	{
+		unsigned int vramOffset=EGB_CoordToVRAMOffset(pointerSet.mode,p0.x,p0.y);
+		if(1==pointerSet.mode->bitsPerPixel)
+		{
+			// I'll come back when someone do it.
+			TSUGARU_BREAK;
+		}
+		else if(4==pointerSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
+		{
+			// Oh damn it.  Why do you do it?
+			TSUGARU_BREAK;
+		}
+		else
+		{
+			_Far unsigned char *src=blkInfo->data;
+			_Far unsigned char *vram=pointerSet.vram+vramOffset;
+			for(int y=p0.y; y<=p1.y; ++y)
+			{
+				// Replace with MEMCPYB_FAR
+				for(int x=0; x<transferBytesPerLine; ++x)
+				{
+					vram[x]=src[x];
+				}
+				src+=srcBytesPerLine;
+				vram+=pointerSet.mode->bytesPerLine;
+			}
+		}
+	}
+	else
+	{
+		// I'll come back when someone do it.
+		TSUGARU_BREAK;
+	}
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
+void EGB_26H_GETBLOCKZOOM(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1290,25 +1493,7 @@ void EGB_PUTBLOCK(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_GETBLOCKZOOM(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
-}
-
-void EGB_PUTBLOCKZOOM(
+void EGB_27H_PUTBLOCKZOOM(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,

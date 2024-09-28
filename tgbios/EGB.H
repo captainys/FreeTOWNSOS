@@ -181,6 +181,12 @@ struct EGB_PaletteSet
 	struct EGB_Palette palettes[1];
 };
 
+struct EGB_BlockInfo
+{
+	_Far unsigned char *data;
+	struct POINTW p0,p1;
+};
+
 _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode);
 _Far unsigned short *EGB_GetCRTCRegs(int modeComb);
 
