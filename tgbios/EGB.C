@@ -79,16 +79,6 @@ static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 	work->perPage[0].ZOOM=regSet[2+CRTC_REG_ZOOM]&0xFF;
 	work->perPage[1].ZOOM=regSet[2+CRTC_REG_ZOOM]>>8;
 
-	work->perPage[0].HDS=regSet[2+CRTC_REG_HDS0];
-	work->perPage[0].HDE=regSet[2+CRTC_REG_HDE0];
-	work->perPage[1].HDS=regSet[2+CRTC_REG_HDS1];
-	work->perPage[1].HDE=regSet[2+CRTC_REG_HDE1];
-
-	work->perPage[0].VDS=regSet[2+CRTC_REG_VDS0];
-	work->perPage[0].VDE=regSet[2+CRTC_REG_VDE0];
-	work->perPage[1].VDS=regSet[2+CRTC_REG_VDS1];
-	work->perPage[1].VDE=regSet[2+CRTC_REG_VDE1];
-
 	_POPFD
 }
 

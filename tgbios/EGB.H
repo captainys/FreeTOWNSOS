@@ -124,7 +124,6 @@ struct EGB_PerPage
 	unsigned char drawingMode;
 
 	unsigned char ZOOM;
-	unsigned short HDS,HDE,VDS,VDE;
 
 	unsigned char penWidth;
 	unsigned char fontStyle;
