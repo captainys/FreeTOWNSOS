@@ -169,12 +169,6 @@ struct EGB_PagePointerSet
 	unsigned int vramSize;
 };
 
-struct EGB_Palette
-{
-	unsigned int colorIndex;
-	unsigned char brg[4];
-};
-
 struct EGB_String
 {
 	short x,y;
@@ -182,9 +176,15 @@ struct EGB_String
 	unsigned char str[1];
 };
 
+struct EGB_Palette
+{
+	unsigned int colorIndex;
+	unsigned char brg[4];
+};
+
 struct EGB_PaletteSet
 {
-	unsigned char numPalettes;
+	unsigned int numPalettes;
 	struct EGB_Palette palettes[1];
 };
 
