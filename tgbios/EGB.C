@@ -20,62 +20,62 @@ void SwapShort(short *a,short *b)
 
 // 1: Line is visible.
 // 0: Line is outside.
-int ClipLine(int *x0,int *y0,int *x1,int *y1,int minx,int miny,int maxx,int maxy)
+int ClipLine(struct POINTW *p0,struct POINTW *p1,struct POINTW min,struct POINTW max)
 {
-	if((*x0<minx && *x1<minx) || (maxx<*x0 && maxx<*x1) ||
-	   (*y0<miny && *y1<miny) || (maxy<*y0 && maxy<*y1))
+	if((p0->x<min.x && p1->x<min.x) || (max.x<p0->x && max.x<p1->x) ||
+	   (p0->y<min.y && p1->y<min.y) || (max.y<p0->y && max.y<p1->y))
 	{
 		return 0;
 	}
 
-	int X0=*x0,Y0=*y0,X1=*x1,Y1=*y1;
+	int X0=p0->x,Y0=p0->y,X1=p1->x,Y1=p1->y;
 
-	if(*x0<minx)
+	if(p0->x<min.x)
 	{
-		*x0=minx;
-		*y0=ClipX(X0,Y0,X1,Y1,minx);
+		p0->x=min.x;
+		p0->y=ClipX(X0,Y0,X1,Y1,min.x);
 	}
-	if(*x1<minx)
+	if(p1->x<min.x)
 	{
-		*x1=minx;
-		*y1=ClipX(X0,Y0,X1,Y1,minx);
+		p1->x=min.x;
+		p1->y=ClipX(X0,Y0,X1,Y1,min.x);
 	}
-	if(maxx<*x0)
+	if(max.x<p0->x)
 	{
-		*x0=maxx;
-		*y0=ClipX(X0,Y0,X1,Y1,maxx);
+		p0->x=max.x;
+		p0->y=ClipX(X0,Y0,X1,Y1,max.x);
 	}
-	if(maxx<*x1)
+	if(max.x<p1->x)
 	{
-		*x1=maxx;
-		*y1=ClipX(X0,Y0,X1,Y1,maxx);
-	}
-
-	if(*y0<miny)
-	{
-		*x0=ClipY(X0,Y0,X1,Y1,miny);
-		*y0=miny;
-	}
-	if(*y1<miny)
-	{
-		*x1=ClipY(X0,Y0,X1,Y1,miny);
-		*y1=miny;
-	}
-	if(maxy<*y0)
-	{
-		*x0=ClipY(X0,Y0,X1,Y1,maxy);
-		*y0=maxy;
-	}
-	if(maxy<*y1)
-	{
-		*x1=ClipY(X0,Y0,X1,Y1,maxy);
-		*y1=maxy;
+		p1->x=max.x;
+		p1->y=ClipX(X0,Y0,X1,Y1,max.x);
 	}
 
-	return (minx<=*x0 && *x0<=maxx &&
-	        minx<=*x1 && *x1<=maxx &&
-	        miny<=*y0 && *y0<=maxy &&
-	        miny<=*y1 && *y1<=maxy);
+	if(p0->y<min.y)
+	{
+		p0->x=ClipY(X0,Y0,X1,Y1,min.y);
+		p0->y=min.y;
+	}
+	if(p1->y<min.y)
+	{
+		p1->x=ClipY(X0,Y0,X1,Y1,min.y);
+		p1->y=min.y;
+	}
+	if(max.y<p0->y)
+	{
+		p0->x=ClipY(X0,Y0,X1,Y1,max.y);
+		p0->y=max.y;
+	}
+	if(max.y<p1->y)
+	{
+		p1->x=ClipY(X0,Y0,X1,Y1,max.y);
+		p1->y=max.y;
+	}
+
+	return (min.x<=p0->x && p0->x<=max.x &&
+	        min.x<=p1->x && p1->x<=max.x &&
+	        min.y<=p0->y && p0->y<=max.y &&
+	        min.y<=p1->y && p1->y<=max.y);
 }
 
 
@@ -1741,7 +1741,7 @@ void EGB_RESOLVE(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_PSET(
+void EGB_40H_PSET(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1759,7 +1759,29 @@ void EGB_PSET(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_CONNECT(
+void EGB_DrawLine(struct EGB_PagePointerSet *pointerSet,struct POINTW p0,struct POINTW p1)
+{
+	int dx=p1.x-p0.x;
+	int dy=p1.y-p0.y;
+
+	unsigned int wid=_abs(dx);
+	unsigned int hei=_abs(dy);
+
+	if(0==wid)
+	{
+	}
+	else if(0==hei)
+	{
+	}
+	else if(hei<wid)
+	{
+	}
+	else // if(wid<hei)
+	{
+	}
+}
+
+void EGB_41H_CONNECT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1773,11 +1795,44 @@ void EGB_CONNECT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	int i;
+	unsigned char flags=EAX;
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+
+	_Far unsigned short *count;
+	_FP_SEG(count)=DS;
+	_FP_OFF(count)=ESI;
+	if(2<=*count)
+	{
+		_Far short *points=(_Far short *)(count+1);
+		for(i=0; i+1<*count; ++i)
+		{
+			struct POINTW p0,p1;
+			int x0,y0,x1,y1;
+			p0.x=points[i*2];
+			p0.y=points[i*2+1];
+			p1.x=points[i*2+2];
+			p1.y=points[i*2+3];
+			if(ClipLine(&p0,&p1,pointerSet.page->viewport[0],pointerSet.page->viewport[1]))
+			{
+				EGB_DrawLine(&pointerSet,p0,p1);
+			}
+		}
+	}
+
 	TSUGARU_BREAK;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_UNCONNECT(
+void EGB_42H_UNCONNECT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,

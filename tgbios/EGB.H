@@ -113,7 +113,7 @@ struct EGB_PerPage
 
 	unsigned short color[4];
 	unsigned short alpha;
-	struct POINTUW viewport[2];
+	struct POINTW viewport[2];
 	unsigned short fontSpacing;
 	unsigned char fontRotation;
 	unsigned char stringRotation;
