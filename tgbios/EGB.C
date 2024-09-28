@@ -294,10 +294,6 @@ void EGB_INIT(
 	{
 		_Far struct EGB_PerPage *p=&(work->perPage[i]);
 		p->screenMode=3;
-		p->color[EGB_FOREGROUND_COLOR]=32767;
-		p->color[EGB_BACKGROUND_COLOR]=0;
-		p->color[EGB_TRANSPARENT_COLOR]=0;
-		p->color[EGB_FILL_COLOR]=0;
 		p->alpha=128;
 		p->viewport[0].x=0;
 		p->viewport[0].y=0;
@@ -309,8 +305,6 @@ void EGB_INIT(
 		p->textX=0;
 		p->textY=16;
 		p->textZoom=EGB_NO_TEXT_ZOOM;
-		p->paintMode=0;
-		p->drawingMode=0;
 		p->penWidth=1;
 		p->fontStyle=0;
 		p->hatchWid=0;
@@ -320,6 +314,13 @@ void EGB_INIT(
 		p->tileHei=0;
 		p->tilePtn=NULL;
 	}
+
+	work->color[EGB_FOREGROUND_COLOR]=32767;
+	work->color[EGB_BACKGROUND_COLOR]=0;
+	work->color[EGB_TRANSPARENT_COLOR]=0;
+	work->color[EGB_FILL_COLOR]=0;
+	work->paintMode=0;
+	work->drawingMode=0;
 
 	work->superImpose=0;
 	work->superImposeArea[0]=0;
@@ -883,11 +884,7 @@ void EGB_COLOR(
 	_Far struct EGB_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
-	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	if(NULL!=pointerSet.page)
-	{
-		pointerSet.page->color[EAX&3]=EDX;
-	}
+	work->color[EAX&3]=EDX;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -935,7 +932,7 @@ void EGB_COLORIGRB(
 			color|=((EDX>>16)&0x8000);
 			break;
 		}
-		pointerSet.page->color[EAX&3]=color;
+		work->color[EAX&3]=color;
 	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -976,11 +973,7 @@ void EGB_WRITEMODE(
 	_Far struct EGB_Work *work;
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
-	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	if(NULL!=pointerSet.page)
-	{
-		pointerSet.page->drawingMode=EAX&0xFF;
-	}
+	work->drawingMode=EAX&0xFF;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1335,18 +1328,18 @@ void EGB_CLEARSCREEN(
 		if(4==pointerSet.mode->bitsPerPixel)
 		{
 			unsigned short wd;
-			wd=pointerSet.page->color[EGB_BACKGROUND_COLOR];
+			wd=work->color[EGB_BACKGROUND_COLOR];
 			wd<<=4;
-			wd|=pointerSet.page->color[EGB_BACKGROUND_COLOR];
+			wd|=work->color[EGB_BACKGROUND_COLOR];
 			wordData=wd|(wd<<8);
 		}
 		else if(8==pointerSet.mode->bitsPerPixel)
 		{
-			wordData=pointerSet.page->color[EGB_BACKGROUND_COLOR]|(((unsigned short)pointerSet.page->color[EGB_BACKGROUND_COLOR])<<8);
+			wordData=work->color[EGB_BACKGROUND_COLOR]|(((unsigned short)work->color[EGB_BACKGROUND_COLOR])<<8);
 		}
 		else
 		{
-			wordData=pointerSet.page->color[EGB_BACKGROUND_COLOR];
+			wordData=work->color[EGB_BACKGROUND_COLOR];
 		}
 
 		MEMSETW_FAR(pointerSet.vram,wordData,pointerSet.vramSize/2);
@@ -2185,6 +2178,7 @@ static unsigned short EGB_JIS2SJIS(unsigned short jis)
 }
 
 void EGB_PUTX16BW_NOCHECK(
+	_Far struct EGB_Work *work,
 	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
 	int sx,int sy,
 	_Far unsigned char *ptnBase,int wid)
@@ -2211,12 +2205,12 @@ void EGB_PUTX16BW_NOCHECK(
 			if(0==(sx&1))
 			{
 				andPtn=0x0F;
-				color=ptrSet->page->color[EGB_FOREGROUND_COLOR]<<4;
+				color=work->color[EGB_FOREGROUND_COLOR]<<4;
 			}
 			else
 			{
 				andPtn=0xF0;
-				color=ptrSet->page->color[EGB_FOREGROUND_COLOR];
+				color=work->color[EGB_FOREGROUND_COLOR];
 			}
 
 			for(y=0; y<16; ++y)
@@ -2227,7 +2221,7 @@ void EGB_PUTX16BW_NOCHECK(
 					// Can I do SHL and use CF in C rather?
 					if(ptn&0x80)
 					{
-						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
+						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
 						//case EGB_PSET:
 							ptrSet->vram[vramAddr]&=andPtn;
@@ -2262,7 +2256,7 @@ void EGB_PUTX16BW_NOCHECK(
 		{
 			unsigned char color;
 
-			color=ptrSet->page->color[EGB_FOREGROUND_COLOR];
+			color=work->color[EGB_FOREGROUND_COLOR];
 
 			for(y=0; y<16; ++y)
 			{
@@ -2272,7 +2266,7 @@ void EGB_PUTX16BW_NOCHECK(
 					// Can I do SHL and use CF in C rather?
 					if(ptn&0x80)
 					{
-						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
+						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
 						//case EGB_PSET:
 							ptrSet->vram[vramAddr]=color;
@@ -2296,7 +2290,7 @@ void EGB_PUTX16BW_NOCHECK(
 		{
 			unsigned short color;
 
-			color=ptrSet->page->color[EGB_FOREGROUND_COLOR];
+			color=work->color[EGB_FOREGROUND_COLOR];
 
 			for(y=0; y<16; ++y)
 			{
@@ -2306,7 +2300,7 @@ void EGB_PUTX16BW_NOCHECK(
 					// Can I do SHL and use CF in C rather?
 					if(ptn&0x80)
 					{
-						//switch(ptrSet->page->drawingMode) // May be it is a common property across pages.
+						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
 						//case EGB_PSET:
 							*(_Far unsigned short *)(ptrSet->vram+vramAddr)=color;
@@ -2488,7 +2482,7 @@ void EGB_SJISSTRING(
 				unsigned int ptnAddr;
 				SJISPointerToROMAddress(strInfo->str+i,ptnAddr);
 
-				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy,fontROM+ptnAddr,16);
+				EGB_PUTX16BW_NOCHECK(work,&ptrSet,sx,sy,fontROM+ptnAddr,16);
 
 				sx+=16;
 				i+=2;
@@ -2497,7 +2491,7 @@ void EGB_SJISSTRING(
 			{
 				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)strInfo->str[i])*16;
 
-				EGB_PUTX16BW_NOCHECK(&ptrSet,sx,sy,fontROM+ptnAddr,8);
+				EGB_PUTX16BW_NOCHECK(work,&ptrSet,sx,sy,fontROM+ptnAddr,8);
 
 				sx+=8;
 				++i;

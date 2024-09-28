@@ -111,7 +111,6 @@ struct EGB_PerPage
 	unsigned char screenMode;
 	unsigned char _padding0;
 
-	unsigned short color[4];
 	unsigned short alpha;
 	struct POINTW viewport[2];
 	unsigned short fontSpacing;
@@ -119,9 +118,6 @@ struct EGB_PerPage
 	unsigned char stringRotation;
 	short textX,textY;
 	unsigned int textZoom;  // ANK-H|ANK-W|KANJI-H|KANJI-W
-
-	unsigned char paintMode;
-	unsigned char drawingMode;
 
 	unsigned char ZOOM;
 
@@ -148,6 +144,15 @@ struct EGB_Work
 
 	unsigned short crtcRegs[NUM_CRTC_REGS];
 	unsigned char sifter[2];
+
+	// Confirmed in Towns OS V2.1 L50
+	// Color is a system-wide setting.  Not per page.
+	unsigned short color[4];
+
+	// Confirmed in Towns OS V2.1 L50
+	// Drawing Mode is a system-wide setting.  Not per page.  Then, probably paint mode, too.
+	unsigned char paintMode;
+	unsigned char drawingMode;
 
 	struct EGB_ScreenMode virtualPage[4];
 	struct EGB_PerPage perVirtualPage[4];
