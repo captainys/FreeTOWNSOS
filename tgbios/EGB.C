@@ -2024,7 +2024,6 @@ void EGB_41H_CONNECT(
 		}
 	}
 
-	TSUGARU_BREAK;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
