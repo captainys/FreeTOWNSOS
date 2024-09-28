@@ -17,7 +17,7 @@
 #define EGB_FUNC_NOT 5
 #define EGB_FUNC_MATTE 6
 #define EGB_FUNC_PASTEL 7
-#define EGB_FUNC_OPAGUE 9
+#define EGB_FUNC_OPAQUE 9
 #define EGB_FUNC_IMPSET 10
 #define EGB_FUNC_IMPRESET 11
 #define EGB_FUNC_IMPNOT 12
@@ -112,6 +112,9 @@ struct EGB_PerPage
 	unsigned char _padding0;
 
 	unsigned short alpha;
+
+	// Confirmed in Towns OS V2.1 L50
+	// Viewport is a per-page setting.  Reset upon EGB_Resolution.
 	struct POINTW viewport[2];
 	unsigned short fontSpacing;
 	unsigned char fontRotation;

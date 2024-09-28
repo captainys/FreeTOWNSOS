@@ -448,6 +448,19 @@ void EGB_RESOLUTION(
 					EGB_SetUpCRTC(work,modeComb);
 					EGB_ResetPalette(work,AL);
 				}
+
+				for(int page=0; page<2; ++page)
+				{
+					_Far struct EGB_ScreenMode *modeProp=EGB_GetScreenModeProp(work->perPage[page].screenMode);
+					if(NULL!=modeProp)
+					{
+						work->perPage[page].viewport[0].x=0;
+						work->perPage[page].viewport[0].y=0;
+						work->perPage[page].viewport[1]=modeProp->size;
+						work->perPage[page].viewport[1].x--;
+						work->perPage[page].viewport[1].y--;
+					}
+				}
 			}
 			else
 			{
@@ -1462,7 +1475,7 @@ void EGB_25H_PUTBLOCK(
 	p1=blkInfo->p1;
 	EGB_MakeP0SmallerThanP1(&p0,&p1);
 
-	if(flags&1) // View-port flag
+	if(!(flags&1)) // View-port flag
 	{
 		// Out of the screen?
 		if(p1.x<0 || pointerSet.mode->size.x<=p0.x ||
@@ -1752,7 +1765,7 @@ void EGB_40H_PSET(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_DrawLine(struct EGB_PagePointerSet *pointerSet,struct POINTW p0,struct POINTW p1)
+void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,struct POINTW p0,struct POINTW p1)
 {
 	int dx=p1.x-p0.x;
 	int dy=p1.y-p0.y;
@@ -1762,15 +1775,205 @@ void EGB_DrawLine(struct EGB_PagePointerSet *pointerSet,struct POINTW p0,struct 
 
 	if(0==wid)
 	{
+		int y;
+		int yMin=_min(p0.y,p1.y);
+		int yMax=_max(p0.y,p1.y);
+		unsigned int vramAddr;
+		unsigned char andPtn,color;
+		if(yMax<ptrSet->page->viewport[0].y || ptrSet->page->viewport[1].y<yMax)
+		{
+			return;
+		}
+
+		yMin=_max(yMin,ptrSet->page->viewport[0].y);
+		yMax=_min(yMax,ptrSet->page->viewport[1].y);
+
+		if(0!=ptrSet->mode->bytesPerLineShift)
+		{
+			vramAddr=(yMin<<ptrSet->mode->bytesPerLineShift);
+			vramAddr+=(p0.x*ptrSet->mode->bitsPerPixel)/8;
+		}
+		else
+		{
+			vramAddr=((yMin*ptrSet->mode->bytesPerLine+p0.x)*ptrSet->mode->bitsPerPixel)>>3;
+		}
+
+		if(4==ptrSet->mode->bitsPerPixel)
+		{
+			if(p0.x&1)
+			{
+				andPtn=0xF0;
+				color=work->color[EGB_FOREGROUND_COLOR];
+			}
+			else
+			{
+				andPtn=0x0F;
+				color=work->color[EGB_FOREGROUND_COLOR]<<4;
+			}
+		}
+
+		switch(ptrSet->mode->bitsPerPixel)
+		{
+		case 4:
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_PSET:
+			case EGB_FUNC_OPAQUE:
+				for(y=yMin; y<=yMax; ++y)
+				{
+					ptrSet->vram[vramAddr]&=andPtn;
+					ptrSet->vram[vramAddr]|=color;
+					vramAddr+=ptrSet->mode->bytesPerLine;
+				}
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+			break;
+		case 8:
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_PSET:
+			case EGB_FUNC_OPAQUE:
+				for(y=yMin; y<=yMax; ++y)
+				{
+					ptrSet->vram[vramAddr]=color;
+					vramAddr+=ptrSet->mode->bytesPerLine;
+				}
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+			break;
+		case 16:
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_PSET:
+			case EGB_FUNC_OPAQUE:
+				for(y=yMin; y<=yMax; ++y)
+				{
+					*(_Far unsigned short*)(ptrSet->vram+vramAddr)=color;
+					vramAddr+=ptrSet->mode->bytesPerLine;
+				}
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+			break;
+		default:
+			TSUGARU_BREAK;
+			break;
+		}
 	}
 	else if(0==hei)
 	{
+		int x;
+		int xMin=_min(p0.x,p1.x);
+		int xMax=_max(p0.x,p1.x);
+		unsigned int vramAddr,color;
+		if(xMax<ptrSet->page->viewport[0].x || ptrSet->page->viewport[1].x<xMax)
+		{
+			return;
+		}
+
+		xMin=_max(xMin,ptrSet->page->viewport[0].x);
+		xMax=_min(xMax,ptrSet->page->viewport[1].x);
+
+		if(0!=ptrSet->mode->bytesPerLineShift)
+		{
+			vramAddr=(p0.y<<ptrSet->mode->bytesPerLineShift);
+			vramAddr+=(xMin*ptrSet->mode->bitsPerPixel)/8;
+		}
+		else
+		{
+			vramAddr=((p0.y*ptrSet->mode->bytesPerLine+xMin)*ptrSet->mode->bitsPerPixel)>>3;
+		}
+
+		if(4==ptrSet->mode->bitsPerPixel)
+		{
+			color=work->color[EGB_FOREGROUND_COLOR]&0x0F;
+			color=(color<<4)|color;
+			color=(color<<8)|color;
+			color=(color<<16)|color;
+		}
+		else if(8==ptrSet->mode->bitsPerPixel)
+		{
+			color=work->color[EGB_FOREGROUND_COLOR]&0x0F;
+			color=(color<<8)|color;
+			color=(color<<16)|color;
+		}
+		else if(16==ptrSet->mode->bitsPerPixel)
+		{
+			color=work->color[EGB_FOREGROUND_COLOR]&0x0F;
+			color=(color<<16)|color;
+		}
+
+		switch(ptrSet->mode->bitsPerPixel)
+		{
+		case 4:
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_PSET:
+			case EGB_FUNC_OPAQUE:
+				if(xMin&1)
+				{
+					ptrSet->vram[vramAddr]&=0xF0;
+					ptrSet->vram[vramAddr]|=(color&0x0F);
+					++vramAddr;
+					++xMin;
+				}
+				{
+					unsigned int count=(xMax+1-xMin)/2;
+					MEMSETB_FAR(ptrSet->vram+vramAddr,color,count);
+					vramAddr+=count;
+				}
+				if(!(xMax&1))
+				{
+					ptrSet->vram[vramAddr]&=0x0F;
+					ptrSet->vram[vramAddr]|=(color&0xF0);
+				}
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+			break;
+		case 8:
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_PSET:
+			case EGB_FUNC_OPAQUE:
+				MEMSETB_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+			break;
+		case 16:
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_PSET:
+			case EGB_FUNC_OPAQUE:
+				MEMSETB_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+			break;
+		}
 	}
 	else if(hei<wid)
 	{
+		TSUGARU_BREAK;
 	}
 	else // if(wid<hei)
 	{
+		TSUGARU_BREAK;
 	}
 }
 
@@ -1816,7 +2019,7 @@ void EGB_41H_CONNECT(
 			p1.y=points[i*2+3];
 			if(ClipLine(&p0,&p1,pointerSet.page->viewport[0],pointerSet.page->viewport[1]))
 			{
-				EGB_DrawLine(&pointerSet,p0,p1);
+				EGB_DrawLine(work,&pointerSet,p0,p1);
 			}
 		}
 	}
@@ -2193,7 +2396,7 @@ void EGB_PUTX16BW_NOCHECK(
 	}
 	else
 	{
-		vramAddr=((sy-15)*ptrSet->mode->bytesPerLine+sx)>>1;
+		vramAddr=(((sy-15)*ptrSet->mode->bytesPerLine+sx)*ptrSet->mode->bitsPerPixel)>>3;
 	}
 
 	switch(ptrSet->mode->bitsPerPixel)
