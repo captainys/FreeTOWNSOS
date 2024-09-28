@@ -1456,11 +1456,7 @@ void EGB_25H_PUTBLOCK(
 			_Far unsigned char *vram=pointerSet.vram+vramOffset;
 			for(int y=p0.y; y<=p1.y; ++y)
 			{
-				// Replace with MEMCPYB_FAR
-				for(int x=0; x<transferBytesPerLine; ++x)
-				{
-					vram[x]=src[x];
-				}
+				MEMCPY_FAR(vram,src,transferBytesPerLine);
 				src+=srcBytesPerLine;
 				vram+=pointerSet.mode->bytesPerLine;
 			}

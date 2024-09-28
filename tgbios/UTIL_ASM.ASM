@@ -40,6 +40,9 @@ TOWNS_VMIF_TFR_NOERROR       	EQU		00H
 TOWNS_VMIF_TFR_WRITE_ERROR   	EQU		80H
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 MEMSETB_FAR				PROC
 ; MEMSETB_FAR(_Far void *ptr,unsigned int value,unsigned int count);
 ; [EBP+20] count
@@ -87,6 +90,59 @@ MEMSETB_FAR				PROC
 MEMSETB_FAR				ENDP
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+MEMCPY_FAR				PROC
+; MEMSETB_FAR(_Far void *dst,_Far void *src,unsigned int bytes);
+; [ESP+40] Count
+; [ESP+36] src SELECTOR
+; [ESP+32] src OFFSET
+; [ESP+28] dst SELECTOR
+; [ESP+24] dst OFFSET
+; [ESP+20] EIP
+; [ESP+16] DS
+; [ESP+12] ES
+; [ESP+8]  EDI
+; [ESP+4]  ESI
+; [ESP]    ECS
+						PUSH	DS
+						PUSH	ES
+						PUSH	EDI
+						PUSH	ESI
+						PUSH	ECX
+
+						LES		EDI,[ESP+24]
+						LDS		ESI,[ESP+32]
+						MOV		ECX,[ESP+40]
+						CLD
+
+						SHR		ECX,2
+						REP MOVSD
+
+						MOV		ECX,[EBP+20]
+						SHR		ECX,1
+						AND		ECX,1
+						REP MOVSW
+
+						MOV		ECX,[EBP+20]
+						SHR		ECX,2
+						AND		ECX,1
+						REP MOVSB
+
+						POP		ECX
+						POP		ESI
+						POP		EDI
+						POP		ES
+						POP		DS
+						RET
+
+MEMCPY_FAR				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 MEMSETW_FAR				PROC
 ; MEMSETW_FAR(_Far void *ptr,unsigned int value,unsigned int count);
 ; [EBP+20] count
@@ -125,44 +181,7 @@ MEMSETW_FAR				PROC
 MEMSETW_FAR				ENDP
 
 
-
-MEMCPY_FAR				PROC
-;void MEMCPY_FAR(_Far void *dst,const _Far void *src,unsigned int bytes);
-
-						PUSH	ES   ; +16
-						PUSH	DS   ; +12
-						PUSH	EDI  ; +8
-						PUSH	ESI  ; +4
-						PUSH	ECX  ; +0
-
-						MOV		EDI,[ESP+24]
-						MOV		ES,[ESP+28]
-						MOV		ESI,[ESP+32]
-						MOV		DS,[ESP+36]
-						CLD
-
-						MOV		ECX,[ESP+40]
-						SHR		ECX,2
-						REP		MOVSD
-
-						MOV		ECX,[ESP+40]
-						SHR		ECX,1
-						AND		ECX,1
-						REP		MOVSW
-
-						MOV		ECX,[ESP+40]
-						AND		ECX,1
-						REP		MOVSB
-
-						POP		ECX
-						POP		ESI
-						POP		EDI
-						POP		DS
-						POP		ES
-						RET
-
-MEMCPY_FAR				ENDP
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 MOVSB_FAR				PROC
@@ -190,6 +209,7 @@ MOVSB_FAR				PROC
 MOVSB_FAR				ENDP
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 SET_SECOND_BYTE			PROC
@@ -203,6 +223,10 @@ SET_SECOND_BYTE			PROC
 
 SET_SECOND_BYTE			ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 SET_LOW_BYTE			PROC
 
 						PUSH	EBP
@@ -213,6 +237,10 @@ SET_LOW_BYTE			PROC
 						RET
 
 SET_LOW_BYTE			ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 SET_LOW_WORD			PROC
 
@@ -225,6 +253,10 @@ SET_LOW_WORD			PROC
 
 SET_LOW_WORD			ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 SET_DWORD				PROC
 
 						PUSH	EBP
@@ -235,6 +267,9 @@ SET_DWORD				PROC
 						RET
 
 SET_DWORD				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 __SET_RPVECTP			PROC
@@ -258,6 +293,10 @@ __SET_RPVECTP			PROC
 						RET
 __SET_RPVECTP			ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 __GET_RVECT				PROC
 ; unsigned long __GET_RVECT(int INTNum)
 						PUSH	ECX
@@ -272,6 +311,10 @@ __GET_RVECT				PROC
 						POP		ECX
 						RET
 __GET_RVECT				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 __GET_PVECT				PROC
 ; _Far void *__GET_PVECT(int INTNum)
@@ -295,6 +338,10 @@ __GET_PVECT				PROC
 						RET
 __GET_PVECT				ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 __SET_RVECT				PROC
 ; void __SET_RVECT(int INTNum,unsigned long Handler)
 						PUSH	ECX
@@ -309,6 +356,10 @@ __SET_RVECT				PROC
 						POP		ECX
 						RET
 __SET_RVECT				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 __SET_PVECT				PROC
 ; void __SET_PVECT(int INTNum,_Far void *func)
@@ -328,6 +379,10 @@ __SET_PVECT				PROC
 
 						RET
 __SET_PVECT				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 CODE					ENDS
 						END
