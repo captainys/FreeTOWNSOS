@@ -13,6 +13,73 @@ void SwapShort(short *a,short *b)
 	*b=c;
 }
 
+// Y-y0=(X-x0)*(y1-y0)/(x1-x0)
+#define ClipX(x0,y0,x1,y1,X) (IMULDIV((X)-(x0),(y1)-(y0),(x1)-(x0))+(y0))
+// (X-x0)=(Y-y0)*(x1-x0)/(y1-y0)
+#define ClipY(x0,y0,x1,y1,Y) (IMULDIV((Y)-(y0),(x1)-(x0),(y1)-(y0))+(x0))
+
+// 1: Line is visible.
+// 0: Line is outside.
+int ClipLine(int *x0,int *y0,int *x1,int *y1,int minx,int miny,int maxx,int maxy)
+{
+	if((*x0<minx && *x1<minx) || (maxx<*x0 && maxx<*x1) ||
+	   (*y0<miny && *y1<miny) || (maxy<*y0 && maxy<*y1))
+	{
+		return 0;
+	}
+
+	int X0=*x0,Y0=*y0,X1=*x1,Y1=*y1;
+
+	if(*x0<minx)
+	{
+		*x0=minx;
+		*y0=ClipX(X0,Y0,X1,Y1,minx);
+	}
+	if(*x1<minx)
+	{
+		*x1=minx;
+		*y1=ClipX(X0,Y0,X1,Y1,minx);
+	}
+	if(maxx<*x0)
+	{
+		*x0=maxx;
+		*y0=ClipX(X0,Y0,X1,Y1,maxx);
+	}
+	if(maxx<*x1)
+	{
+		*x1=maxx;
+		*y1=ClipX(X0,Y0,X1,Y1,maxx);
+	}
+
+	if(*y0<miny)
+	{
+		*x0=ClipY(X0,Y0,X1,Y1,miny);
+		*y0=miny;
+	}
+	if(*y1<miny)
+	{
+		*x1=ClipY(X0,Y0,X1,Y1,miny);
+		*y1=miny;
+	}
+	if(maxy<*y0)
+	{
+		*x0=ClipY(X0,Y0,X1,Y1,maxy);
+		*y0=maxy;
+	}
+	if(maxy<*y1)
+	{
+		*x1=ClipY(X0,Y0,X1,Y1,maxy);
+		*y1=maxy;
+	}
+
+	return (minx<=*x0 && *x0<=maxx &&
+	        minx<=*x1 && *x1<=maxx &&
+	        miny<=*y0 && *y0<=maxy &&
+	        miny<=*y1 && *y1<=maxy);
+}
+
+
+
 void EGB_MakeP0SmallerThanP1(struct POINTW *p0,struct POINTW *p1)
 {
 	if(p0->x>p1->x)

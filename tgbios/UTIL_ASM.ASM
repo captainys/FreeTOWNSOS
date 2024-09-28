@@ -18,6 +18,9 @@
 						PUBLIC	__SET_RVECT
 						PUBLIC	__SET_PVECT
 
+						PUBLIC	MULDIV
+						PUBLIC	IMULDIV
+
 
 CODE					SEGMENT
 
@@ -379,6 +382,50 @@ __SET_PVECT				PROC
 
 						RET
 __SET_PVECT				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+IMULDIV					PROC
+; int x=IMULDIV(a,b,c); 
+; [ESP+16] C
+; [ESP+12] B
+; [ESP+8]  A
+; [ESP+4]  EIP
+; [ESP]    EDX
+						PUSH	EDX
+
+						MOV		EAX,[ESP+8]
+						IMUL	DWORD PTR [ESP+12]
+						IDIV	DWORD PTR [ESP+16]
+
+						POP		EDX
+						RET
+
+IMULDIV					ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+MULDIV					PROC
+; unsigd int x=MULDIV(a,b,c); 
+; [ESP+16] C
+; [ESP+12] B
+; [ESP+8]  A
+; [ESP+4]  EIP
+; [ESP]    EDX
+						PUSH	EDX
+
+						MOV		EAX,[ESP+8]
+						IMUL	DWORD PTR [ESP+12]
+						IDIV	DWORD PTR [ESP+16]
+
+						POP		EDX
+						RET
+
+MULDIV					ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

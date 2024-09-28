@@ -14,4 +14,7 @@ void SET_LOW_BYTE(void *ptr,unsigned int data);
 void SET_LOW_WORD(void *ptr,unsigned int data);
 void SET_DWORD(void *ptr,unsigned int data);
 
+unsigned int MULDIV(unsigned int a,unsigned int b,unsigned int c);
+int IMULDIV(int a,int b,int c);
+
 #endif
