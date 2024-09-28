@@ -713,11 +713,11 @@ void SND_20H_PCM_WAVE_TRANSFER(
 
 	unsigned char data;
 
-	if(ECX<0x10000||EBX<0x10000)
+	if(ECX<=0x10000||EBX<=0x10000)
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)<0x10000)
+	else if((ECX+EBX)<=0x10000)
 	{
 		while(EBX<0x10000)
 		{
@@ -1082,16 +1082,15 @@ void SND_2CH_PCM_TRANSFER2(
 
 	unsigned char data;
 
-	if(ECX<0x10000||EBX<0x10000)
+	if(ECX<=0x10000||EBX<=0x10000)
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)<0x10000)
+	else if((ECX+EBX)<=0x10000)
 	{
 		while(EBX<0x10000)
 		{
 			data=*mainram;
-			if(data==0xff) data=0xfe;
 			SND_WriteToWaveRAM((EBX&0xffff),data);
 			EBX++;
 			mainram++;
@@ -1104,7 +1103,6 @@ void SND_2CH_PCM_TRANSFER2(
 		for(int i=0;i<ECX;i++)
 		{
 			data=*mainram;
-			if(data==0xff) data=0xfe;
 			SND_WriteToWaveRAM((EBX&0xffff),data);
 			EBX++;
 			mainram++;
