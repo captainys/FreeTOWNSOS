@@ -713,16 +713,36 @@ void SND_20H_PCM_WAVE_TRANSFER(
 
 	unsigned char data;
 
-	for(int i=0;i<ECX;i++)
+	if(ECX<0x10000||EBX<0x10000)
 	{
-		data=*mainram;
-		if(data==0xff) data=0xfe;
-		SND_WriteToWaveRAM((EBX&0xffff),data);
-		EBX++;
-		mainram++;
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
+	else if((ECX+EBX)<0x10000)
+	{
+		while(EBX<0x10000)
+		{
+			data=*mainram;
+			if(data==0xff) data=0xfe;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
 
-	SND_SetError(EAX,SND_NO_ERROR);
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+	}
+	else
+	{
+		for(int i=0;i<ECX;i++)
+		{
+			data=*mainram;
+			if(data==0xff) data=0xfe;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
 }
 
 void SND_21H_PCM_MODE_SET(
@@ -1062,15 +1082,36 @@ void SND_2CH_PCM_TRANSFER2(
 
 	unsigned char data;
 
-	for(int i=0;i<ECX;i++)
+	if(ECX<0x10000||EBX<0x10000)
 	{
-		data=*mainram;
-		SND_WriteToWaveRAM((EBX&0xffff),data);
-		EBX++;
-		mainram++;
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
+	else if((ECX+EBX)<0x10000)
+	{
+		while(EBX<0x10000)
+		{
+			data=*mainram;
+			if(data==0xff) data=0xfe;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
 
-	SND_SetError(EAX,SND_NO_ERROR);
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+	}
+	else
+	{
+		for(int i=0;i<ECX;i++)
+		{
+			data=*mainram;
+			if(data==0xff) data=0xfe;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
 }
 
 void SND_25H_2EH_PCM_VOICE_PLAY(
