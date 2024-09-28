@@ -707,12 +707,42 @@ void SND_20H_PCM_WAVE_TRANSFER(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far unsigned char *mainram;
+	_FP_SEG(mainram)=DS;
+	_FP_OFF(mainram)=ESI;
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	unsigned char data;
+
+	if(ECX<=0x10000||EBX<=0x10000)
+	{
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
+	}
+	else if((ECX+EBX)<=0x10000)
+	{
+		while(EBX<0x10000)
+		{
+			data=*mainram;
+			if(data==0xff) data=0xfe;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+	}
+	else
+	{
+		for(int i=0;i<ECX;i++)
+		{
+			data=*mainram;
+			if(data==0xff) data=0xfe;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
 }
 
 void SND_21H_PCM_MODE_SET(
@@ -1046,12 +1076,40 @@ void SND_2CH_PCM_TRANSFER2(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far unsigned char *mainram;
+	_FP_SEG(mainram)=DS;
+	_FP_OFF(mainram)=ESI;
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	unsigned char data;
+
+	if(ECX<=0x10000||EBX<=0x10000)
+	{
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
+	}
+	else if((ECX+EBX)<=0x10000)
+	{
+		while(EBX<0x10000)
+		{
+			data=*mainram;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+	}
+	else
+	{
+		for(int i=0;i<ECX;i++)
+		{
+			data=*mainram;
+			SND_WriteToWaveRAM((EBX&0xffff),data);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
 }
 
 void SND_25H_2EH_PCM_VOICE_PLAY(
@@ -1221,12 +1279,23 @@ void SND_JOY_IN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned char pad;
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,PAD_OUT_CONST);
+	if(0==((EDX>>8)&1))
+	{
+		pad=_inb(TOWNSIO_GAMEPORT_A_INPUT);
+	}
+	else
+	{
+		pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
+	}
+
+	pad|=0xC0;
+
+	SET_LOW_BYTE(&EDX,pad);
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_JOY_IN_2(
@@ -1309,12 +1378,48 @@ void SND_43H_ELEVOL_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned int vol;
+	_Far struct SND_Status *sysInfo=SND_GetStatus();
+
+	switch(EBX&0xFF)
+	{
+	case 0: // LINE IN
+		// Left volume
+		vol=((EDX>>8)&0x7f);
+		_outb(TOWNSIO_ELEVOL_1_COM,(((~vol)>>2)&0x10)|5);
+		_outb(TOWNSIO_ELEVOL_1_DATA,vol&0x3f);
+		// Right volume
+		vol=(EDX&0x7f);
+		_outb(TOWNSIO_ELEVOL_1_COM,(((~vol)>>2)&0x10)|4);
+		_outb(TOWNSIO_ELEVOL_1_DATA,vol&0x3f);
+		sysInfo->elevol_mute|=0xc;
+		break;
+	case 1: // CD IN
+		// Left volume
+		vol=((EDX>>8)&0x7f);
+		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|5);
+		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		// Right volume
+		vol=(EDX&0x7f);
+		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|4);
+		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		sysInfo->elevol_mute|=0x30;
+		break;
+	case 2: // MIC IN
+		vol=((EDX>>8)&0x7f);
+		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|6);
+		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		sysInfo->elevol_mute|=0x40;
+		break;
+	case 3: // MODEM IN
+		vol=((EDX>>8)&0x7f);
+		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|7);
+		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		sysInfo->elevol_mute|=0x80;
+		break;
+	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_44H_ELEVOL_INIT(
@@ -1331,12 +1436,33 @@ void SND_44H_ELEVOL_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *sysInfo=SND_GetStatus();
+
+	// FM & PCM mute
+	_outb(TOWNSIO_SOUND_MUTE,0);
+
+	// Line left mute & min volume
+	_outb(TOWNSIO_ELEVOL_1_COM,0x11);
+	_outb(TOWNSIO_ELEVOL_1_DATA,0);
+	// Line right mute & min volume
+	_outb(TOWNSIO_ELEVOL_1_COM,0x10);
+	_outb(TOWNSIO_ELEVOL_1_DATA,0);
+	// CD left mute & min volume
+	_outb(TOWNSIO_ELEVOL_2_COM,0x11);
+	_outb(TOWNSIO_ELEVOL_2_COM,0);
+	// CD right mute & min volume
+	_outb(TOWNSIO_ELEVOL_2_COM,0x10);
+	_outb(TOWNSIO_ELEVOL_2_COM,0);
+	// Mic mute & min volume
+	_outb(TOWNSIO_ELEVOL_2_COM,0x12);
+	_outb(TOWNSIO_ELEVOL_2_COM,0);
+	// Modem mute & min volume
+	_outb(TOWNSIO_ELEVOL_2_COM,0x13);
+	_outb(TOWNSIO_ELEVOL_2_COM,0);
+
+	sysInfo->elevol_mute=0;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_45H_ELEVOL_READ(
