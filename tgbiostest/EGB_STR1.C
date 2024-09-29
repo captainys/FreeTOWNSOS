@@ -92,7 +92,7 @@ void WaitForPad(void)
 	}
 }
 
-int Pad(int *x,int *y,unsigned int *zoomx,unsigned int *zoomy,int status)
+int Pad(int *x,int *y,unsigned int *zoomx,unsigned int *zoomy,unsigned int *style,int status)
 {
 	if(0==(status&1))
 	{
@@ -122,12 +122,26 @@ int Pad(int *x,int *y,unsigned int *zoomx,unsigned int *zoomy,int status)
 	}
 	if(0==(status&4))
 	{
-		(*x)--;
+		if(0==(status&0x10))
+		{
+			(*style)--;
+		}
+		else
+		{
+			(*x)--;
+		}
 		return 1;
 	}
 	if(0==(status&8))
 	{
-		(*x)++;
+		if(0==(status&0x10))
+		{
+			(*style)++;
+		}
+		else
+		{
+			(*x)++;
+		}
 		return 1;
 	}
 	return 0;
@@ -149,14 +163,15 @@ int main(void)
 
 	EGB_writeMode(EGB_work,EGB_PSET);
 
-	unsigned int zoomx=16,zoomy=16;
+	unsigned int zoomx=16,zoomy=16,style=0;;
 
 	int x=0,y=16,redraw=1,status;
 	for(;;)
 	{
 		if(redraw)
 		{
-			EGB_textZoom(EGB_work,0,zoomx,zoomy);
+			EGB_fontStyle(EGB_work,style);
+			EGB_textZoom(EGB_work,0,zoomx/2,zoomy);
 			EGB_textZoom(EGB_work,1,zoomx,zoomy);
 
 			EGB_writePage(EGB_work,0);
@@ -176,7 +191,7 @@ int main(void)
 
 		int status=0xFF;
 		SND_joy_in_2(0,&status);
-		redraw=Pad(&x,&y,&zoomx,&zoomy,status);
+		redraw=Pad(&x,&y,&zoomx,&zoomy,&style,status);
 		if(0xC0!=(status&0xC0))
 		{
 			break;
@@ -201,7 +216,8 @@ int main(void)
 	{
 		if(redraw)
 		{
-			EGB_textZoom(EGB_work,0,zoomx,zoomy);
+			EGB_fontStyle(EGB_work,style);
+			EGB_textZoom(EGB_work,0,zoomx/2,zoomy);
 			EGB_textZoom(EGB_work,1,zoomx,zoomy);
 
 			EGB_clearScreen(EGB_work);
@@ -213,7 +229,7 @@ int main(void)
 
 		int status=0xFF;
 		SND_joy_in_2(0,&status);
-		redraw=Pad(&x,&y,&zoomx,&zoomy,status);
+		redraw=Pad(&x,&y,&zoomx,&zoomy,&style,status);
 		if(0xC0!=(status&0xC0))
 		{
 			break;

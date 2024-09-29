@@ -433,7 +433,7 @@ void EGB_PUTX16BW(
 				for(X=xStart; X<=xEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
-					if((ptn&0x80) || ((prevPtn&80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					if((ptn&0x80) || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -512,7 +512,7 @@ void EGB_PUTX16BW(
 				for(X=xStart; X<=xEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80 || ((prevPtn&80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					if(ptn&0x80 || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -578,7 +578,7 @@ void EGB_PUTX16BW(
 				for(X=xStart; X<=xEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80 || ((prevPtn&80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					if(ptn&0x80 || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
