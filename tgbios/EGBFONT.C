@@ -430,7 +430,35 @@ void EGB_PUTX16BW(
 				}
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
-				for(X=xStart; X<=xEnd; ++X)
+
+				int realXStart=xStart,realXEnd=xEnd;
+				if(work->fontStyle&EGB_FONTSTYLE_ITALIC)
+				{
+					int offset=4*fontSize.x/srcw;
+					offset*=(y1-Y);
+					offset/=fontSize.y;
+
+					realXStart+=offset;
+					realXEnd+=offset;
+					realXEnd=_min(realXEnd,ptrSet->page->viewport[1].x);
+					while(0<offset)
+					{
+						// Žè”²‚«B
+						if(0x0F==andPtn)
+						{
+							andPtn=0xF0;
+							color>>=4;
+							++vramAddr;
+						}
+						else
+						{
+							andPtn=0x0F;
+							color<<=4;
+						}
+						--offset;
+					}
+				}
+				for(X=realXStart; X<=realXEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
 					if((ptn&0x80) || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
@@ -509,7 +537,20 @@ void EGB_PUTX16BW(
 				ptn<<=srcXCtr;
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
-				for(X=xStart; X<=xEnd; ++X)
+
+				int realXStart=xStart,realXEnd=xEnd;
+				if(work->fontStyle&EGB_FONTSTYLE_ITALIC)
+				{
+					int offset=4*fontSize.x/srcw;
+					offset*=(y1-Y);
+					offset/=fontSize.y;
+
+					realXStart+=offset;
+					realXEnd+=offset;
+					realXEnd=_min(realXEnd,ptrSet->page->viewport[1].x);
+					vramAddr+=offset;
+				}
+				for(X=realXStart; X<=realXEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
 					if(ptn&0x80 || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
@@ -575,7 +616,20 @@ void EGB_PUTX16BW(
 				ptn<<=srcXCtr;
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
-				for(X=xStart; X<=xEnd; ++X)
+
+				int realXStart=xStart,realXEnd=xEnd;
+				if(work->fontStyle&EGB_FONTSTYLE_ITALIC)
+				{
+					int offset=4*fontSize.x/srcw;
+					offset*=(y1-Y);
+					offset/=fontSize.y;
+
+					realXStart+=offset;
+					realXEnd+=offset;
+					realXEnd=_min(realXEnd,ptrSet->page->viewport[1].x);
+					vramAddr+=offset*2;
+				}
+				for(X=realXStart; X<=realXEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
 					if(ptn&0x80 || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
