@@ -325,7 +325,7 @@ void EGB_PUTX16BW(
 	_Far struct EGB_Work *work,
 	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
 	int x0,int y1,struct POINTUW fontSize,
-	_Far unsigned char *ptnBase,int srcw)
+	_Far unsigned char *ptnBase,int srcw,unsigned short lineAtY)
 {
 	const int srch=16;
 	unsigned int vramAddr;
@@ -416,6 +416,12 @@ void EGB_PUTX16BW(
 				}
 
 				ptn<<=srcXCtr;
+
+				if(lineAtY&(1<<srcY))
+				{
+					ptn=0xFF;
+					nextPtn=0xFF;
+				}
 
 				// Need to reset andPtn and color for each line.  Maybe only odd number of pixels per row is visible.
 				if(xStart&1)
@@ -536,6 +542,13 @@ void EGB_PUTX16BW(
 
 				ptn<<=srcXCtr;
 
+				if(lineAtY&(1<<srcY))
+				{
+					ptn=0xFF;
+					nextPtn=0xFF;
+				}
+
+
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 
 				int realXStart=xStart,realXEnd=xEnd;
@@ -614,6 +627,13 @@ void EGB_PUTX16BW(
 				}
 
 				ptn<<=srcXCtr;
+
+
+				if(lineAtY&(1<<srcY))
+				{
+					ptn=0xFF;
+					nextPtn=0xFF;
+				}
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 
@@ -824,9 +844,23 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 		int sy=yy;
 		int i=0;
 		_Far unsigned char *fontROM;
+		unsigned short lineAtY=0;
 
 		_FP_SEG(fontROM)=SEG_KANJI_FONT_ROM;
 		_FP_OFF(fontROM)=0;
+
+		if(work->fontStyle&EGB_FONTSTYLE_UNDERLINE)
+		{
+			lineAtY=0x8000;
+		}
+		if(work->fontStyle&EGB_FONTSTYLE_OVERLINE)
+		{
+			lineAtY=0x0001;
+		}
+		if(work->fontStyle&EGB_FONTSTYLE_MIDDLELINE)
+		{
+			lineAtY=0x0100;
+		}
 
 		while(i<len)
 		{
@@ -835,7 +869,7 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 				unsigned int ptnAddr;
 				SJISPointerToROMAddress(str+i,ptnAddr);
 
-				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->kanjiZoom,fontROM+ptnAddr,16);
+				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->kanjiZoom,fontROM+ptnAddr,16,lineAtY);
 
 				sx+=work->kanjiZoom.x;
 				i+=2;
@@ -844,7 +878,7 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 			{
 				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)str[i])*16;
 
-				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8);
+				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8,lineAtY);
 
 				sx+=work->ankZoom.x;
 				++i;
