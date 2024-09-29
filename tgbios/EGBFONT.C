@@ -74,7 +74,19 @@ void EGB_TEXTZOOM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+	if(0==(EAX&0xFF))
+	{
+		work->ankZoom.x=(unsigned short)EDX;
+		work->ankZoom.y=(unsigned short)EBX;
+	}
+	else
+	{
+		work->kanjiZoom.x=(unsigned short)EDX;
+		work->kanjiZoom.y=(unsigned short)EBX;
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -771,7 +783,7 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 
 				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->kanjiZoom,fontROM+ptnAddr,16);
 
-				sx+=16;
+				sx+=work->kanjiZoom.x;
 				i+=2;
 			}
 			else
@@ -780,7 +792,7 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 
 				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8);
 
-				sx+=8;
+				sx+=work->ankZoom.x;
 				++i;
 			}
 			sx+=work->fontSpacing;
