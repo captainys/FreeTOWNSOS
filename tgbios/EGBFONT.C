@@ -213,11 +213,16 @@ void EGB_PUTX16BW_NOCHECK(
 
 			for(y=0; y<16; ++y)
 			{
-				unsigned char ptn=*ptnBase;
+				unsigned short ptn=*(ptnBase++);
+				ptn<<=8;
+				if(8<wid)
+				{
+					ptn|=*(ptnBase++);
+				}
 				for(x=0; x<wid; ++x)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80)
+					if(ptn&0x8000)
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -240,11 +245,6 @@ void EGB_PUTX16BW_NOCHECK(
 						andPtn=0x0F;
 						color<<=4;
 					}
-					if(7==(x&7))
-					{
-						++ptnBase;
-						ptn=*ptnBase;
-					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid/2);
 			}
@@ -258,11 +258,16 @@ void EGB_PUTX16BW_NOCHECK(
 
 			for(y=0; y<16; ++y)
 			{
-				unsigned char ptn=*ptnBase;
+				unsigned short ptn=*(ptnBase++);
+				ptn<<=8;
+				if(8<wid)
+				{
+					ptn|=*(ptnBase++);
+				}
 				for(x=0; x<wid; ++x)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80)
+					if(ptn&0x8000)
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -274,11 +279,6 @@ void EGB_PUTX16BW_NOCHECK(
 					}
 					ptn<<=1;
 					++vramAddr;
-					if(7==(x&7))
-					{
-						++ptnBase;
-						ptn=*ptnBase;
-					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid);
 			}
@@ -292,11 +292,16 @@ void EGB_PUTX16BW_NOCHECK(
 
 			for(y=0; y<16; ++y)
 			{
-				unsigned short ptn=*ptnBase;
+				unsigned short ptn=*(ptnBase++);
+				ptn<<=8;
+				if(8<wid)
+				{
+					ptn|=*(ptnBase++);
+				}
 				for(x=0; x<wid; ++x)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80)
+					if(ptn&0x8000)
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -308,11 +313,6 @@ void EGB_PUTX16BW_NOCHECK(
 					}
 					ptn<<=1;
 					vramAddr+=2;
-					if(7==(x&7))
-					{
-						++ptnBase;
-						ptn=*ptnBase;
-					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid*2);
 			}
