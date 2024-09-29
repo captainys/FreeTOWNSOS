@@ -303,7 +303,10 @@ void EGB_INIT(
 	work->fontSpacing=0;
 	work->fontRotation=0;
 	work->stringRotation=0;
-	work->textZoom=EGB_NO_TEXT_ZOOM;
+	work->kanjiZoom.x=16;
+	work->kanjiZoom.y=16;
+	work->ankZoom.x=8;
+	work->ankZoom.y=16;
 
 	work->superImpose=0;
 	work->superImposeArea[0]=0;
@@ -442,15 +445,15 @@ void EGB_RESOLUTION(
 						work->perPage[page].viewport[1]=mode->size;
 						work->perPage[page].viewport[1].x--;
 						work->perPage[page].viewport[1].y--;
-					}
 
-					unsigned fgColor=(1<<mode->bitsPerPixel)-1,trspColor;
-					trspColor=fgColor&0x8000;
-					fgColor&=0x7FFF;
-					work->color[EGB_FOREGROUND_COLOR]=fgColor;
-					work->color[EGB_BACKGROUND_COLOR]=0;
-					work->color[EGB_FILL_COLOR]=0;
-					work->color[EGB_TRANSPARENT_COLOR]=trspColor;
+						unsigned fgColor=(1<<mode->bitsPerPixel)-1,trspColor;
+						trspColor=fgColor&0x8000;
+						fgColor&=0x7FFF;
+						work->color[EGB_FOREGROUND_COLOR]=fgColor;
+						work->color[EGB_BACKGROUND_COLOR]=0;
+						work->color[EGB_FILL_COLOR]=0;
+						work->color[EGB_TRANSPARENT_COLOR]=trspColor;
+					}
 				}
 			}
 			else

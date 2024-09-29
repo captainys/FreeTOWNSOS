@@ -309,6 +309,293 @@ void EGB_PUTX16BW_NOCHECK(
 	}
 }
 
+void EGB_PUTX16BW(
+	_Far struct EGB_Work *work,
+	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
+	int x0,int y1,struct POINTUW fontSize,
+	_Far unsigned char *ptnBase,int srcw)
+{
+	const int srch=16;
+	unsigned int vramAddr;
+	int x1,y0;
+	int X,srcX,Y,srcY;
+	int balanceX0=fontSize.x,balanceY=fontSize.y;
+	int xStart,yStart,srcXStart,srcYStart;
+	int xEnd,yEnd;
+	unsigned int fontStyle=work->fontStyle;
+	unsigned short srcBytesPerLine=(srcw/8);
+
+	int dx=fontSize.x,dy=fontSize.y;
+
+	if(0==fontSize.x || 0==fontSize.y) // Not visible.
+	{
+		return;
+	}
+	x1=x0+fontSize.x-1;
+	y0=y1-fontSize.y+1;
+	if(y1<ptrSet->page->viewport[0].y || // Completely above the viewport
+	   ptrSet->page->viewport[1].y<y0 || // Completely below the viewport
+	   x1<ptrSet->page->viewport[0].x || // Completely left of the viewport
+	   ptrSet->page->viewport[1].x<x0) // Completely right of vhew viewport
+	{
+		return;
+	}
+
+	xStart=x0;
+	yStart=y0;
+	srcXStart=0;
+	srcYStart=0;
+
+	xEnd=_min(x1,ptrSet->page->viewport[1].x);
+	yEnd=_min(y1,ptrSet->page->viewport[1].y);
+
+	if(x0<ptrSet->page->viewport[0].x)
+	{
+		unsigned left=ptrSet->page->viewport[0].x-x0;
+		xStart=ptrSet->page->viewport[0].x;
+		srcXStart=srcw*left/dx;
+		balanceX0=-srcw*(ptrSet->page->viewport[0].x-x0)+dx*(srcXStart+1);
+	}
+	if(y0<ptrSet->page->viewport[0].y)
+	{
+		unsigned up=ptrSet->page->viewport[0].y-y0;
+		yStart=ptrSet->page->viewport[0].x;
+		srcYStart=up*srch/dy;
+		balanceY=-srch*(ptrSet->page->viewport[0].y-y0)+dy*(srcYStart+1);
+	}
+
+
+	if(0!=ptrSet->mode->bytesPerLineShift)
+	{
+		vramAddr=(yStart<<ptrSet->mode->bytesPerLineShift);
+		vramAddr+=((xStart*ptrSet->mode->bitsPerPixel)/8);
+	}
+	else
+	{
+		vramAddr=((yStart*ptrSet->mode->bytesPerLine+xStart)*ptrSet->mode->bitsPerPixel)>>3;
+	}
+
+	switch(ptrSet->mode->bitsPerPixel)
+	{
+	case 4:
+		{
+			unsigned char andPtn,color;
+
+			if(0==(xStart&1))
+			{
+				andPtn=0x0F;
+				color=work->color[EGB_FOREGROUND_COLOR]<<4;
+			}
+			else
+			{
+				andPtn=0xF0;
+				color=work->color[EGB_FOREGROUND_COLOR];
+			}
+
+			srcY=srcYStart;
+			for(Y=yStart; Y<=yEnd; ++Y)
+			{
+				int balanceX=balanceX0;
+				srcX=srcXStart;
+
+				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
+				srcXCtr=srcX&7;
+				ptn<<=srcXCtr;
+
+				if(1<srcBytesPerLine)
+				{
+					nextPtn=*(ptnBase+1);
+				}
+				if(8<=srcX)
+				{
+					ptn=nextPtn;
+				}
+
+				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
+				for(X=xStart; X<=xEnd; ++X)
+				{
+					// Can I do SHL and use CF in C rather?
+					if((ptn&0x80) || ((prevPtn&80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					{
+						//switch(work->drawingMode) // May be it is a common property across pages.
+						//{
+						//case EGB_PSET:
+							ptrSet->vram[vramAddr]&=andPtn;
+							ptrSet->vram[vramAddr]|=color;
+						//	break;
+						//}
+						//
+					}
+
+					balanceX-=srcw;
+					while(balanceX<=0)
+					{
+						prevPtn=ptn;
+						ptn<<=1;
+						++srcXCtr;
+						if(0==(srcXCtr&7))
+						{
+							ptn=nextPtn; // Up to two bytes.
+						}
+					}
+
+					if(0x0F==andPtn)
+					{
+						andPtn=0xF0;
+						color>>=4;
+						++vramAddr;
+					}
+					else
+					{
+						andPtn=0x0F;
+						color<<=4;
+					}
+				}
+				vramAddr=nextVramAddr;
+
+				balanceY-=srch;
+				while(balanceY<=0)
+				{
+					++srcY;
+					ptnBase+=srcBytesPerLine;
+					balanceY+=dy;
+				}
+			}
+		}
+		break;
+	case 8:
+		{
+			unsigned char color;
+
+			color=work->color[EGB_FOREGROUND_COLOR];
+
+			srcY=srcYStart;
+			for(Y=yStart; Y<=yEnd; ++Y)
+			{
+				int balanceX=balanceX0;
+				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
+
+				srcX=srcXStart;
+				srcXCtr=srcX&7;
+				ptn<<=srcXCtr;
+
+				if(1<srcBytesPerLine)
+				{
+					nextPtn=*(ptnBase+1);
+				}
+				if(8<=srcX)
+				{
+					ptn=nextPtn;
+				}
+
+				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
+				for(X=xStart; X<=xEnd; ++X)
+				{
+					// Can I do SHL and use CF in C rather?
+					if(ptn&0x80 || ((prevPtn&80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					{
+						//switch(work->drawingMode) // May be it is a common property across pages.
+						//{
+						//case EGB_PSET:
+							ptrSet->vram[vramAddr]=color;
+						//	break;
+						//}
+						//
+					}
+					balanceX-=srcw;
+					while(balanceX<=0)
+					{
+						prevPtn=ptn;
+						ptn<<=1;
+						++srcXCtr;
+						if(0==(srcXCtr&7))
+						{
+							ptn=nextPtn; // Up to two bytes.
+						}
+					}
+					++vramAddr;
+				}
+				vramAddr=nextVramAddr;
+
+				balanceY-=srch;
+				while(balanceY<=0)
+				{
+					++srcY;
+					ptnBase+=srcBytesPerLine;
+					balanceY+=dy;
+				}
+			}
+		}
+		break;
+	case 16:
+		{
+			unsigned short color;
+			srcY=srcYStart;
+
+			color=work->color[EGB_FOREGROUND_COLOR];
+
+			for(Y=yStart; Y<=yEnd; ++Y)
+			{
+				int balanceX=balanceX0;
+				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
+
+				srcX=srcXStart;
+				srcXCtr=srcX&7;
+				ptn<<=srcXCtr;
+
+				if(1<srcBytesPerLine)
+				{
+					nextPtn=*(ptnBase+1);
+				}
+				if(8<=srcX)
+				{
+					ptn=nextPtn;
+				}
+
+				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
+				for(X=xStart; X<=xEnd; ++X)
+				{
+					// Can I do SHL and use CF in C rather?
+					if(ptn&0x80 || ((prevPtn&80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					{
+						//switch(work->drawingMode) // May be it is a common property across pages.
+						//{
+						//case EGB_PSET:
+							*(_Far unsigned short *)(ptrSet->vram+vramAddr)=color;
+						//	break;
+						//}
+						//
+					}
+
+					balanceX-=srcw;
+					while(balanceX<=0)
+					{
+						prevPtn=ptn;
+						ptn<<=1;
+						++srcXCtr;
+						if(0==(srcXCtr&7))
+						{
+							ptn=nextPtn; // Up to two bytes.
+						}
+					}
+
+					vramAddr+=2;
+				}
+				vramAddr=nextVramAddr;
+
+				balanceY-=srch;
+				while(balanceY<=0)
+				{
+					++srcY;
+					ptnBase+=srcBytesPerLine;
+					balanceY+=dy;
+				}
+			}
+		}
+		break;
+	}
+}
+
 // https://ja.wikipedia.org/wiki/Shift_JIS
 // JIS  1st byte=K   2nd byte=T
 //
@@ -370,7 +657,7 @@ unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis)
 	(to)<<=5; \
 }
 
-static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *strInfo)
+static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_Far unsigned char *str)
 {
 	struct EGB_PagePointerSet ptrSet;
 	struct POINTUW dimension,ankDim,kanjiDim;
@@ -378,15 +665,14 @@ static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *
 
 	ptrSet=EGB_GetPagePointerSet(work);
 
-	kanjiDim.x=work->textZoom&0xFF;
-	kanjiDim.y=(work->textZoom>>8)&0xFF;
-	ankDim.x=(work->textZoom>>16)&0xFF;
-	ankDim.y=(work->textZoom>>24)&0xFF;
+	kanjiDim=work->kanjiZoom;
+	ankDim=work->ankZoom;
 
 	if(0==work->fontSpacing &&
-	   EGB_NO_TEXT_ZOOM==work->textZoom)
+	   16==kanjiDim.x && 16==kanjiDim.y &&
+	   8==ankDim.x && 16==ankDim.y)
 	{
-		dimension.x=strInfo->len*8;
+		dimension.x=len*8;
 		dimension.y=16;
 	}
 	else
@@ -394,9 +680,9 @@ static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *
 		int i;
 		dimension.x=0;
 		dimension.y=0;
-		for(i=0; i<strInfo->len; ++i)
+		for(i=0; i<len; ++i)
 		{
-			if(IS_SJIS_FIRST_BYTE(strInfo->str[i]))
+			if(IS_SJIS_FIRST_BYTE(str[i]))
 			{
 				dimension.x+=work->fontSpacing+kanjiDim.x;
 				dimension.y=_max(dimension.y,kanjiDim.y);
@@ -409,42 +695,34 @@ static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *
 		}
 	}
 
-	minmax[0].x=strInfo->x;
-	minmax[0].y=strInfo->y-dimension.y+1;
-	minmax[1].x=strInfo->x+dimension.x-1;
-	minmax[1].y=strInfo->y;
+	minmax[0].x=xx;
+	minmax[0].y=yy-dimension.y+1;
+	minmax[1].x=xx+dimension.x-1;
+	minmax[1].y=yy;
 
 
-	if(EGB_NO_TEXT_ZOOM==work->textZoom &&
+	if(0==work->fontStyle &&
+	   16==work->kanjiZoom.x &&
+	   16==work->kanjiZoom.y &&
+	   8==work->ankZoom.x &&
+	   16==work->ankZoom.y &&
 	   ptrSet.page->viewport[0].x<=minmax[0].x && minmax[1].x<=ptrSet.page->viewport[1].x &&
 	   ptrSet.page->viewport[0].y<=minmax[0].y && minmax[1].y<=ptrSet.page->viewport[1].y)
 	{
-		int sx=strInfo->x;
-		int sy=strInfo->y;
+		int sx=xx;
+		int sy=yy;
 		int i=0;
-		unsigned int addr;
 		_Far unsigned char *fontROM;
 
 		_FP_SEG(fontROM)=SEG_KANJI_FONT_ROM;
 		_FP_OFF(fontROM)=0;
 
-		addr=strInfo->y;
-		if(ptrSet.mode->bytesPerLineShift)
+		while(i<len)
 		{
-			addr<<=ptrSet.mode->bytesPerLineShift;
-		}
-		else
-		{
-			addr*=ptrSet.mode->bytesPerLine;
-		}
-		addr+=(strInfo->x*ptrSet.mode->bitsPerPixel)/8;
-
-		while(i<strInfo->len)
-		{
-			if(IS_SJIS_FIRST_BYTE(strInfo->str[i]))
+			if(IS_SJIS_FIRST_BYTE(str[i]))
 			{
 				unsigned int ptnAddr;
-				SJISPointerToROMAddress(strInfo->str+i,ptnAddr);
+				SJISPointerToROMAddress(str+i,ptnAddr);
 
 				EGB_PUTX16BW_NOCHECK(work,&ptrSet,sx,sy,fontROM+ptnAddr,16);
 
@@ -453,7 +731,7 @@ static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *
 			}
 			else
 			{
-				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)strInfo->str[i])*16;
+				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)str[i])*16;
 
 				EGB_PUTX16BW_NOCHECK(work,&ptrSet,sx,sy,fontROM+ptnAddr,8);
 
@@ -465,7 +743,37 @@ static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *
 	}
 	else
 	{
-		TSUGARU_BREAK;
+		int sx=xx;
+		int sy=yy;
+		int i=0;
+		_Far unsigned char *fontROM;
+
+		_FP_SEG(fontROM)=SEG_KANJI_FONT_ROM;
+		_FP_OFF(fontROM)=0;
+
+		while(i<len)
+		{
+			if(IS_SJIS_FIRST_BYTE(str[i]))
+			{
+				unsigned int ptnAddr;
+				SJISPointerToROMAddress(str+i,ptnAddr);
+
+				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->kanjiZoom,fontROM+ptnAddr,16);
+
+				sx+=16;
+				i+=2;
+			}
+			else
+			{
+				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)str[i])*16;
+
+				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8);
+
+				sx+=8;
+				++i;
+			}
+			sx+=work->fontSpacing;
+		}
 	}
 
 	return dimension.x;
@@ -496,7 +804,11 @@ void EGB_SJISSTRING(
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 
-	unsigned wid=DrawText(work,strInfo);
+	unsigned wid=DrawText(work,strInfo->x,strInfo->y,strInfo->len,strInfo->str);
+
+	// I thought it's as easy as drawing another text with 1-pixel shift,
+	// but that won't work if OPAQUE mode....
+	// if(work->fontStyle&EGB_FONTSTYLE_BOLD)...
 
 	struct EGB_PagePointerSet ptrSet;
 	ptrSet=EGB_GetPagePointerSet(work);

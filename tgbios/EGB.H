@@ -35,6 +35,14 @@
 #define EGB_PAINTFLAG_BACK_TILE    1024
 #define EGB_PAINTFLAG_BACK_HATCH   2048
 
+#define EGB_FONTSTYLE_BOLD 1
+#define EGB_FONTSTYLE_ITALIC 2
+#define EGB_FONTSTYLE_SHADOW 4
+#define EGB_FONTSTYLE_BORDER 8
+#define EGB_FONTSTYLE_UNDERLINE 16
+#define EGB_FONTSTYLE_OVERLINE 32
+#define EGB_FONTSTYLE_MIDDLELINE 64
+
 enum
 {
 	CRTC_REG_HSW1=   0x00,
@@ -111,9 +119,6 @@ struct POINTUW
 	}
 
 
-
-#define EGB_NO_TEXT_ZOOM 0x10081010
-
 struct EGB_ScreenMode
 {
 	unsigned int KHz;
@@ -176,7 +181,7 @@ struct EGB_Work
 	unsigned short fontSpacing;
 	unsigned char fontRotation;
 	unsigned char stringRotation;
-	unsigned int textZoom;  // ANK-H|ANK-W|KANJI-H|KANJI-W
+	struct POINTUW ankZoom,kanjiZoom;
 
 	int CRTCRegSet;
 	struct EGB_PerPage perPage[2];
