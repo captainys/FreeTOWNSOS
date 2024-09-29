@@ -188,7 +188,7 @@ void EGB_PUTX16BW_NOCHECK(
 		{
 			unsigned char andPtn,color;
 
-			if(0==(sx&1))
+			if(sx&1)
 			{
 				andPtn=0x0F;
 				color=work->color[EGB_FOREGROUND_COLOR]<<4;
@@ -385,7 +385,7 @@ void EGB_PUTX16BW(
 		{
 			unsigned char andPtn,color;
 
-			if(0==(xStart&1))
+			if(xStart&1)
 			{
 				andPtn=0x0F;
 				color=work->color[EGB_FOREGROUND_COLOR]<<4;
