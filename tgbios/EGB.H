@@ -140,16 +140,13 @@ struct EGB_PerPage
 	// Confirmed in Towns OS V2.1 L50
 	// Viewport is a per-page setting.  Reset upon EGB_Resolution.
 	struct POINTW viewport[2];
-	unsigned short fontSpacing;
-	unsigned char fontRotation;
-	unsigned char stringRotation;
+
+	// Still need to check if the text position is per-page or system-wide.
 	short textX,textY;
-	unsigned int textZoom;  // ANK-H|ANK-W|KANJI-H|KANJI-W
 
 	unsigned char ZOOM;
 
 	unsigned char penWidth;
-	unsigned char fontStyle;
 	unsigned char hatchWid;
 	unsigned char hatchHei;
 	_Far unsigned char *hatchingPtn;
@@ -169,6 +166,17 @@ struct EGB_Work
 	// Drawing Mode is a system-wide setting.  Not per page.  Then, probably paint mode, too.
 	unsigned char drawingMode;
 	unsigned short paintMode;
+
+	// Confirmed in Towns OS V2.1 L50
+	// Font spacing is a system-wide setting.  Not per page.
+	// Then, probably other font settings as well.
+	// I am experiencing a situation that any setting of font style, text zoom, text rotation will crash the system
+	// in V2.1 L50.  Do I not have to support them then?
+	unsigned short fontStyle;
+	unsigned short fontSpacing;
+	unsigned char fontRotation;
+	unsigned char stringRotation;
+	unsigned int textZoom;  // ANK-H|ANK-W|KANJI-H|KANJI-W
 
 	int CRTCRegSet;
 	struct EGB_PerPage perPage[2];

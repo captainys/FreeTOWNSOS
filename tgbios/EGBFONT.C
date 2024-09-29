@@ -6,6 +6,99 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+void EGB_TEXTDIRECTION(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
+void EGB_TEXTDISPLAYDIRECTION(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
+void EGB_TEXTSPACE(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
+void EGB_TEXTZOOM(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	TSUGARU_BREAK;
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
+void EGB_FONTSTYLE(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+	work->fontStyle=EDX;
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
 static unsigned short EGB_SJIS2JIS(unsigned short sjis)
 {
 	unsigned s1=sjis>>8;
@@ -307,13 +400,13 @@ void EGB_SJISSTRING(
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 
-	kanjiDim.x=ptrSet.page->textZoom&0xFF;
-	kanjiDim.y=(ptrSet.page->textZoom>>8)&0xFF;
-	ankDim.x=(ptrSet.page->textZoom>>16)&0xFF;
-	ankDim.y=(ptrSet.page->textZoom>>24)&0xFF;
+	kanjiDim.x=work->textZoom&0xFF;
+	kanjiDim.y=(work->textZoom>>8)&0xFF;
+	ankDim.x=(work->textZoom>>16)&0xFF;
+	ankDim.y=(work->textZoom>>24)&0xFF;
 
-	if(0==ptrSet.page->fontSpacing &&
-	   EGB_NO_TEXT_ZOOM==ptrSet.page->textZoom)
+	if(0==work->fontSpacing &&
+	   EGB_NO_TEXT_ZOOM==work->textZoom)
 	{
 		dimension.x=strInfo->len*8;
 		dimension.y=16;
@@ -327,12 +420,12 @@ void EGB_SJISSTRING(
 		{
 			if(IS_SJIS_FIRST_BYTE(strInfo->str[i]))
 			{
-				dimension.x+=ptrSet.page->fontSpacing+kanjiDim.x;
+				dimension.x+=work->fontSpacing+kanjiDim.x;
 				dimension.y=_max(dimension.y,kanjiDim.y);
 			}
 			else
 			{
-				dimension.x+=ptrSet.page->fontSpacing+ankDim.x;
+				dimension.x+=work->fontSpacing+ankDim.x;
 				dimension.y=_max(dimension.y,ankDim.y);
 			}
 		}
@@ -344,7 +437,7 @@ void EGB_SJISSTRING(
 	minmax[1].y=strInfo->y;
 
 
-	if(EGB_NO_TEXT_ZOOM==ptrSet.page->textZoom &&
+	if(EGB_NO_TEXT_ZOOM==work->textZoom &&
 	   ptrSet.page->viewport[0].x<=minmax[0].x && minmax[1].x<=ptrSet.page->viewport[1].x &&
 	   ptrSet.page->viewport[0].y<=minmax[0].y && minmax[1].y<=ptrSet.page->viewport[1].y)
 	{
@@ -389,7 +482,7 @@ void EGB_SJISSTRING(
 				sx+=8;
 				++i;
 			}
-			sx+=ptrSet.page->fontSpacing;
+			sx+=work->fontSpacing;
 		}
 
 		ptrSet.page->textX=sx;

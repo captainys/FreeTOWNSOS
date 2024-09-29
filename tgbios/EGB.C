@@ -281,14 +281,9 @@ void EGB_INIT(
 		p->viewport[0].y=0;
 		p->viewport[1].x=639;
 		p->viewport[1].y=479;
-		p->fontSpacing=0;
-		p->fontRotation=0;
-		p->stringRotation=0;
 		p->textX=0;
 		p->textY=16;
-		p->textZoom=EGB_NO_TEXT_ZOOM;
 		p->penWidth=1;
-		p->fontStyle=0;
 		p->hatchWid=0;
 		p->hatchHei=0;
 		p->hatchingPtn=NULL;
@@ -303,6 +298,12 @@ void EGB_INIT(
 	work->color[EGB_FILL_COLOR]=0;
 	work->paintMode=EGB_PAINTFLAG_LINE_NORMAL;
 	work->drawingMode=0;
+
+	work->fontStyle=0;
+	work->fontSpacing=0;
+	work->fontRotation=0;
+	work->stringRotation=0;
+	work->textZoom=EGB_NO_TEXT_ZOOM;
 
 	work->superImpose=0;
 	work->superImposeArea[0]=0;
@@ -1148,96 +1149,6 @@ void EGB_PENSTYLE(
 }
 
 void EGB_MASKBIT(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
-}
-
-void EGB_TEXTDIRECTION(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
-}
-
-void EGB_TEXTDISPLAYDIRECTION(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
-}
-
-void EGB_TEXTSPACE(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
-}
-
-void EGB_TEXTZOOM(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
-{
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
-}
-
-void EGB_FONTSTYLE(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
