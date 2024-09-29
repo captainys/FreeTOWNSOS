@@ -1590,20 +1590,117 @@ void EGB_25H_PUTBLOCK(
 			// I'll come back when someone do it.
 			TSUGARU_BREAK;
 		}
-		else if(4==pointerSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
-		{
-			// Oh damn it.  Why do you do it?
-			TSUGARU_BREAK;
-		}
 		else
 		{
+			int x,y;
 			_Far unsigned char *src=blkInfo->data;
 			_Far unsigned char *vram=pointerSet.vram+vramOffset;
-			for(int y=p0.y; y<=p1.y; ++y)
+			switch(work->drawingMode)
 			{
-				MEMCPY_FAR(vram,src,transferBytesPerLine);
-				src+=srcBytesPerLine;
-				vram+=pointerSet.mode->bytesPerLine;
+			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_PSET:
+				if(4==pointerSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
+				{
+					// Oh damn it.  Why do you do it?
+					TSUGARU_BREAK;
+					break;
+				}
+				for(y=p0.y; y<=p1.y; ++y)
+				{
+					MEMCPY_FAR(vram,src,transferBytesPerLine);
+					src+=srcBytesPerLine;
+					vram+=pointerSet.mode->bytesPerLine;
+				}
+				break;
+			case EGB_FUNC_MATTE:
+				for(y=p0.y; y<=p1.y; ++y)
+				{
+					unsigned short srcColor;
+					switch(pointerSet.mode->bitsPerPixel)
+					{
+					case 1:
+						TSUGARU_BREAK;
+						break;
+					case 4:
+						{
+							_Far unsigned char *srcPtr,*dstPtr;
+							unsigned char srcShift,dstAndPtn,dstShift;
+							srcPtr=src;
+							srcShift=4;
+							dstPtr=vram;
+							if(p0.x&1)
+							{
+								dstAndPtn=0xF0;
+								dstShift=0;
+							}
+							else
+							{
+								dstAndPtn=0x0F;
+								dstShift=4;
+							}
+							for(x=p0.x; x<=p1.x; ++x)
+							{
+								unsigned short srcColor;
+								srcColor=((*srcPtr)>>srcShift)&0x0F;
+								if(srcColor!=work->color[EGB_TRANSPARENT_COLOR])
+								{
+									*dstPtr&=dstAndPtn;
+									*dstPtr|=(srcColor<<dstShift);
+								}
+								dstAndPtn=~dstAndPtn;
+								dstShift=4-dstShift;
+								if(4==dstShift)
+								{
+									++dstPtr;
+								}
+								srcShift=4-srcShift;
+								if(4==srcShift)
+								{
+									++srcPtr;
+								}
+							}
+						}
+						break;
+					case 8:
+						{
+							_Far unsigned char *srcPtr,*dstPtr;
+							srcPtr=src;
+							dstPtr=vram;
+							for(x=p0.x; x<=p1.x; ++x)
+							{
+								if(*srcPtr!=work->color[EGB_TRANSPARENT_COLOR])
+								{
+									*dstPtr=*srcPtr;
+								}
+								++dstPtr;
+								++srcPtr;
+							}
+						}
+						break;
+					case 16:
+						{
+							_Far unsigned short *srcPtr,*dstPtr;
+							srcPtr=(_Far unsigned short *)src;
+							dstPtr=(_Far unsigned short *)vram;
+							for(x=p0.x; x<=p1.x; ++x)
+							{
+								if(*srcPtr!=work->color[EGB_TRANSPARENT_COLOR])
+								{
+									*dstPtr=*srcPtr;
+								}
+								++dstPtr;
+								++srcPtr;
+							}
+						}
+						break;
+					}
+					src+=srcBytesPerLine;
+					vram+=pointerSet.mode->bytesPerLine;
+				}
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
 			}
 		}
 	}
