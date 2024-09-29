@@ -385,17 +385,6 @@ void EGB_PUTX16BW(
 		{
 			unsigned char andPtn,color;
 
-			if(xStart&1)
-			{
-				andPtn=0x0F;
-				color=work->color[EGB_FOREGROUND_COLOR]<<4;
-			}
-			else
-			{
-				andPtn=0xF0;
-				color=work->color[EGB_FOREGROUND_COLOR];
-			}
-
 			srcY=srcYStart;
 			for(Y=yStart; Y<=yEnd; ++Y)
 			{
@@ -415,6 +404,18 @@ void EGB_PUTX16BW(
 				}
 
 				ptn<<=srcXCtr;
+
+				// Need to reset andPtn and color for each line.  Maybe only odd number of pixels per row is visible.
+				if(xStart&1)
+				{
+					andPtn=0x0F;
+					color=work->color[EGB_FOREGROUND_COLOR]<<4;
+				}
+				else
+				{
+					andPtn=0xF0;
+					color=work->color[EGB_FOREGROUND_COLOR];
+				}
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 				for(X=xStart; X<=xEnd; ++X)

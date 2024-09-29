@@ -167,15 +167,51 @@ int main(void)
 
 
 	EGB_resolution(EGB_work,0,12);
-
 	EGB_writePage(EGB_work,0);
-	EGB_clearScreen(EGB_work);
-	EGB_color(EGB_work,0,255);
-	SetString(str,0,16,"ページ0 画面モード12");
-	EGB_sjisString(EGB_work,str);
 
+	redraw=1;
+	for(;;)
+	{
+		if(redraw)
+		{
+			EGB_clearScreen(EGB_work);
+			EGB_color(EGB_work,0,255);
+			SetString(str,x,y,"ページ0 画面モード12");
+			EGB_sjisString(EGB_work,str);
+			redraw=0;
+		}
 
-	WaitForPad();
+		int status=0xFF;
+		SND_joy_in_2(0,&status);
+		if(0==(status&1))
+		{
+			y--;
+			redraw=1;
+		}
+		if(0==(status&2))
+		{
+			y++;
+			redraw=1;
+		}
+		if(0==(status&4))
+		{
+			x--;
+			redraw=1;
+		}
+		if(0==(status&8))
+		{
+			x++;
+			redraw=1;
+		}
+		if(0xC0!=(status&0xC0))
+		{
+			break;
+		}
+		while(0x3F!=(status&0x3F))
+		{
+			SND_joy_in_2(0,&status);
+		}
+	}
 
 
 	return 0;
