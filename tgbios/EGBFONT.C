@@ -375,6 +375,10 @@ void EGB_PUTX16BW(
 		vramAddr=((yStart*ptrSet->mode->bytesPerLine+xStart)*ptrSet->mode->bitsPerPixel)>>3;
 	}
 
+
+	ptnBase+=srcBytesPerLine*srcYStart;
+
+
 	switch(ptrSet->mode->bitsPerPixel)
 	{
 	case 4:
@@ -400,7 +404,6 @@ void EGB_PUTX16BW(
 
 				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
 				srcXCtr=srcX&7;
-				ptn<<=srcXCtr;
 
 				if(1<srcBytesPerLine)
 				{
@@ -410,6 +413,8 @@ void EGB_PUTX16BW(
 				{
 					ptn=nextPtn;
 				}
+
+				ptn<<=srcXCtr;
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 				for(X=xStart; X<=xEnd; ++X)
@@ -437,6 +442,7 @@ void EGB_PUTX16BW(
 						{
 							ptn=nextPtn; // Up to two bytes.
 						}
+						balanceX+=dx;
 					}
 
 					if(0x0F==andPtn)
@@ -477,7 +483,6 @@ void EGB_PUTX16BW(
 
 				srcX=srcXStart;
 				srcXCtr=srcX&7;
-				ptn<<=srcXCtr;
 
 				if(1<srcBytesPerLine)
 				{
@@ -487,6 +492,8 @@ void EGB_PUTX16BW(
 				{
 					ptn=nextPtn;
 				}
+
+				ptn<<=srcXCtr;
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 				for(X=xStart; X<=xEnd; ++X)
@@ -512,6 +519,7 @@ void EGB_PUTX16BW(
 						{
 							ptn=nextPtn; // Up to two bytes.
 						}
+						balanceX+=dx;
 					}
 					++vramAddr;
 				}
@@ -541,7 +549,6 @@ void EGB_PUTX16BW(
 
 				srcX=srcXStart;
 				srcXCtr=srcX&7;
-				ptn<<=srcXCtr;
 
 				if(1<srcBytesPerLine)
 				{
@@ -551,6 +558,8 @@ void EGB_PUTX16BW(
 				{
 					ptn=nextPtn;
 				}
+
+				ptn<<=srcXCtr;
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 				for(X=xStart; X<=xEnd; ++X)
@@ -577,6 +586,7 @@ void EGB_PUTX16BW(
 						{
 							ptn=nextPtn; // Up to two bytes.
 						}
+						balanceX+=dx;
 					}
 
 					vramAddr+=2;

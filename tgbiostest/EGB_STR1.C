@@ -106,23 +106,64 @@ int main(void)
 	EGB_displayStart(EGB_work,3,320,240);
 	EGB_clearScreen(EGB_work);
 
-	EGB_writePage(EGB_work,0);
-	EGB_clearScreen(EGB_work);
-
-	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,15);
 	EGB_writeMode(EGB_work,EGB_PSET);
 
-	EGB_writePage(EGB_work,0);
-	SetString(str,0,16,"ページ0 画面モード3");
-	EGB_sjisString(EGB_work,str);
+	int x=0,y=16,redraw=1,status;
+	for(;;)
+	{
+		if(redraw)
+		{
+			EGB_writePage(EGB_work,0);
+			EGB_clearScreen(EGB_work);
+			EGB_color(EGB_work,EGB_FOREGROUND_COLOR,15);
+			SetString(str,x,y,"ページ0 画面モード3");
+			EGB_sjisString(EGB_work,str);
 
-	EGB_writePage(EGB_work,1);
-	EGB_color(EGB_work,0,32767);
-	SetString(str,80,32,"ページ1 画面モード10");
-	EGB_sjisString(EGB_work,str);
+			EGB_writePage(EGB_work,1);
+			EGB_clearScreen(EGB_work);
+			EGB_color(EGB_work,0,32767);
+			SetString(str,x,y,"ページ1 画面モード10");
+			EGB_sjisString(EGB_work,str);
 
+			redraw=0;
+		}
 
-	WaitForPad();
+		int status=0xFF;
+		SND_joy_in_2(0,&status);
+		if(0==(status&1))
+		{
+			y--;
+			redraw=1;
+		}
+		if(0==(status&2))
+		{
+			y++;
+			redraw=1;
+		}
+		if(0==(status&4))
+		{
+			x--;
+			redraw=1;
+		}
+		if(0==(status&8))
+		{
+			x++;
+			redraw=1;
+		}
+		if(0xC0!=(status&0xC0))
+		{
+			break;
+		}
+		while(0x3F!=(status&0x3F))
+		{
+			SND_joy_in_2(0,&status);
+		}
+	}
+
+	while(0xFF!=(status&0xFF))
+	{
+		SND_joy_in_2(0,&status);
+	}
 
 
 	EGB_resolution(EGB_work,0,12);
