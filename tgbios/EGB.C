@@ -487,15 +487,23 @@ void EGB_RESOLUTION(
 
 				for(int page=0; page<2; ++page)
 				{
-					_Far struct EGB_ScreenMode *modeProp=EGB_GetScreenModeProp(work->perPage[page].screenMode);
-					if(NULL!=modeProp)
+					_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(work->perPage[page].screenMode);
+					if(NULL!=mode)
 					{
 						work->perPage[page].viewport[0].x=0;
 						work->perPage[page].viewport[0].y=0;
-						work->perPage[page].viewport[1]=modeProp->size;
+						work->perPage[page].viewport[1]=mode->size;
 						work->perPage[page].viewport[1].x--;
 						work->perPage[page].viewport[1].y--;
 					}
+
+					unsigned fgColor=(1<<mode->bitsPerPixel)-1,trspColor;
+					trspColor=fgColor&0x8000;
+					fgColor&=0x7FFF;
+					work->color[EGB_FOREGROUND_COLOR]=fgColor;
+					work->color[EGB_BACKGROUND_COLOR]=0;
+					work->color[EGB_FILL_COLOR]=0;
+					work->color[EGB_TRANSPARENT_COLOR]=trspColor;
 				}
 			}
 			else
