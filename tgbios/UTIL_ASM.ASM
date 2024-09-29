@@ -80,7 +80,6 @@ MEMSETB_FAR				PROC
 						REP STOSW
 
 						MOV		ECX,[EBP+20]
-						SHR		ECX,2
 						AND		ECX,1
 						REP STOSB
 
@@ -123,13 +122,12 @@ MEMCPY_FAR				PROC
 						SHR		ECX,2
 						REP MOVSD
 
-						MOV		ECX,[EBP+20]
+						MOV		ECX,[ESP+40]
 						SHR		ECX,1
 						AND		ECX,1
 						REP MOVSW
 
-						MOV		ECX,[EBP+20]
-						SHR		ECX,2
+						MOV		ECX,[ESP+40]
 						AND		ECX,1
 						REP MOVSB
 
