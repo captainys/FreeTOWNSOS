@@ -25,6 +25,15 @@
 #define EGB_FUNC_MASKRESET 14
 #define EGB_FUNC_MASKNOT 15
 
+#define EGB_PAINTFLAG_LINE_NORMAL  2
+#define EGB_PAINTFLAG_LINE_TILE    4
+#define EGB_PAINTFLAG_LINE_HATCH   8
+#define EGB_PAINTFLAG_FILL_NORMAL  32
+#define EGB_PAINTFLAG_FILL_TILE    64
+#define EGB_PAINTFLAG_FILL_HATCH   128
+#define EGB_PAINTFLAG_BACK_NORMAL  512
+#define EGB_PAINTFLAG_BACK_TILE    1024
+#define EGB_PAINTFLAG_BACK_HATCH   2048
 
 enum
 {
@@ -88,6 +97,21 @@ struct POINTUW
 
 #define IS_SJIS_FIRST_BYTE(ch) ((0x81<=(unsigned char)(ch) && (unsigned char)(ch)<0xA0)||(0xE0<=(unsigned char)(ch) && (unsigned char)(ch)<0xFD))
 
+#define BoxIsOutsideOfViewport(xMin,yMin,xMax,yMax,page) ((xMax)<(page)->viewport[0].x || (page)->viewport[1].x<(xMin) || (yMax)<(page)->viewport[0].y || (page)->viewport[1].y<(yMin))
+
+#define EGB_CalcVRAMAddr(vramAddr,x,y,mode) \
+	if(0!=(mode)->bytesPerLineShift) \
+	{ \
+		(*vramAddr)=((y)<<(mode)->bytesPerLineShift); \
+		(*vramAddr)+=((x)*(mode)->bitsPerPixel)/8; \
+	} \
+	else \
+	{ \
+		(*vramAddr)=(((y)*(mode)->bytesPerLine+(x))*(mode)->bitsPerPixel)>>3; \
+	}
+
+
+
 #define EGB_NO_TEXT_ZOOM 0x10081010
 
 struct EGB_ScreenMode
@@ -140,7 +164,11 @@ struct EGB_Work
 	unsigned char superImpose;
 	unsigned short superImposeArea[4];
 	unsigned char superImposeBright;
-	unsigned char _padding0;
+
+	// Confirmed in Towns OS V2.1 L50
+	// Drawing Mode is a system-wide setting.  Not per page.  Then, probably paint mode, too.
+	unsigned char drawingMode;
+	unsigned short paintMode;
 
 	int CRTCRegSet;
 	struct EGB_PerPage perPage[2];
@@ -151,11 +179,6 @@ struct EGB_Work
 	// Confirmed in Towns OS V2.1 L50
 	// Color is a system-wide setting.  Not per page.
 	unsigned short color[4];
-
-	// Confirmed in Towns OS V2.1 L50
-	// Drawing Mode is a system-wide setting.  Not per page.  Then, probably paint mode, too.
-	unsigned char paintMode;
-	unsigned char drawingMode;
 
 	struct EGB_ScreenMode virtualPage[4];
 	struct EGB_PerPage perVirtualPage[4];
