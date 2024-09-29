@@ -223,4 +223,8 @@ _Far unsigned short *EGB_GetCRTCRegs(int modeComb);
 _Far unsigned int *EGB_GetDefaultPalette256(void);
 _Far unsigned int *EGB_GetDefaultPalette16(void);
 
+struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work);
+
+void EGB_MakeP0SmallerThanP1(struct POINTW *p0,struct POINTW *p1);
+
 #endif
