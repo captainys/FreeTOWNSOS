@@ -1769,11 +1769,39 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 {
 	int dx=p1.x-p0.x;
 	int dy=p1.y-p0.y;
+	unsigned int wid,hei;
 
-	unsigned int wid=_abs(dx);
-	unsigned int hei=_abs(dy);
+	// The following expression here will step on High-C's bug.  The result from the above computation is stored in EDX and ECX,
+	// but it destroys EDX in the subsequent CDQ.
+	//unsigned int wid=_abs(dx);
+	//unsigned int hei=_abs(dy);
+	// 0110:00002188 55                        PUSH    EBP
+	// 0110:00002189 8BEC                      MOV     EBP,ESP
+	// 0110:0000218B 83EC28                    SUB     ESP,28H
+	// 0110:0000218E 53                        PUSH    EBX
+	// 0110:0000218F 56                        PUSH    ESI
+	// 0110:00002190 57                        PUSH    EDI
+	// 0110:00002191 8B7D10                    MOV     EDI,[EBP+10H]
+	// 0110:00002194 0FBF4514                  MOVSX   EAX,WORD PTR [EBP+14H]
+	// 0110:00002198 0FBF5518                  MOVSX   EDX,WORD PTR [EBP+18H]
+	// 0110:0000219C 2BD0                      SUB     EDX,EAX
+	// 0110:0000219E 8955FC                    MOV     [EBP-04H],EDX              ; EDX is dx
+	// 0110:000021A1 0FBF4516                  MOVSX   EAX,WORD PTR [EBP+16H]
+	// 0110:000021A5 0FBF4D1A                  MOVSX   ECX,WORD PTR [EBP+1AH]
+	// 0110:000021A9 2BC8                      SUB     ECX,EAX
+	// 0110:000021AB 894DF8                    MOV     [EBP-08H],ECX              ; ECX is dy
+	// 0110:000021AE 99                        CDQ                                ; EDX destroyed.  MOV EAX,EDX is missing.
+	// 0110:000021AF 33C2                      XOR     EAX,EDX
+	// 0110:000021B1 2BC2                      SUB     EAX,EDX                    ; Ah, it's a smart way of taking ABS, if only it works.
+	// 0110:000021B3 8955F4                    MOV     [EBP-0CH],EDX
+	// 0110:000021B6 99                        CDQ                                ; Hey, High-C, dy is ECX.  Did you forget MOV EAX,ECX?
+	// 0110:000021B7 33C2                      XOR     EAX,EDX
+	// 0110:000021B9 2BC2                      SUB     EAX,EDX
+	// 0110:000021BB 894DF0                    MOV     [EBP-10H],ECX
+	// 0110:000021BE 23D2                      AND     EDX,EDX
+	// 0110:000021C0 0F85DD010000              JNE     000023A3
 
-	if(0==wid)
+	if(0==dx)
 	{
 		int y;
 		int yMin=_min(p0.y,p1.y);
@@ -1867,13 +1895,15 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			TSUGARU_BREAK;
 			break;
 		}
+		return;
 	}
-	else if(0==hei)
+	else if(0==dy)
 	{
 		int x;
 		int xMin=_min(p0.x,p1.x);
 		int xMax=_max(p0.x,p1.x);
 		unsigned int vramAddr,color;
+
 		if(xMax<ptrSet->page->viewport[0].x || ptrSet->page->viewport[1].x<xMax)
 		{
 			return;
@@ -1958,7 +1988,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
-				MEMSETB_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
+				MEMSETW_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
 				break;
 			default:
 				TSUGARU_BREAK;
@@ -1966,8 +1996,13 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			}
 			break;
 		}
+		return;
 	}
-	else if(hei<wid)
+
+	// Note to myself.  High-C's inline _abs is dangerous.
+	wid=(0<dx ? dx : -dx);
+	hei=(0<dy ? dy : -dy);
+	if(hei<wid)
 	{
 		TSUGARU_BREAK;
 	}
