@@ -43,26 +43,22 @@ void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
 
 void SND_WriteToWaveRAM(unsigned short addr,unsigned char byteData)
 {
-	unsigned short bank;
 	_Far unsigned char *ptr;
 	_FP_SEG(ptr)=SEG_WAVE_RAM;
 	_FP_OFF(ptr)=(addr&0xFFF);
 
-	bank=addr>>12;
-	_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+	_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|(addr>>12));
 
 	*ptr=byteData;
 }
 
 unsigned char SND_ReadFromWaveRAM(unsigned short addr)
 {
-	unsigned short bank;
 	_Far unsigned char *ptr;
 	_FP_SEG(ptr)=SEG_WAVE_RAM;
 	_FP_OFF(ptr)=(addr&0xFFF);
 
-	bank=addr>>12;
-	_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+	_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|(addr>>12));
 
 	return *ptr;
 }
