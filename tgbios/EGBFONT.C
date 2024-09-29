@@ -403,24 +403,20 @@ void EGB_PUTX16BW(
 				int balanceX=balanceX0;
 				srcX=srcXStart;
 
-				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
-				srcXCtr=srcX&7;
+				unsigned short ptn,prevPtn=0;
 
+				ptn=(*ptnBase);
+				ptn<<=8;
 				if(1<srcBytesPerLine)
 				{
-					nextPtn=*(ptnBase+1);
-				}
-				if(8<=srcX)
-				{
-					ptn=nextPtn;
+					ptn|=*(ptnBase+1);
 				}
 
-				ptn<<=srcXCtr;
+				ptn<<=srcX;
 
 				if(lineAtY&(1<<srcY))
 				{
-					ptn=0xFF;
-					nextPtn=0xFF;
+					ptn=0xFFFF;
 				}
 
 				// Need to reset andPtn and color for each line.  Maybe only odd number of pixels per row is visible.
@@ -467,7 +463,7 @@ void EGB_PUTX16BW(
 				for(X=realXStart; X<=realXEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
-					if((ptn&0x80) || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					if((ptn&0x8000) || ((prevPtn&0x8000) && (fontStyle&EGB_FONTSTYLE_BOLD)))
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -484,11 +480,6 @@ void EGB_PUTX16BW(
 					{
 						prevPtn=ptn;
 						ptn<<=1;
-						++srcXCtr;
-						if(0==(srcXCtr&7))
-						{
-							ptn=nextPtn; // Up to two bytes.
-						}
 						balanceX+=dx;
 					}
 
@@ -526,28 +517,22 @@ void EGB_PUTX16BW(
 			for(Y=yStart; Y<=yEnd; ++Y)
 			{
 				int balanceX=balanceX0;
-				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
+				unsigned short ptn,prevPtn=0;
+				ptn=*ptnBase;
+				ptn<<=8;
 
 				srcX=srcXStart;
-				srcXCtr=srcX&7;
 
 				if(1<srcBytesPerLine)
 				{
-					nextPtn=*(ptnBase+1);
+					ptn|=*(ptnBase+1);
 				}
-				if(8<=srcX)
-				{
-					ptn=nextPtn;
-				}
-
-				ptn<<=srcXCtr;
+				ptn<<=srcX;
 
 				if(lineAtY&(1<<srcY))
 				{
-					ptn=0xFF;
-					nextPtn=0xFF;
+					ptn=0xFFFF;
 				}
-
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
 
@@ -566,7 +551,7 @@ void EGB_PUTX16BW(
 				for(X=realXStart; X<=realXEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80 || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					if(ptn&0x8000 || ((prevPtn&0x8000) && (fontStyle&EGB_FONTSTYLE_BOLD)))
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -581,11 +566,6 @@ void EGB_PUTX16BW(
 					{
 						prevPtn=ptn;
 						ptn<<=1;
-						++srcXCtr;
-						if(0==(srcXCtr&7))
-						{
-							ptn=nextPtn; // Up to two bytes.
-						}
 						balanceX+=dx;
 					}
 					++vramAddr;
@@ -612,27 +592,21 @@ void EGB_PUTX16BW(
 			for(Y=yStart; Y<=yEnd; ++Y)
 			{
 				int balanceX=balanceX0;
-				unsigned char ptn=*ptnBase,nextPtn,prevPtn=0,srcXCtr;
+				unsigned short ptn,prevPtn=0;
 
 				srcX=srcXStart;
-				srcXCtr=srcX&7;
 
+				ptn=*ptnBase;
+				ptn<<=8;
 				if(1<srcBytesPerLine)
 				{
-					nextPtn=*(ptnBase+1);
+					ptn|=*(ptnBase+1);
 				}
-				if(8<=srcX)
-				{
-					ptn=nextPtn;
-				}
-
-				ptn<<=srcXCtr;
-
+				ptn<<=srcX;
 
 				if(lineAtY&(1<<srcY))
 				{
-					ptn=0xFF;
-					nextPtn=0xFF;
+					ptn=0xFFFF;
 				}
 
 				unsigned int nextVramAddr=vramAddr+ptrSet->mode->bytesPerLine;
@@ -652,7 +626,7 @@ void EGB_PUTX16BW(
 				for(X=realXStart; X<=realXEnd; ++X)
 				{
 					// Can I do SHL and use CF in C rather?
-					if(ptn&0x80 || ((prevPtn&0x80) && (fontStyle&EGB_FONTSTYLE_BOLD)))
+					if(ptn&0x8000 || ((prevPtn&0x8000) && (fontStyle&EGB_FONTSTYLE_BOLD)))
 					{
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
@@ -668,11 +642,6 @@ void EGB_PUTX16BW(
 					{
 						prevPtn=ptn;
 						ptn<<=1;
-						++srcXCtr;
-						if(0==(srcXCtr&7))
-						{
-							ptn=nextPtn; // Up to two bytes.
-						}
 						balanceX+=dx;
 					}
 
@@ -855,11 +824,11 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 		}
 		if(work->fontStyle&EGB_FONTSTYLE_OVERLINE)
 		{
-			lineAtY=0x0001;
+			lineAtY|=0x0001;
 		}
 		if(work->fontStyle&EGB_FONTSTYLE_MIDDLELINE)
 		{
-			lineAtY=0x0100;
+			lineAtY|=0x0100;
 		}
 
 		while(i<len)
