@@ -370,35 +370,13 @@ unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis)
 	(to)<<=5; \
 }
 
-void EGB_SJISSTRING(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
+static unsigned int DrawText(_Far struct EGB_Work *work,_Far struct EGB_String *strInfo)
 {
-	_Far struct EGB_Work *work;
 	struct EGB_PagePointerSet ptrSet;
-	_Far struct EGB_String *strInfo;
 	struct POINTUW dimension,ankDim,kanjiDim;
 	struct POINTW minmax[2];
 
-	_FP_SEG(strInfo)=DS;
-	_FP_OFF(strInfo)=ESI;
-
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
 	ptrSet=EGB_GetPagePointerSet(work);
-
-	EGB_SetError(EAX,EGB_NO_ERROR);
 
 	kanjiDim.x=work->textZoom&0xFF;
 	kanjiDim.y=(work->textZoom>>8)&0xFF;
@@ -484,16 +462,45 @@ void EGB_SJISSTRING(
 			}
 			sx+=work->fontSpacing;
 		}
-
-		ptrSet.page->textX=sx;
-		ptrSet.page->textY=sy;
 	}
 	else
 	{
 		TSUGARU_BREAK;
 	}
 
+	return dimension.x;
+}
+
+void EGB_SJISSTRING(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	_Far struct EGB_Work *work;
+	_Far struct EGB_String *strInfo;
+
+	_FP_SEG(strInfo)=DS;
+	_FP_OFF(strInfo)=ESI;
+
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
+
+	unsigned wid=DrawText(work,strInfo);
+
+	struct EGB_PagePointerSet ptrSet;
+	ptrSet=EGB_GetPagePointerSet(work);
+	ptrSet.page->textX+=wid;
 }
 
 void EGB_CONNECTSJISSTRING(
