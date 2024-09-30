@@ -718,7 +718,7 @@ void SND_20H_PCM_WAVE_TRANSFER(
 		while(EBX<0x10000)
 		{
 			data=*mainram;
-			if(data==0xff) data=0xfe;
+			if(data==PCM_LOOP_STOP_CODE) data=0xfe;
 			SND_WriteToWaveRAM((EBX&0xffff),data);
 			EBX++;
 			mainram++;
@@ -731,7 +731,7 @@ void SND_20H_PCM_WAVE_TRANSFER(
 		for(int i=0;i<ECX;i++)
 		{
 			data=*mainram;
-			if(data==0xff) data=0xfe;
+			if(data==PCM_LOOP_STOP_CODE) data=0xfe;
 			SND_WriteToWaveRAM((EBX&0xffff),data);
 			EBX++;
 			mainram++;
@@ -1076,8 +1076,6 @@ void SND_2CH_PCM_TRANSFER2(
 	_FP_SEG(mainram)=DS;
 	_FP_OFF(mainram)=ESI;
 
-	unsigned char data;
-
 	if(ECX<=0x10000||EBX<=0x10000)
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
@@ -1086,8 +1084,9 @@ void SND_2CH_PCM_TRANSFER2(
 	{
 		while(EBX<0x10000)
 		{
-			data=*mainram;
-			SND_WriteToWaveRAM((EBX&0xffff),data);
+			// The difference between this function and SND_20H_PCM_WAVE_TRANSFER is that
+			// it does not include the process of converting 0xff to 0xfe for the PCM data loop.
+			SND_WriteToWaveRAM((EBX&0xffff),*mainram);
 			EBX++;
 			mainram++;
 		}
@@ -1098,8 +1097,9 @@ void SND_2CH_PCM_TRANSFER2(
 	{
 		for(int i=0;i<ECX;i++)
 		{
-			data=*mainram;
-			SND_WriteToWaveRAM((EBX&0xffff),data);
+			// The difference between this function and SND_20H_PCM_WAVE_TRANSFER is that
+			// it does not include the process of converting 0xff to 0xfe for the PCM data loop.
+			SND_WriteToWaveRAM((EBX&0xffff),*mainram);
 			EBX++;
 			mainram++;
 		}
