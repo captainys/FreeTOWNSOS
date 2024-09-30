@@ -45,6 +45,27 @@ void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
 	}
 }
 
+unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
+{
+	switch(algo)
+	{
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+		return 0x08; // 0b1000  (Slot 4 only)
+	case 4:
+		return 0x0A; // 0b1010  (Slots 2 and 4)
+	case 5:
+		return 0x0E; // 0b1110  (Slots 2, 3, and 4)
+	case 6:
+		return 0x0E; // 0b1110  (Slots 2, 3, and 4)
+	case 7:
+		return 0x0F;
+	}
+	return 0;
+}
+
 void SND_WriteToWaveRAM(unsigned short addr,unsigned char byteData)
 {
 	_Far unsigned char *ptr;
