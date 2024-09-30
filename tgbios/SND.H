@@ -125,6 +125,8 @@ struct SND_Status
 
 	int numSound;
 	struct PCM_Sound PCMSound[PCM_MAX_NUM_SOUND];
+
+	unsigned char FMVol[SND_NUM_FM_CHANNELS],PCMVol[SND_NUM_PCM_CHANNELS];
 };
 
 _Far struct SND_Status *SND_GetStatus(void);

@@ -32,11 +32,15 @@ void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
 	if(0==regSet || reg<0x30)
 	{
 		_outb(TOWNSIO_SOUND_STATUS_ADDRESS0,reg);
+		_outb(TOWNSIO_TIMER_1US_WAIT,0);
+		_outb(TOWNSIO_TIMER_1US_WAIT,0);
 		_outb(TOWNSIO_SOUND_DATA0,value);
 	}
 	else
 	{
 		_outb(TOWNSIO_SOUND_ADDRESS1,reg);
+		_outb(TOWNSIO_TIMER_1US_WAIT,0);
+		_outb(TOWNSIO_TIMER_1US_WAIT,0);
 		_outb(TOWNSIO_SOUND_DATA1,value);
 	}
 }
@@ -341,6 +345,7 @@ void SND_VOLUME_CHANGE(
 {
 	unsigned char ch=(unsigned char)EBX;
 	unsigned char vol=(unsigned char)EDX;
+	_Far struct SND_Status *status=SND_GetStatus();
 
 	if(128<=vol)
 	{
@@ -357,14 +362,14 @@ void SND_VOLUME_CHANGE(
 	// Too many unknowns and poor documentation.
 	if(SND_Is_FM_Channel(ch))
 	{
+		status->FMVol[ch]=vol;
 		SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_STATE;
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
 		ch-=SND_PCM_CHANNEL_START;
+		status->PCMVol[ch]=vol;
 		SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_STATE;
 	}
 	else
 	{
@@ -387,12 +392,33 @@ void SND_KEY_ABORT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *status=SND_GetStatus();
+	unsigned char ch=EBX;
+
+	if(SND_Is_FM_Channel(ch))
+	{
+		unsigned int regSet=ch/3;
+		unsigned int regBase=ch%3;
+		YM2612_Write(regSet,0x40+regBase,127);
+		YM2612_Write(regSet,0x44+regBase,127);
+		YM2612_Write(regSet,0x48+regBase,127);
+		YM2612_Write(regSet,0x4C+regBase,127);
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		ch-=SND_PCM_CHANNEL_START;
+		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+		_outb(TOWNSIO_SOUND_PCM_ENV,0);
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		TSUGARU_BREAK;
+	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_STATUS(
