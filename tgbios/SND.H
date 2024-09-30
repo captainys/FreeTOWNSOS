@@ -114,6 +114,9 @@ struct SND_PCM_Channel_State
 
 	// for Inst mode.
 	unsigned char instrument,vol;
+	unsigned char soundID; // Decided on key-on
+	unsigned char padding;
+	struct PCM_ENVELOPE env;
 
 	// for Voice mode.
 	unsigned int curPos;
@@ -138,7 +141,7 @@ struct SND_Status
 	struct FMB_INSTRUMENT FMInst[FM_NUM_INSTRUMENTS];   // Seriously it was using 6KB for 128 FM instruments?  Looks like it is.
 	struct PMB_INSTRUMENT PCMInst[PCM_NUM_INSTRUMENTS]; // Although there was no mention
 
-	int numSound;
+	unsigned int numSound;
 	struct PCM_Sound PCMSound[PCM_MAX_NUM_SOUND];
 };
 

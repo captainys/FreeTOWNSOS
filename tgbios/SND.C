@@ -221,6 +221,32 @@ void SND_KEY_ON(
 			YM2612_Write(0,0x28,0xF0|ch);
 		}
 	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		ch-=SND_PCM_CHANNEL_START;
+		unsigned int instIndex=stat->PCMCh[ch].instrument;
+		if(instIndex<PCM_NUM_INSTRUMENTS)
+		{
+			int i;
+			_Far struct PMB_INSTRUMENT *inst=&stat->PCMInst[instIndex];
+			unsigned short soundID=0xFFFF;
+			struct PCM_ENVELOPE env;
+			for(i=0; i<8; ++i)
+			{
+				if(note<=inst->split[i])
+				{
+					soundID=inst->soundID[i];
+					env=inst->env[i];
+					break;
+				}
+			}
+			TSUGARU_BREAK;
+			if(soundID<stat->numSound)
+			{
+				// What to do with the frequency?
+			}
+		}
+	}
 	else
 	{
 		TSUGARU_BREAK;
@@ -329,6 +355,7 @@ void SND_INST_CHANGE(
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
+		ch-=SND_PCM_CHANNEL_START;
 		if(instIndex<FM_NUM_INSTRUMENTS)
 		{
 			stat->PCMCh[ch].instrument=instIndex;
