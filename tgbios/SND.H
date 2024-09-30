@@ -7,11 +7,15 @@
 #define SND_ERROR_WRONG_CH       1
 #define SND_ERROR_KEY_ALREADY_ON 2
 #define SND_ERROR_PARAMETER      3
-#define SND_ERROR_OUT_OF_PCM_RAM 4
-#define SND_ERROR_OUT_OF_PCM_RAM2  5  // WTF?
+#define SND_ERROR_OUT_OF_PCM_RAM 5
 #define SND_ERROR_NO_DATA_LENGTH 6
 #define SND_ERROR_CH_NOT_VOICE_MODE 7
-#define SND_ERROR_BAD_DATA_HEADER 8
+#define SND_ERROR_TOO_SMALL_SPLIT_MAX 8
+#define SND_ERROR_NO_SOUND_ID     9
+#define SND_ERROR_SOUND_ALREADY_DEFINED 10
+#define SND_ERROR_ABOVE_MAX_FREQUENCY 11
+#define SND_ERROR_SAMPLING_ABORTED 12
+#define SND_ERROR_BAD_DATA_HEADER 13
 
 #define SND_SetError(reg,err) {SET_LOW_BYTE(&reg,err);}
 
@@ -60,12 +64,12 @@ struct PCM_Voice_Header
 struct FMB_INSTRUMENT
 {
 	char name[8];
-	unsigned int DT_MULTI;
-	unsigned int TL;
-	unsigned int KS_AR;
-	unsigned int AMON_DR;
-	unsigned int SR;
-	unsigned int SL_RR;
+	unsigned char DT_MULTI[4];
+	unsigned char TL[4];
+	unsigned char KS_AR[4];
+	unsigned char AMON_DR[4];
+	unsigned char SR[4];
+	unsigned char SL_RR[4];
 	unsigned char FB_CNCT;
 	unsigned char LR_AMS_PMS;
 	char unused[14];

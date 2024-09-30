@@ -53,15 +53,14 @@ unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
 	case 1:
 	case 2:
 	case 3:
-		return 0x08; // 0b1000  (Slot 4 only)
+		return 0xFFFFFF03; // Slot 4 only
 	case 4:
-		return 0x0A; // 0b1010  (Slots 2 and 4)
+		return 0xFFFF0103; // Slots 2 and 4
 	case 5:
-		return 0x0E; // 0b1110  (Slots 2, 3, and 4)
 	case 6:
-		return 0x0E; // 0b1110  (Slots 2, 3, and 4)
+		return 0xFF010203; // Slots 2, 3, and 4
 	case 7:
-		return 0x0F;
+		return 0x00010203; // All slots.
 	}
 	return 0;
 }
@@ -190,10 +189,46 @@ void SND_KEY_ON(
 	// DH=Note 0 to 127
 	// DL=Volume 0 to 127
 
+	unsigned char ch=EBX;
+	unsigned char note=(EDX>>8);
+	unsigned char vol=(unsigned char)EDX;
+	if(SND_Is_FM_Channel(ch))
+	{
+		unsigned int instIndex=stat->FMCh[ch].instrument;
+		unsigned short BLK_FNUM;
+		BLK_FNUM=GetFNUM_BLOCK_from_Number(note);
+
+		if(instIndex<FM_NUM_INSTRUMENTS)
+		{
+			int i;
+			unsigned int regSet=ch/3;
+			unsigned int chMOD3=ch%3;
+			_Far struct FMB_INSTRUMENT *inst=&stat->FMInst[instIndex];
+			unsigned int carrierSlots=YM2612_AlgorithmToCarrierSlot(inst->FB_CNCT&0x07);
+			for(i=0; i<4; ++i)
+			{
+				unsigned int slot=(unsigned char)carrierSlots;
+				if(0xFF!=slot)
+				{
+					unsigned char TL=inst->TL[slot];  // Question: Is this the maximum volume?  Or volume when specified_vol=64?
+					// Let's assume it's maximum volume;
+					TL-=_min(TL,vol);
+					YM2612_Write(regSet,0x40+chMOD3+slot*4,TL);
+				}
+				carrierSlots>>=8;
+			}
+
+			YM2612_Write(0,0x28,0xF0|ch);
+		}
+	}
+	else
+	{
+		TSUGARU_BREAK;
+	}
+
 	// Error code  AL=SND_NO_ERROR or SND_ERROR_WRONG_CH or SND_ERROR_KEY_ALREADY_ON or SND_ERROR_PARAMETER.
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_KEY_OFF(
@@ -212,8 +247,16 @@ void SND_KEY_OFF(
 {
 	_Far struct SND_Status *stat=SND_GetStatus();
 
-	SND_SetError(EAX,SND_NO_ERROR);
+	unsigned char ch=EBX;
+	if(SND_Is_FM_Channel(ch))
+	{
+		YM2612_Write(0,0x28,0x00|ch);
+	}
+	else
+	{
 		TSUGARU_BREAK;
+	}
+	SND_SetError(EAX,SND_NO_ERROR);
 }
 
 void SND_PAN_SET(
@@ -254,10 +297,52 @@ void SND_INST_CHANGE(
 {
 	// BL=Channel
 	// DH=Instrument ID
+	unsigned char ch=EBX;
+	unsigned char instIndex=(EDX>>8);
 	_Far struct SND_Status *stat=SND_GetStatus();
 
 	SND_SetError(EAX,SND_NO_ERROR);
+	if(SND_Is_FM_Channel(ch))
+	{
+		if(instIndex<FM_NUM_INSTRUMENTS)
+		{
+			unsigned int regSet=ch/3;
+			unsigned int chMOD3=ch%3;
+			stat->FMCh[ch].instrument=instIndex;
+
+			for(int i=0; i<4; ++i)
+			{
+				YM2612_Write(regSet,0x30+chMOD3+i*4,stat->FMInst[instIndex].DT_MULTI[i]);
+				YM2612_Write(regSet,0x40+chMOD3+i*4,stat->FMInst[instIndex].TL[i]);
+				YM2612_Write(regSet,0x50+chMOD3+i*4,stat->FMInst[instIndex].KS_AR[i]);
+				YM2612_Write(regSet,0x60+chMOD3+i*4,stat->FMInst[instIndex].AMON_DR[i]);
+				YM2612_Write(regSet,0x70+chMOD3+i*4,stat->FMInst[instIndex].SR[i]);
+				YM2612_Write(regSet,0x80+chMOD3+i*4,stat->FMInst[instIndex].SL_RR[i]);
+			}
+			YM2612_Write(regSet,0xB0+chMOD3,stat->FMInst[instIndex].FB_CNCT);
+			YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS);
+		}
+		else
+		{
+			SND_SetError(EAX,SND_ERROR_PARAMETER);
+		}
+	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		if(instIndex<FM_NUM_INSTRUMENTS)
+		{
+			stat->PCMCh[ch].instrument=instIndex;
+		}
+		else
+		{
+			SND_SetError(EAX,SND_ERROR_PARAMETER);
+		}
+	}
+	else
+	{
+		// MIDI support is long way ahead.
 		TSUGARU_BREAK;
+	}
 }
 
 void SND_INST_WRITE(
@@ -800,7 +885,7 @@ void SND_20H_PCM_WAVE_TRANSFER(
 			mainram++;
 		}
 
-		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
 	}
 	else
 	{
@@ -895,14 +980,14 @@ void SND_22H_PCM_SOUND_SET(
 
 	if(PCM_MAX_NUM_SOUND<=status->numSound)
 	{
-		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
 		return;
 	}
 
 	required=(soundData->totalBytes+32+255)&0xFFFFFF00;
 	if(status->voiceModeStartAddr<status->instSoundLastAddr+required)
 	{
-		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
 		return;
 	}
 
@@ -1167,7 +1252,7 @@ void SND_2CH_PCM_TRANSFER2(
 			mainram++;
 		}
 
-		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM2);
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
 	}
 	else
 	{
