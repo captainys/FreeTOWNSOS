@@ -718,12 +718,30 @@ void SND_FM_LFO_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned int val;
+	unsigned char reg;
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	val=EDX&0xff;
+
+	if(val<=9)
+	{
+		val=SND_ERROR_PARAMETER;
+	}
+	else
+	{
+		if(val==0)
+		{
+			reg=0;
+		}
+		else
+		{
+			reg=7+val;
+		}
+		YM2612_Write(0,0x22,reg);
+		val=SND_NO_ERROR;
+	}
+
+	SND_SetError(EAX,val);
 }
 
 void SND_20H_PCM_WAVE_TRANSFER(
