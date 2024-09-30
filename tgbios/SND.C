@@ -116,13 +116,23 @@ void SND_INIT(
 	_outb(TOWNSIO_ELEVOL_2_COM,3);
 
 
-	// PCM Voice Mode Allocation
+	// FM Channels
+	for(i=0; i<SND_NUM_FM_CHANNELS; ++i)
+	{
+		status->FMCh[i].vol=80;
+		status->FMCh[i].instrument=0;
+	}
+
+
+	// PCM Channels
 	status->voiceModeINTMask=0;
 	status->numVoiceModeChannels=0;
 	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
 	{
 		status->voiceChannelBank[i]=0;
-		status->pcmPlayInfo[i].playing=0;
+		status->PCMCh[i].playing=0;
+		status->PCMCh[i].instrument=0;
+		status->PCMCh[i].vol=80;
 	}
 	status->PCMKey=0xFF;
 
@@ -158,9 +168,12 @@ void SND_KEY_ON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *stat=SND_GetStatus();
+	// BL=Channel
+	// DH=Note 0 to 127
+	// DL=Volume 0 to 127
+
+	// Error code  AL=SND_NO_ERROR or SND_ERROR_WRONG_CH or SND_ERROR_KEY_ALREADY_ON or SND_ERROR_PARAMETER.
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
@@ -180,9 +193,7 @@ void SND_KEY_OFF(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *stat=SND_GetStatus();
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
@@ -224,9 +235,9 @@ void SND_INST_CHANGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	// BL=Channel
+	// DH=Instrument ID
+	_Far struct SND_Status *stat=SND_GetStatus();
 
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
@@ -362,13 +373,13 @@ void SND_VOLUME_CHANGE(
 	// Too many unknowns and poor documentation.
 	if(SND_Is_FM_Channel(ch))
 	{
-		status->FMVol[ch]=vol;
+		status->FMCh[ch].vol=vol;
 		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
 		ch-=SND_PCM_CHANNEL_START;
-		status->PCMVol[ch]=vol;
+		status->PCMCh[ch].vol=vol;
 		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	else
@@ -1018,7 +1029,7 @@ void SND_28H_PCM_PCM_VOICE_STATUS(
 		return;
 	}
 
-	SET_LOW_BYTE(&EDX,sndStat->pcmPlayInfo[ch].playing);
+	SET_LOW_BYTE(&EDX,sndStat->PCMCh[ch].playing);
 	SND_SetError(EAX,SND_NO_ERROR);
 }
 
@@ -1189,11 +1200,11 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 	_FP_SEG(sndData)=DS;
 	_FP_OFF(sndData)=ESI;
 
-	info->pcmPlayInfo[ch].header=sndData;
-	info->pcmPlayInfo[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
-	info->pcmPlayInfo[ch].nextFillBank=info->voiceChannelBank[ch];
-	info->pcmPlayInfo[ch].playing=1;
-	info->pcmPlayInfo[ch].curPos=0;
+	info->PCMCh[ch].header=sndData;
+	info->PCMCh[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
+	info->PCMCh[ch].nextFillBank=info->voiceChannelBank[ch];
+	info->PCMCh[ch].playing=1;
+	info->PCMCh[ch].curPos=0;
 
 
 	{
@@ -1207,13 +1218,13 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		{
 			unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
-			MOVSB_FAR(waveRAM,info->pcmPlayInfo[ch].playPtr,oneTransferSize);
+			MOVSB_FAR(waveRAM,info->PCMCh[ch].playPtr,oneTransferSize);
 			if(oneTransferSize<PCM_BANK_SIZE)
 			{
 				waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
 			}
 			transferSize-=oneTransferSize;
-			info->pcmPlayInfo[ch].curPos+=oneTransferSize;
+			info->PCMCh[ch].curPos+=oneTransferSize;
 			++bank;
 		}
 	}
@@ -1694,36 +1705,36 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 		INTBankFlag<<=(stat->voiceChannelBank[ch]/2);
 		if(INTBank&INTBankFlag)
 		{
-			if(stat->pcmPlayInfo[ch].header->totalBytes<=stat->pcmPlayInfo[ch].curPos)
+			if(stat->PCMCh[ch].header->totalBytes<=stat->PCMCh[ch].curPos)
 			{
 				// Not respecting loop for the time being.
 				stat->PCMKey|=CHFlag;
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey); // Key Off
-				stat->pcmPlayInfo[ch].playing=0;
+				stat->PCMCh[ch].playing=0;
 			}
 			else
 			{
-				unsigned int bytesLeft=stat->pcmPlayInfo[ch].header->totalBytes-stat->pcmPlayInfo[ch].curPos;
+				unsigned int bytesLeft=stat->PCMCh[ch].header->totalBytes-stat->PCMCh[ch].curPos;
 				unsigned int transferSize=PCM_BANK_SIZE;
 				_Far unsigned char *waveRAM;
 				_FP_SEG(waveRAM)=SEG_WAVE_RAM;
 				_FP_OFF(waveRAM)=0;
 
-				if(stat->pcmPlayInfo[ch].nextFillBank&1)
+				if(stat->PCMCh[ch].nextFillBank&1)
 				{
 					transferSize-=256;
 				}
 				transferSize=_min(transferSize,bytesLeft);
 
-				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->pcmPlayInfo[ch].nextFillBank);
-				MOVSB_FAR(waveRAM,stat->pcmPlayInfo[ch].playPtr+stat->pcmPlayInfo[ch].curPos,transferSize);
+				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->PCMCh[ch].nextFillBank);
+				MOVSB_FAR(waveRAM,stat->PCMCh[ch].playPtr+stat->PCMCh[ch].curPos,transferSize);
 				if(transferSize<PCM_BANK_SIZE)
 				{
 					waveRAM[transferSize]=PCM_LOOP_STOP_CODE;
 				}
 
-				stat->pcmPlayInfo[ch].curPos+=transferSize;
-				stat->pcmPlayInfo[ch].nextFillBank^=1;
+				stat->PCMCh[ch].curPos+=transferSize;
+				stat->PCMCh[ch].nextFillBank^=1;
 			}
 		}
 		--ch;
@@ -1760,8 +1771,6 @@ static struct SND_Status status=
 	0,  // numVoiceModeChannels
 	0,  // PCMKey
 	{0,0,0,0,0,0,0,0}, // voiceModeChannelBnak
-	{{NULL,NULL,0,0}},
-	{{0}},
 };
 
 _Far struct SND_Status *SND_GetStatus(void)

@@ -98,10 +98,20 @@ struct PCM_Sound
 	struct PCM_Voice_Header snd;
 };
 
-struct SND_PCM_Play_Info
+struct SND_FM_Channel_State
+{
+	unsigned char instrument,vol;
+};
+
+struct SND_PCM_Channel_State
 {
 	_Far struct PCM_Voice_Header *header;
 	_Far unsigned char *playPtr;
+
+	// for Inst mode.
+	unsigned char instrument,vol;
+
+	// for Voice mode.
 	unsigned int curPos;
 	unsigned char playing;
 	unsigned char nextFillBank;
@@ -119,14 +129,13 @@ struct SND_Status
 	unsigned char numVoiceModeChannels;
 	unsigned char PCMKey;
 	unsigned char voiceChannelBank[SND_NUM_PCM_CHANNELS];
-	struct SND_PCM_Play_Info pcmPlayInfo[SND_NUM_PCM_CHANNELS];
+	struct SND_FM_Channel_State FMCh[SND_NUM_FM_CHANNELS];
+	struct SND_PCM_Channel_State PCMCh[SND_NUM_PCM_CHANNELS];
 	struct FMB_INSTRUMENT FMInst[FM_NUM_INSTRUMENTS];   // Seriously it was using 6KB for 128 FM instruments?  Looks like it is.
 	struct PMB_INSTRUMENT PCMInst[PCM_NUM_INSTRUMENTS]; // Although there was no mention
 
 	int numSound;
 	struct PCM_Sound PCMSound[PCM_MAX_NUM_SOUND];
-
-	unsigned char FMVol[SND_NUM_FM_CHANNELS],PCMVol[SND_NUM_PCM_CHANNELS];
 };
 
 _Far struct SND_Status *SND_GetStatus(void);
