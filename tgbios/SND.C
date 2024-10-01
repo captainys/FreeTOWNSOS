@@ -228,6 +228,7 @@ void SND_KEY_ON(
 			YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
 			YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
 
+			YM2612_Write(0,0x28,0x00|ch);
 			YM2612_Write(0,0x28,0xF0|ch);
 		}
 	}
@@ -405,7 +406,7 @@ void SND_INST_CHANGE(
 				YM2612_Write(regSet,0x80+chMOD3+i*4,stat->FMInst[instIndex].SL_RR[i]);
 			}
 			YM2612_Write(regSet,0xB0+chMOD3,stat->FMInst[instIndex].FB_CNCT);
-			YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS);
+			YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS|0xC0);
 		}
 		else
 		{
