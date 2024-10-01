@@ -235,9 +235,12 @@ void SND_KEY_ON(
 				if(0xFF!=slot)
 				{
 					unsigned short TL=inst->TL[slot];
-					TL=_max(TL,0x1F);
-					TL*=(127-vol);
+					unsigned short MUL;
+					TL=127-_min(TL,127);
+					MUL=(0x60+(vol>>2));
+					TL*=MUL;
 					TL>>=7;
+					TL=127-TL;
 					YM2612_Write(regSet,0x40+chMOD3+slot*4,TL);
 				}
 				carrierSlots>>=8;
