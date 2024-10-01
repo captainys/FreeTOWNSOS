@@ -23,6 +23,14 @@
 #define PAD_RUN 64
 #define PAD_SELECT 128
 
+#define YM_REG27H_CH3MODE   0xC0
+#define YM_REG27H_TMB_RESET 0x20
+#define YM_REG27H_TMA_RESET 0x10
+#define YM_REG27H_TMB_EN    0x08
+#define YM_REG27H_TMA_EN    0x04
+#define YM_REG27H_TMB_LOAD  0x02
+#define YM_REG27H_TMA_LOAD  0x01
+
 static unsigned short GetFNUM_BLOCK_from_Number(unsigned char num);
 static unsigned int GetFreqScale(unsigned int note,unsigned int baseNote);
 
@@ -161,7 +169,7 @@ void SND_INIT(
 
 
 	// Stop YM2612 Timers
-	YM2612_Write(0,0x27,0x30);
+	YM2612_Write(0,0x27,YM_REG27H_TMA_RESET|YM_REG27H_TMB_RESET);
 
 	// Disable RF5C68 INT
 	_outb(TOWNSIO_SOUND_PCM_INT_MASK,0);
@@ -774,8 +782,8 @@ void SND_15H_FM_TIMER_A_SET(
 	if(0==sw)
 	{
 		unsigned char reg27H=info->YM2612_REG27H;
-		reg27H&=0xCA; // Preserve MODE, TimerB enable, TimerB Load
-		YM2612_Write(0,0x27,0x10|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+		reg27H&=(YM_REG27H_CH3MODE|YM_REG27H_TMB_EN|YM_REG27H_TMB_LOAD); // Preserve Timer B and Ch3 Mode
+		YM2612_Write(0,0x27,YM_REG27H_TMA_RESET|reg27H);
 		info->YM2612_REG27H=reg27H;
 	}
 	else
@@ -821,8 +829,8 @@ void SND_16H_FM_TIMER_B_SET(
 	if(0==sw)
 	{
 		unsigned char reg27H=info->YM2612_REG27H;
-		reg27H&=0xC5; // Preserve MODE, TimerA enable, TimerA Load
-		YM2612_Write(0,0x27,0x20|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+		reg27H&=(YM_REG27H_CH3MODE|YM_REG27H_TMA_EN|YM_REG27H_TMA_LOAD); // Preserve TimerA and Ch3Mode
+		YM2612_Write(0,0x27,YM_REG27H_TMB_RESET|reg27H);
 		info->YM2612_REG27H=reg27H;
 	}
 	else
@@ -857,8 +865,9 @@ void SND_FM_Timer_A_Restart(void)
 {
 	_Far struct SND_Status *info=SND_GetStatus();
 	unsigned char reg27H=info->YM2612_REG27H;
-	reg27H&=0xCA; // Preseve Timer B flag permission, and CH3 MODE
-	YM2612_Write(0,0x27,0x15|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+	reg27H&=(YM_REG27H_CH3MODE|YM_REG27H_TMB_EN|YM_REG27H_TMB_LOAD); // Preserve Timer B and Ch3 Mode
+	reg27H|=YM_REG27H_TMA_LOAD|YM_REG27H_TMA_EN;
+	YM2612_Write(0,0x27,YM_REG27H_TMA_RESET|reg27H);
 	info->YM2612_REG27H=reg27H;
 }
 
@@ -885,8 +894,9 @@ void SND_FM_Timer_B_Restart(void)
 {
 	_Far struct SND_Status *info=SND_GetStatus();
 	unsigned char reg27H=info->YM2612_REG27H;
-	reg27H&=0xC5; // Preseve Timer B flag permission, and CH3 MODE
-	YM2612_Write(0,0x27,0x2A|reg27H); // MODEMODE|ResetA|ResetB|PermitFlagA|PermitFlagB|LoadB|LoadA
+	reg27H&=(YM_REG27H_CH3MODE|YM_REG27H_TMA_EN|YM_REG27H_TMA_LOAD); // Preserve TimerA and Ch3Mode
+	reg27H|=YM_REG27H_TMB_LOAD|YM_REG27H_TMB_EN;
+	YM2612_Write(0,0x27,YM_REG27H_TMB_RESET|reg27H);
 	info->YM2612_REG27H=reg27H;
 }
 
@@ -1871,7 +1881,6 @@ void SND_ENVELOPE_INT_HANDLER(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_VOICE_INT_HANDLER(
