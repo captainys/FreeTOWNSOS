@@ -56,7 +56,7 @@ struct PCM_Voice_Header
 	unsigned int loopStart;
 	unsigned int loopLength;
 	unsigned short sampleFreq;
-	unsigned short sampleFreqCorrection;
+	short sampleFreqCorrection;
 	unsigned char baseNote;
 	unsigned char padding[3];
 };
