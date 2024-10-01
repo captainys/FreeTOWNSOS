@@ -204,8 +204,7 @@ void SND_KEY_ON(
 	if(SND_Is_FM_Channel(ch))
 	{
 		unsigned int instIndex=stat->FMCh[ch].instrument;
-		unsigned short BLK_FNUM;
-		BLK_FNUM=GetFNUM_BLOCK_from_Number(note);
+		unsigned short BLK_FNUM=GetFNUM_BLOCK_from_Number(note);
 
 		if(instIndex<FM_NUM_INSTRUMENTS)
 		{
@@ -226,6 +225,8 @@ void SND_KEY_ON(
 				}
 				carrierSlots>>=8;
 			}
+			YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
+			YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
 
 			YM2612_Write(0,0x28,0xF0|ch);
 		}
@@ -362,7 +363,7 @@ void SND_PAN_SET(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_STATE;
 }
 
 void SND_INST_CHANGE(
