@@ -92,6 +92,7 @@ REALENTRY:
 CLONE_ENTRY:
 						MOV		AH,BIOSCMD_COMMON_INIT
 						INT		0AEH	; Initialize Interrupt Manager.
+						;  This must be done first.  It sets secondary PIC Special Fully Nested Mode.
 
 						XOR		AH,AH
 						INT		90H
