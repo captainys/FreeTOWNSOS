@@ -126,14 +126,18 @@ INTERCEPT_INT:
 						CALL	FAR [BX+2]
 						POP		BX
 
-						MOV		AL,60H
 						SHR		BX,1
 						MOV		DX,BX
 						AND		DX,10H	; This nicely makes 00H or 10H (OCW2 I/O)
-						SHR		BX,1
 
-						AND		BL,7
-						OR		AL,BL
+						; Towns OS's IO.SYS uses non-specific EOI (20H)  I don't understand why.
+						; SHR		BX,1
+						; AND		BL,7
+						; MOV		AL,60H	; Specific EOI
+						; OR		AL,BL	; Plus INTNum
+
+						MOV		AL,20H	; Non-Specific EOI
+
 						OUT		DX,AL
 
 						POP		GS
