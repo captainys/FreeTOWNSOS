@@ -144,8 +144,9 @@ void SND_INIT(
 	// FM Channels
 	for(i=0; i<SND_NUM_FM_CHANNELS; ++i)
 	{
-		status->FMCh[i].vol=80;
 		status->FMCh[i].instrument=0;
+		status->FMCh[i].vol=80;
+		status->FMCh[i].pan=0xc0;
 	}
 
 
@@ -158,6 +159,7 @@ void SND_INIT(
 		status->PCMCh[i].playing=0;
 		status->PCMCh[i].instrument=0;
 		status->PCMCh[i].vol=80;
+		status->PCMCh[i].pan=0x88;
 	}
 	status->PCMKey=0xFF;
 
@@ -294,7 +296,7 @@ void SND_KEY_ON(
 				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStopAddr); // I'll be worried about loop sometime in the future.
 
 				_outb(TOWNSIO_SOUND_PCM_ENV,(vol<<1)|(vol&1));  // Was it 0-127?  or 0-255?
-				_outb(TOWNSIO_SOUND_PCM_PAN,0xFF);
+				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
 
 				unsigned char keyFlag=(1<<ch);
 				stat->PCMKey|=keyFlag;
@@ -362,12 +364,50 @@ void SND_PAN_SET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	unsigned char ch=(unsigned char)EBX;
+	unsigned char pan_set=(unsigned char)EDX;
+	_Far struct SND_Status *status=SND_GetStatus();
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_STATE;
+	if(SND_Is_FM_Channel(ch))
+	{
+		switch(pan_set)
+		{
+		case 127: // Right only
+			status->FMCh[ch].pan=0x40;
+			break;
+		case 0:   // Left only
+			status->FMCh[ch].pan=0x80;
+			break;
+		default:  // Both
+			status->FMCh[ch].pan=0xc0;
+			break;
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		// probably the center pan is not 0xff(11111111) but 0x88(10001000).
+		// At 0xff, the maximum volume will flow from both ch, making it twice as loud.
+		// center = 0x88, left only = 0x0f, right only = 0xf0.
+		ch-=SND_PCM_CHANNEL_START;
+		pan_set&=0x7f;
+		if(pan_set==64)
+		{
+			status->PCMCh[ch].pan=0x88;
+		}
+		else
+		{
+			status->PCMCh[ch].pan=((pan_set<<1)&0xf0)|((127-pan_set)>>3);
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		TSUGARU_BREAK;
+	}
 }
 
 void SND_INST_CHANGE(
@@ -409,7 +449,7 @@ void SND_INST_CHANGE(
 				YM2612_Write(regSet,0x80+chMOD3+i*4,stat->FMInst[instIndex].SL_RR[i]);
 			}
 			YM2612_Write(regSet,0xB0+chMOD3,stat->FMInst[instIndex].FB_CNCT);
-			YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS|0xC0);
+			YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS|stat->FMCh[ch].pan);
 		}
 		else
 		{
@@ -1454,7 +1494,7 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 
 		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
 		_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
-		_outb(TOWNSIO_SOUND_PCM_PAN,0xFF);  // I'll be worried about it later.
+		_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
 
 		_outb(TOWNSIO_SOUND_PCM_FDL,FD);
 		_outb(TOWNSIO_SOUND_PCM_FDH,FD>>8);

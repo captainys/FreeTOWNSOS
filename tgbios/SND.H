@@ -104,7 +104,7 @@ struct PCM_Sound
 
 struct SND_FM_Channel_State
 {
-	unsigned char instrument,vol;
+	unsigned char instrument,vol,pan;
 };
 
 struct SND_PCM_Channel_State
@@ -113,7 +113,7 @@ struct SND_PCM_Channel_State
 	_Far unsigned char *playPtr;
 
 	// for Inst mode.
-	unsigned char instrument,vol;
+	unsigned char instrument,vol,pan;
 	unsigned char soundID; // Decided on key-on
 	unsigned char padding;
 	struct PCM_ENVELOPE env;
