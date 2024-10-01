@@ -218,9 +218,12 @@ void SND_KEY_ON(
 				unsigned int slot=(unsigned char)carrierSlots;
 				if(0xFF!=slot)
 				{
-					unsigned char TL=inst->TL[slot];  // Question: Is this the maximum volume?  Or volume when specified_vol=64?
+					unsigned short TL=inst->TL[slot];  // Question: Is this the maximum volume?  Or volume when specified_vol=64?
 					// Let's assume it's maximum volume;
-					TL-=_min(TL,vol);
+					TL=127-TL;
+					TL*=vol;
+					TL>>=7;
+					TL=127-TL;
 					YM2612_Write(regSet,0x40+chMOD3+slot*4,TL);
 				}
 				carrierSlots>>=8;
