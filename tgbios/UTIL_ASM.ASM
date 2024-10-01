@@ -20,6 +20,7 @@
 
 						PUBLIC	MULDIV
 						PUBLIC	IMULDIV
+						PUBLIC	MUL_SHR
 
 
 CODE					SEGMENT
@@ -424,6 +425,33 @@ MULDIV					PROC
 						RET
 
 MULDIV					ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+MUL_SHR					PROC
+; unsigned int x=MUL_SHR(a,b,shift);
+; [ESP+20] shift
+; [ESP+16] B
+; [ESP+12] A
+; [ESP+8]  EIP
+; [ESP+4]  EDX
+; [ESP]    ECX
+						PUSH	EDX
+						PUSH	ECX
+
+						MOV		EAX,[ESP+12]
+						MOV		EDX,[ESP+16]
+						MUL		EDX
+
+						MOV		ECX,[ESP+20]
+						SHRD	EAX,EDX,CL
+
+						POP		ECX
+						POP		EDX
+						RET
+MUL_SHR					ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

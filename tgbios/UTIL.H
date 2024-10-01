@@ -16,5 +16,6 @@ void SET_DWORD(void *ptr,unsigned int data);
 
 unsigned int MULDIV(unsigned int a,unsigned int b,unsigned int c);
 int IMULDIV(int a,int b,int c);
+unsigned int MUL_SHR(unsigned a,unsigned b,unsigned int right_shift);
 
 #endif
