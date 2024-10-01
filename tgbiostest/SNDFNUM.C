@@ -5,6 +5,7 @@
 
 char SND_work[SndWorkSize];
 
+#define TSUGARU_BREAK _inline(0xE6,0xEA);
 
 int main(void)
 {
@@ -36,6 +37,7 @@ int main(void)
 			SND_elevol_mute(0x03); // WTF!  It says mute.  But, 1 means unmute.  Active-Low.  No mention in the red book.
 
 
+
 			for(i=0; i+48<=sz; i+=48)
 			{
 				SND_inst_write(0,i/48,fmb+i);
@@ -43,12 +45,23 @@ int main(void)
 
 			SND_inst_change(0,0); // Ch=0, Inst=0
 
-			for(i=0; i<127; ++i)
+			// Capture FNUM and BLOCK
+			//for(i=0; i<128; ++i)
+			//{
+			//	clock_t c0=clock();
+			//	SND_key_on(0,i,64);
+			//	while((clock()-c0)<CLOCKS_PER_SEC/20);
+			//	_outb(0x2386,0x0C); // Capture F_NUM and BLOCK of YM2612 Ch0
+			//	SND_key_off(0);
+			//}
+
+			// Capture TL
+			for(i=0; i<128; ++i)
 			{
 				clock_t c0=clock();
-				SND_key_on(0,i,64);
+				SND_key_on(0,64,i);
 				while((clock()-c0)<CLOCKS_PER_SEC/20);
-				_outb(0x2386,0x0C); // Capture F_NUM and BLOCK of YM2612 Ch0
+				_outb(0x2386,0x0D); // Capture TL of YM2612 Ch0 Slot[3]
 				SND_key_off(0);
 			}
 

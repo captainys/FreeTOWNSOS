@@ -74,6 +74,19 @@ unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
 	return 0;
 }
 
+unsigned char YM2612_SlotTwist(unsigned char slot)
+{
+	if(slot==1)
+	{
+		return 2;
+	}
+	if(slot==2)
+	{
+		return 1;
+	}
+	return slot;
+}
+
 void SND_WriteToWaveRAM(unsigned short addr,unsigned char byteData)
 {
 	_Far unsigned char *ptr;
@@ -218,14 +231,13 @@ void SND_KEY_ON(
 			for(i=0; i<4; ++i)
 			{
 				unsigned int slot=(unsigned char)carrierSlots;
+				slot=YM2612_SlotTwist(slot);
 				if(0xFF!=slot)
 				{
-					unsigned short TL=inst->TL[slot];  // Question: Is this the maximum volume?  Or volume when specified_vol=64?
-					// Let's assume it's maximum volume;
-					TL=127-TL;
-					TL*=vol;
+					unsigned short TL=inst->TL[slot];
+					TL=_max(TL,0x1F);
+					TL*=(127-vol);
 					TL>>=7;
-					TL=127-TL;
 					YM2612_Write(regSet,0x40+chMOD3+slot*4,TL);
 				}
 				carrierSlots>>=8;
