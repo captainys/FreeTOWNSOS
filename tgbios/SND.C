@@ -303,15 +303,19 @@ void SND_KEY_ON(
 				// PCM Stride 1X is (1<<11)=0x0800
 				unsigned int stride=MULDIV(0x800,playFreq,baseFreq);
 
-				unsigned short loopStopAddr=sound->addrInWaveRAM+sound->snd.totalBytes;
+				unsigned short loopStartAddr=sound->addrInWaveRAM+sound->snd.totalBytes;
+				if(0!=sound->snd.loopLength && sound->snd.loopStart<sound->snd.totalBytes)
+				{
+					loopStartAddr=sound->addrInWaveRAM+sound->snd.loopStart;
+				}
 
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
 
 				_outb(TOWNSIO_SOUND_PCM_ST,(sound->addrInWaveRAM>>8));
 				_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
 				_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
-				_outb(TOWNSIO_SOUND_PCM_LSH,loopStopAddr>>8);
-				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStopAddr); // I'll be worried about loop sometime in the future.
+				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);
+				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // I'll be worried about loop sometime in the future.
 
 				_outb(TOWNSIO_SOUND_PCM_ENV,(vol<<1)|(vol&1));  // Was it 0-127?  or 0-255?
 				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
@@ -1159,8 +1163,18 @@ void SND_22H_PCM_SOUND_SET(
 	wave=((_Far unsigned char *)soundData);
 	wave+=sizeof(struct PCM_Voice_Header);
 
+	unsigned int totalBytes;
+	if(soundData->loopLength)
+	{
+		totalBytes=_min(soundData->totalBytes,soundData->loopStart+soundData->loopLength);
+	}
+	else
+	{
+		totalBytes=soundData->totalBytes;
+	}
+
 	addr=status->instSoundLastAddr;
-	for(i=0; i<soundData->totalBytes; ++i)
+	for(i=0; i<totalBytes; ++i)
 	{
 		SND_WriteToWaveRAM(addr++,*(wave++));
 	}
