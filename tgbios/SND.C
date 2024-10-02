@@ -287,6 +287,9 @@ void SND_KEY_ON(
 			}
 			if(NULL!=sound)
 			{
+				_PUSHFD
+				_CLI
+
 				// What to do with the frequency?
 				unsigned int baseFreq=sound->snd.sampleFreq+sound->snd.sampleFreqCorrection;
 
@@ -318,6 +321,8 @@ void SND_KEY_ON(
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
 				stat->PCMKey&=~keyFlag;
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+
+				_POPFD
 			}
 		}
 	}
@@ -1259,6 +1264,8 @@ void SND_27H_PCM_PCM_VOICE_STOP(
 	_FP_SEG(work)=GS;
 	_FP_OFF(work)=EDI;
 
+	// Memo: Make sure to CLI while updating channel info and PCM registers.
+
 	SND_SetError(EAX,SND_NO_ERROR);
 		TSUGARU_BREAK;
 }
@@ -1470,60 +1477,63 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 	_FP_SEG(sndData)=DS;
 	_FP_OFF(sndData)=ESI;
 
-	info->PCMCh[ch].header=sndData;
-	info->PCMCh[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
-	info->PCMCh[ch].nextFillBank=info->voiceChannelBank[ch];
-	info->PCMCh[ch].playing=1;
-	info->PCMCh[ch].curPos=0;
-
-
+	_PUSHFD
+	_CLI
 	{
-		unsigned int bank=info->voiceChannelBank[ch];
-		unsigned int transferSize=_min(PCM_BANK_SIZE*2-256,sndData->totalBytes);
-		_Far unsigned char *waveRAM;
-		_FP_SEG(waveRAM)=SEG_WAVE_RAM;
-		_FP_OFF(waveRAM)=0;
+		info->PCMCh[ch].header=sndData;
+		info->PCMCh[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
+		info->PCMCh[ch].nextFillBank=info->voiceChannelBank[ch];
+		info->PCMCh[ch].playing=1;
+		info->PCMCh[ch].curPos=0;
 
-		while(0<transferSize)
 		{
-			unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
-			_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
-			MOVSB_FAR(waveRAM,info->PCMCh[ch].playPtr,oneTransferSize);
-			if(oneTransferSize<PCM_BANK_SIZE)
+			unsigned int bank=info->voiceChannelBank[ch];
+			unsigned int transferSize=_min(PCM_BANK_SIZE*2-256,sndData->totalBytes);
+			_Far unsigned char *waveRAM;
+			_FP_SEG(waveRAM)=SEG_WAVE_RAM;
+			_FP_OFF(waveRAM)=0;
+
+			while(0<transferSize)
 			{
-				waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
+				unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
+				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+				MOVSB_FAR(waveRAM,info->PCMCh[ch].playPtr,oneTransferSize);
+				if(oneTransferSize<PCM_BANK_SIZE)
+				{
+					waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
+				}
+				transferSize-=oneTransferSize;
+				info->PCMCh[ch].curPos+=oneTransferSize;
+				++bank;
 			}
-			transferSize-=oneTransferSize;
-			info->PCMCh[ch].curPos+=oneTransferSize;
-			++bank;
+		}
+
+		{
+			unsigned short FD=0x1000;  // Address Step.  1x times=4096
+			unsigned short ST=info->voiceChannelBank[ch];
+
+			// ST is the high-byte of the starting address, therefore, ST<<=12 to make it full address,
+			// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
+			ST<<=4;
+
+			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+			_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
+			_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
+
+			_outb(TOWNSIO_SOUND_PCM_FDL,FD);
+			_outb(TOWNSIO_SOUND_PCM_FDH,FD>>8);
+
+			_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
+			_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
+			_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
+
+			_outb(TOWNSIO_SOUND_PCM_INT_MASK,info->voiceModeINTMask);
+
+			info->PCMKey&=~keyFlag;
+			_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
 		}
 	}
-
-	{
-		unsigned short FD=0x1000;  // Address Step.  1x times=4096
-		unsigned short ST=info->voiceChannelBank[ch];
-
-		// ST is the high-byte of the starting address, therefore, ST<<=12 to make it full address,
-		// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
-		ST<<=4;
-
-		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-		_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
-		_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
-
-		_outb(TOWNSIO_SOUND_PCM_FDL,FD);
-		_outb(TOWNSIO_SOUND_PCM_FDH,FD>>8);
-
-		_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
-		_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
-		_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
-
-		_outb(TOWNSIO_SOUND_PCM_INT_MASK,info->voiceModeINTMask);
-
-		info->PCMKey&=~keyFlag;
-		_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
-	}
-
+	_POPFD
 
 	SND_SetError(EAX,SND_NO_ERROR);
 }
