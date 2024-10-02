@@ -240,4 +240,6 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work);
 
 void EGB_MakeP0SmallerThanP1(struct POINTW *p0,struct POINTW *p1);
 
+void SwapShort(short *a,short *b);
+
 #endif

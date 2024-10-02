@@ -186,6 +186,51 @@ static void EGB_WriteCRTCReg(_Far struct EGB_Work *work,unsigned char reg,unsign
 	work->crtcRegs[reg]=value;
 }
 
+// x0 must be <=x1.
+// No bound check or viewport check.
+// vramLine points to the first byte of the line of Y.
+void EGB_DrawHorizontalLinePSET_NO_CHECK(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,short x0,short x1,_Far unsigned char *vramLine,unsigned int color)
+{
+	color=GetExpandedColor(color,ptrSet->mode->bitsPerPixel);
+	switch(ptrSet->mode->bitsPerPixel)
+	{
+	case 4:
+		{
+			if(x0&1)
+			{
+				(*(vramLine+x0/2))&=0x0F;
+				(*(vramLine+x0/2))|=(color&0xF0);
+				++x0;
+			}
+			if(x0<=x1)
+			{
+				unsigned int count=(x1+1-x0)/2;
+				MEMSETB_FAR(vramLine+x0/2,color,count);
+			}
+			if(0==(x1&1))
+			{
+				(*(vramLine+x1/2))&=0xF0;
+				(*(vramLine+x1/2))|=(color&0x0F);
+			}
+		}
+		break;
+	case 8:
+		{
+			unsigned int count=x1-x0+1;
+			MEMSETB_FAR(vramLine+x0,color,count);
+		}
+		break;
+	case 16:
+		{
+			unsigned int count=x1-x0+1;
+			MEMSETW_FAR(vramLine+x0*2,color,count);
+		}
+		break;
+	}
+}
+
+
+
 ////////////////////////////////////////////////////////////
 
 void EGB_ResetPalette(_Far struct EGB_Work *work,int writePage)
@@ -519,13 +564,14 @@ void EGB_02H_DISPLAYSTART(
 			_Far unsigned short *regSet=EGB_GetCRTCRegs(work->CRTCRegSet);
 			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
 			unsigned int HDS,VDS,x0,y0,zoomX,zoomY;
-			unsigned HDSReg,HDEReg,VDSReg,VDEReg;
+			unsigned HDSReg,HDEReg,HAJReg,VDSReg,VDEReg;
 			if(0==writePage)
 			{
 				HDSReg=CRTC_REG_HDS0;
 				HDEReg=CRTC_REG_HDE0;
 				VDSReg=CRTC_REG_VDS0;
 				VDEReg=CRTC_REG_VDE0;
+				HAJReg=CRTC_REG_HAJ0;
 			}
 			else
 			{
@@ -533,6 +579,7 @@ void EGB_02H_DISPLAYSTART(
 				HDEReg=CRTC_REG_HDE1;
 				VDSReg=CRTC_REG_VDS1;
 				VDEReg=CRTC_REG_VDE1;
+				HAJReg=CRTC_REG_HAJ1;
 			}
 
 			zoomX=(work->perPage[writePage].ZOOM&0x0F)+1;
@@ -565,12 +612,18 @@ void EGB_02H_DISPLAYSTART(
 				break;
 			}
 
+			// Also need to preserve HDS-HAJ
+			unsigned int prevHAJ=work->crtcRegs[HAJReg];
+			unsigned int prevHDS=work->crtcRegs[HDSReg];
+			unsigned int HAJ=HDS+prevHAJ-prevHDS;
+
 			unsigned int W=work->crtcRegs[HDEReg]-work->crtcRegs[HDSReg];
 			unsigned int H=work->crtcRegs[VDEReg]-work->crtcRegs[VDSReg];
 			EGB_WriteCRTCReg(work,HDSReg,HDS);
 			EGB_WriteCRTCReg(work,HDEReg,HDS+W);
 			EGB_WriteCRTCReg(work,VDSReg,VDS);
 			EGB_WriteCRTCReg(work,VDEReg,VDS+H);
+			EGB_WriteCRTCReg(work,HAJReg,HAJ);
 		}
 		break;
 	case 1:  // Scroll
@@ -1337,7 +1390,23 @@ void EGB_PARTCLEARSCREEN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
+
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+	if(NULL!=ptrSet.mode)
+	{
+		_Far unsigned char *vram=ptrSet.vram+EGB_CoordToVRAMOffset(ptrSet.mode,0,ptrSet.page->viewport[0].y);
+		int y;
+		for(y=ptrSet.page->viewport[0].y; y<=ptrSet.page->viewport[1].y; ++y)
+		{
+			EGB_DrawHorizontalLinePSET_NO_CHECK(work,&ptrSet,ptrSet.page->viewport[0].x,ptrSet.page->viewport[1].x,vram,work->color[EGB_BACKGROUND_COLOR]);
+			vram+=ptrSet.mode->bytesPerLine;
+		}
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
