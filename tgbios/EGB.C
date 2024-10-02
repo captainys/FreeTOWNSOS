@@ -1461,15 +1461,55 @@ void EGB_25H_PUTBLOCK(
 			case EGB_FUNC_PSET:
 				if(4==pointerSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
 				{
-					// Oh damn it.  Why do you do it?
-					TSUGARU_BREAK;
-					break;
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						_Far unsigned char *nextSrc=src+srcBytesPerLine;
+						_Far unsigned char *nextVram=vram+pointerSet.mode->bytesPerLine;
+						if(p0.x&1)
+						{
+							unsigned char srcMask=0x0F,srcShift=0,dstAndPtn=0x0F,dstShift=4;
+							for(x=p0.x; x<=p1.x; ++x)
+							{
+								(*vram)&=dstAndPtn;
+								(*vram)|=(((*src)&srcMask)>>srcShift)<<dstShift;
+								srcMask=~srcMask;
+								srcShift=4-srcShift;
+								dstAndPtn=~dstAndPtn;
+								dstShift=4-dstShift;
+								if(0==srcShift)
+								{
+									++src;
+								}
+								else
+								{
+									++vram;
+								}
+							}
+						}
+						else
+						{
+							for(x=p0.x; x+1<=p1.x; x+=2)
+							{
+								*(vram++)=*(src++);
+							}
+							if(x==p1.x)
+							{
+								(*vram)&=0xF0;
+								(*vram)|=((*src)&0x0F);
+							}
+						}
+						src=nextSrc;
+						vram=nextVram;
+					}
 				}
-				for(y=p0.y; y<=p1.y; ++y)
+				else
 				{
-					MEMCPY_FAR(vram,src,transferBytesPerLine);
-					src+=srcBytesPerLine;
-					vram+=pointerSet.mode->bytesPerLine;
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						MEMCPY_FAR(vram,src,transferBytesPerLine);
+						src+=srcBytesPerLine;
+						vram+=pointerSet.mode->bytesPerLine;
+					}
 				}
 				break;
 			case EGB_FUNC_MATTE:
