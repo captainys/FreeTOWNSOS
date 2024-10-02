@@ -44,6 +44,10 @@ struct SND_Work
 #define PCM_BANK_SIZE 4096
 #define PCM_LOOP_STOP_CODE 0xFF
 
+// During Tsugaru development, PCM native frequency was calculated as 20725Hz.
+// But, from TOWNS app point of view, it may be 20000Hz.
+#define PCM_NATIVE_FREQUENCY 20000
+
 #define FM_NUM_INSTRUMENTS 128
 #define PCM_NUM_INSTRUMENTS 32
 #define PCM_MAX_NUM_SOUND       32
