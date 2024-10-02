@@ -6,6 +6,13 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+void SwapShort(short *a,short *b)
+{
+	short c=*a;
+	*a=*b;
+	*b=c;
+}
+
 void EGB_MakeP0SmallerThanP1(struct POINTW *p0,struct POINTW *p1)
 {
 	if(p0->x>p1->x)

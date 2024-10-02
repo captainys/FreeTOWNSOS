@@ -6,13 +6,6 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
-void SwapShort(short *a,short *b)
-{
-	short c=*a;
-	*a=*b;
-	*b=c;
-}
-
 unsigned int GetExpandedColor(unsigned short color,unsigned int bitsPerPixel)
 {
 	unsigned int expColor;
@@ -180,6 +173,8 @@ static void EGB_SetUpCRTC(_Far struct EGB_Work *work,int modeComb)
 
 	work->perPage[0].ZOOM=regSet[2+CRTC_REG_ZOOM]&0xFF;
 	work->perPage[1].ZOOM=regSet[2+CRTC_REG_ZOOM]>>8;
+
+	work->CRTCRegSet=modeComb;
 
 	_POPFD
 }
@@ -519,6 +514,64 @@ void EGB_02H_DISPLAYSTART(
 	switch(mode)
 	{
 	case 0:  // Top-Left corner
+		{
+			unsigned int CLKSEL=work->crtcRegs[CRTC_REG_CR1]&3;
+			_Far unsigned short *regSet=EGB_GetCRTCRegs(work->CRTCRegSet);
+			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+			unsigned int HDS,VDS,x0,y0,zoomX,zoomY;
+			unsigned HDSReg,HDEReg,VDSReg,VDEReg;
+			if(0==writePage)
+			{
+				HDSReg=CRTC_REG_HDS0;
+				HDEReg=CRTC_REG_HDE0;
+				VDSReg=CRTC_REG_VDS0;
+				VDEReg=CRTC_REG_VDE0;
+			}
+			else
+			{
+				HDSReg=CRTC_REG_HDS1;
+				HDEReg=CRTC_REG_HDE1;
+				VDSReg=CRTC_REG_VDS1;
+				VDEReg=CRTC_REG_VDE1;
+			}
+
+			zoomX=(work->perPage[writePage].ZOOM&0x0F)+1;
+			zoomY=(work->perPage[writePage].ZOOM>>4)+1;
+			x0=horizontal*zoomX;
+			y0=vertical*zoomY;
+
+			if(15==mode->KHz)
+			{
+				y0>>=1;
+			}
+			switch(CLKSEL)
+			{
+			default:
+			case 0:
+				HDS=(x0<<1)+0x129;
+				VDS=(y0<<1)+0x2a;
+				break;
+			case 1:
+				HDS=(x0<<1)+0xe7;
+				VDS=(y0<<1)+0x2a;
+				break;
+			case 2:
+				HDS=x0     +0x8a;
+				VDS=(y0<<1)+0x46;
+				break;
+			case 3:
+				HDS=(x0   )+0x9c;
+				VDS=(y0<<1)+0x40;
+				break;
+			}
+
+			unsigned int W=work->crtcRegs[HDEReg]-work->crtcRegs[HDSReg];
+			unsigned int H=work->crtcRegs[VDEReg]-work->crtcRegs[VDSReg];
+			EGB_WriteCRTCReg(work,HDSReg,HDS);
+			EGB_WriteCRTCReg(work,HDEReg,HDS+W);
+			EGB_WriteCRTCReg(work,VDSReg,VDS);
+			EGB_WriteCRTCReg(work,VDEReg,VDS+H);
+		}
 		break;
 	case 1:  // Scroll
 		// Based on Tsugaru implementation, which must be reasonably coorect,
