@@ -290,6 +290,29 @@ void SND_KEY_ON(
 				_PUSHFD
 				_CLI
 
+				unsigned char curVol;
+				stat->PCMCh[ch].playing=1;
+				stat->PCMCh[ch].env=env;
+				if(0==env.AR)
+				{
+					stat->PCMCh[ch].phase=1;
+					curVol=((vol<<1)|(vol&1));
+					stat->PCMCh[ch].envVol=curVol;
+					stat->PCMCh[ch].phaseStepLeft=env.DR;
+					stat->PCMCh[ch].dx=env.DR;
+					stat->PCMCh[ch].dy=(env.SL<env.TL ? env.TL-env.SL : 0);
+				}
+				else
+				{
+					stat->PCMCh[ch].phase=0;
+					curVol=0;
+					stat->PCMCh[ch].envVol=0;
+					stat->PCMCh[ch].phaseStepLeft=env.AR;
+					stat->PCMCh[ch].dx=env.AR;
+					stat->PCMCh[ch].dy=env.TL;
+				}
+				stat->PCMCh[ch].balance=0;
+
 				// What to do with the frequency?
 				unsigned int baseFreq=sound->snd.sampleFreq+sound->snd.sampleFreqCorrection;
 
@@ -317,7 +340,7 @@ void SND_KEY_ON(
 				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);
 				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // I'll be worried about loop sometime in the future.
 
-				_outb(TOWNSIO_SOUND_PCM_ENV,(vol<<1)|(vol&1));  // Was it 0-127?  or 0-255?
+				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);  // Was it 0-127?  or 0-255?
 				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
 
 				unsigned char keyFlag=(1<<ch);
@@ -364,8 +387,26 @@ void SND_KEY_OFF(
 	else if(SND_Is_PCM_Channel(ch))
 	{
 		ch-=SND_PCM_CHANNEL_START;
-		stat->PCMKey|=(1<<ch);
-		_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+		if(stat->PCMCh[ch].playing)
+		{
+			_PUSHFD
+			_CLI
+			if(0==stat->PCMCh[ch].env.RR)
+			{
+				stat->PCMCh[ch].playing=0;
+				stat->PCMKey|=(1<<ch);
+				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+			}
+			else
+			{
+				stat->PCMCh[ch].balance=0;
+				stat->PCMCh[ch].phase=3;
+				stat->PCMCh[ch].dx=stat->PCMCh[ch].env.RR;
+				stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
+				stat->PCMCh[ch].balance=0;
+			}
+			_POPFD
+		}
 	}
 	else
 	{
@@ -1960,11 +2001,76 @@ void SND_ENVELOPE_INT_HANDLER(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
+	SND_PCM_Envelope_Handler();
 	SND_SetError(EAX,SND_NO_ERROR);
+}
+
+void SND_PCM_Envelope_Handler(void)
+{
+	_Far struct SND_Status *stat=SND_GetStatus();
+	for(int ch=0; ch+stat->numVoiceModeChannels<SND_NUM_PCM_CHANNELS; ++ch)
+	{
+		if(stat->PCMCh[ch].playing)
+		{
+			switch(stat->PCMCh[ch].phase)
+			{
+			case 0: // Attack
+				if(0==stat->PCMCh[ch].phaseStepLeft)
+				{
+					++stat->PCMCh[ch].phase;
+					stat->PCMCh[ch].phaseStepLeft=stat->PCMCh[ch].env.DR;
+					stat->PCMCh[ch].dx=stat->PCMCh[ch].env.DR;
+					stat->PCMCh[ch].dy=(stat->PCMCh[ch].env.SL<stat->PCMCh[ch].env.TL ? stat->PCMCh[ch].env.TL-stat->PCMCh[ch].env.SL : 0);
+					stat->PCMCh[ch].balance=0;
+					break;
+				}
+				stat->PCMCh[ch].balance+=stat->PCMCh[ch].dy;
+				while(0<stat->PCMCh[ch].balance)
+				{
+					stat->PCMCh[ch].envVol=_min(254,stat->PCMCh[ch].envVol)+1;
+					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
+				}
+				--stat->PCMCh[ch].phaseStepLeft;
+				break;
+			case 1: // Decay
+				if(0==stat->PCMCh[ch].phaseStepLeft)
+				{
+					++stat->PCMCh[ch].phase;
+					stat->PCMCh[ch].dx=stat->PCMCh[ch].env.SR;
+					stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
+					stat->PCMCh[ch].balance=0;
+					break;
+				}
+				stat->PCMCh[ch].balance+=stat->PCMCh[ch].dy;
+				while(0<stat->PCMCh[ch].balance && 0<stat->PCMCh[ch].envVol)
+				{
+					stat->PCMCh[ch].envVol=_max(1,stat->PCMCh[ch].envVol)-1;
+					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
+				}
+				--stat->PCMCh[ch].phaseStepLeft;
+				break;
+			case 2: // Sustain
+			case 3: // Release
+				stat->PCMCh[ch].balance+=stat->PCMCh[ch].dy;
+				while(0<stat->PCMCh[ch].balance && 0<stat->PCMCh[ch].envVol)
+				{
+					stat->PCMCh[ch].envVol=_max(1,stat->PCMCh[ch].envVol)-1;
+					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
+				}
+				break;
+			}
+			if(0==stat->PCMCh[ch].envVol)
+			{
+				stat->PCMCh[ch].playing=0;
+				stat->PCMKey|=(1<<ch);
+				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+			}
+			else
+			{
+				_outb(TOWNSIO_SOUND_PCM_ENV,stat->PCMCh[ch].envVol);
+			}
+		}
+	}
 }
 
 void SND_VOICE_INT_HANDLER(

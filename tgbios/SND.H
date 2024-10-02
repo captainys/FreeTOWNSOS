@@ -115,7 +115,10 @@ struct SND_PCM_Channel_State
 	// for Inst mode.
 	unsigned char instrument,vol,pan;
 	unsigned char soundID; // Decided on key-on
-	unsigned char padding;
+	unsigned char phase;  // 0:Attack 1:Decay 2:Sustain 3:Release
+	unsigned char envVol; // Current volume
+	unsigned char phaseStepLeft,dx,dy;
+	short balance;
 	struct PCM_ENVELOPE env;
 
 	// for Voice mode.
@@ -148,6 +151,7 @@ struct SND_Status
 _Far struct SND_Status *SND_GetStatus(void);
 
 void SND_PCM_Voice_Mode_Interrupt(void); // Called from SNDINT.C
+void SND_PCM_Envelope_Handler(void);
 
 void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value);
 
