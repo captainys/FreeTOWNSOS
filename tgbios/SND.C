@@ -321,6 +321,12 @@ void SND_KEY_ON(
 				// What to do with the frequency?
 				unsigned int baseFreq=sound->snd.sampleFreq+sound->snd.sampleFreqCorrection;
 
+				// This base Freq is KHz*0x62.  Why 0x62?  Why not 0x64 (100)?
+				// I don't know, but this number seems to be correct.
+				baseFreq*=1000;
+				baseFreq/=0x62;
+				// Now baseFreq is in Hz.
+
 				// If I play it back at baseFreq, I'll get note of baseNote.
 				unsigned int freqScale=GetFreqScale(note,sound->snd.baseNote);
 
@@ -329,7 +335,10 @@ void SND_KEY_ON(
 				// PCM Frequency is 20725Hz according to the analysis done during Tsugaru development.
 				// I am still not sure where this 20725Hz is coming from.
 				// PCM Stride 1X is (1<<11)=0x0800
-				unsigned int stride=MULDIV(0x800,playFreq,baseFreq);
+
+				// But, there is a possibility that from VM point of view, it may be 20000Hz.
+
+				unsigned int stride=MULDIV(0x800,playFreq,PCM_NATIVE_FREQUENCY);
 
 				unsigned short loopStartAddr=sound->addrInWaveRAM+sound->snd.totalBytes;
 				if(0!=sound->snd.loopLength && sound->snd.loopStart<sound->snd.totalBytes)
