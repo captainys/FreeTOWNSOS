@@ -240,6 +240,11 @@ void SND_KEY_ON(
 					MUL=(0x60+(vol>>2));
 					TL*=MUL;
 					TL>>=7;
+					TL++;
+					MUL=stat->FMCh[ch].vol;
+					TL*=MUL;
+					TL>>=7;
+					TL++;
 					TL=127-TL;
 					YM2612_Write(regSet,0x40+chMOD3+slot*4,TL);
 				}
