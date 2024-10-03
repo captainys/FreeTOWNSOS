@@ -305,8 +305,64 @@ INT93H_CD_15H_READ_MSF:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_50H_CDDA_PLAY:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		CX,[BP+SAVED_ECX]
+						AND		CH,CH
+						JE		CDDA_PLAY_CH_CHECKED
+						CMP		CH,0FEH
+						JB		INT93H_EXIT_PAREMETER_ERROR
+
+CDDA_PLAY_CH_CHECKED:
+						MOV		DS,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+
+						XOR		EAX,EAX
+						MOV		AH,DS:[DI]
+						SHL		EAX,8
+						MOV		AX,DS:[DI+1]
+						XCHG	AL,AH
+
+						XOR		EDX,EDX
+						MOV		DH,DS:[DI+3]
+						SHL		EDX,8
+						MOV		DX,DS:[DI+4]
+						XCHG	DL,DH
+
+						CMP		EAX,EDX
+						JAE		INT93H_EXIT_PAREMETER_ERROR
+						CMP		EAX,000200H
+						JB		INT93H_EXIT_PAREMETER_ERROR
+						CMP		EDX,000200H
+						JB		INT93H_EXIT_PAREMETER_ERROR
+
+						MOV		EAX,DS:[DI]
+						MOV		CS:[CDC_PARAM],EAX
+						MOV		AX,DS:[DI+4]
+						MOV		CS:[CDC_PARAM+4],AX
+
+						XOR		AX,AX
+						AND		CH,CH
+						JE		CDDA_PLAY_NO_REPEAT		; I don't know how to do repeat N times.
+						MOV		AL,1					; Set repeat flag
+CDDA_PLAY_NO_REPEAT:
+						MOV		CS:[CDC_PARAM+6],AX
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_CDDAPLAY+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+CDDA_PLAY_STATUS_LOOP:
+						CALL	CDC_GET_STATUS
+
+						CMP		AL,21H		; Error
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+						CMP		AL,00H		; Command done
+						JNE		CDDA_PLAY_STATUS_LOOP
+
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
