@@ -1998,6 +1998,24 @@ void SND_4AH_UNPUBLISHED_FUNCTION(
 {
 }
 
+void SND_48H_UNKNOWN_USED_BY_VSGP(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	// WTF!?
+	TSUGARU_STATE;
+}
+
 void SND_ENVELOPE_INT_HANDLER(
 	unsigned int EDI,
 	unsigned int ESI,
