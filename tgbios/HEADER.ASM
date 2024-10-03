@@ -391,6 +391,7 @@ SPR_JUMPTABLE:
 
 SND						PROC	FAR
 						SAVE_WORLD
+						CLI
 
 						CMP		AH,0AH
 						JA		SND_NOT_0AH
@@ -532,6 +533,7 @@ SNDINT_JUMPTABLE:
 
 SNDINT					PROC	FAR
 						SAVE_WORLD
+						CLI
 
 						CMP		AH,9
 						JA		SNDINT_ERROR

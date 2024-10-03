@@ -413,7 +413,6 @@ void SND_KEY_OFF(
 			}
 			else
 			{
-				stat->PCMCh[ch].balance=0;
 				stat->PCMCh[ch].phase=3;
 				stat->PCMCh[ch].dx=stat->PCMCh[ch].env.RR;
 				stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
@@ -959,8 +958,7 @@ void SND_16H_FM_TIMER_B_SET(
 	}
 	else
 	{
-		YM2612_Write(0,0x25,count&3);
-		YM2612_Write(0,0x24,count>>2);
+		YM2612_Write(0,0x26,count);
 		SND_FM_Timer_B_Restart();
 	}
 
@@ -1011,7 +1009,6 @@ void SND_18H_FM_TIMER_B_RESTART(
 {
 	SND_FM_Timer_B_Restart();
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_STATE;
 }
 
 void SND_FM_Timer_B_Restart(void)
@@ -2021,6 +2018,8 @@ void SND_ENVELOPE_INT_HANDLER(
 
 void SND_PCM_Envelope_Handler(void)
 {
+	// When calling directly from Sound-Interrupt Manager BIOS, make sure to CLI.
+
 	_Far struct SND_Status *stat=SND_GetStatus();
 	for(int ch=0; ch+stat->numVoiceModeChannels<SND_NUM_PCM_CHANNELS; ++ch)
 	{
@@ -2107,6 +2106,8 @@ void SND_VOICE_INT_HANDLER(
 
 void SND_PCM_Voice_Mode_Interrupt(void)
 {
+	// When calling directly from Sound-Interrupt Manager BIOS, make sure to CLI.
+
 	_Far struct SND_Status *stat=SND_GetStatus();
 	unsigned char INTBank=_inb(TOWNSIO_SOUND_PCM_INT);
 	int i,ch=7;
