@@ -275,12 +275,26 @@ void SPR_SETATTRIBUTE(
 	spr_ram += (4 * (ECX & 1023)) + 2;
 
 	y = ((EDX >> 8) & 0xff) * (EDX & 0xff);
+
+	unsigned short attribute = (ESI & 0xffff);
+	unsigned short color_table = (EDI & 0xffff);
+	unsigned short pattern_add;
+
+	if((color_table & 0x8000) == 0)
+	{
+		pattern_add = 4;
+	}
+	else
+	{
+		pattern_add = 1;
+	}
+
 	for(i = 0; i < y; i++)
 	{
-		*spr_ram = (ESI & 0xffff);
-		ESI++;
+		*spr_ram = attribute;
+		attribute += pattern_add;
 		spr_ram++;
-		*spr_ram = (EDI & 0xffff);
+		*spr_ram = color_table;
 		spr_ram += 3;
 	}
 
