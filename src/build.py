@@ -52,7 +52,7 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error bulding assemble.exe")
-		quit()
+		quit(1)
 
 	CopyToResources("FD_IPL.bin");
 
@@ -99,3 +99,4 @@ def Run(argv):
 
 if __name__=="__main__":
 	Run(sys.argv[1:])
+	quit(0)

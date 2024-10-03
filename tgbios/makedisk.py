@@ -14,6 +14,15 @@ def Run(argv):
 	os.chdir(THISDIR)
 
 	proc=subprocess.Popen([
+		"python",
+		os.path.join(THISDIR,"..","src","build.py")])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error bulding IO.SYS")
+		quit()
+
+
+	proc=subprocess.Popen([
 		"Tsugaru_CUI",
 		os.path.join(THISDIR,"..","CompROM"),
 		"-FD0",
