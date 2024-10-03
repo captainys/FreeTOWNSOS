@@ -475,6 +475,7 @@ CDC_TOCREAD_17H_STORE:
 						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 40h for data track. TT is the track number
 						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,from of the track.
 
+						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
