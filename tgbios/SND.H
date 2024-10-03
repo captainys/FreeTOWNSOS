@@ -109,12 +109,17 @@ struct PCM_Sound
 struct SND_FM_Channel_State
 {
 	unsigned char instrument,vol,pan;
+	unsigned short pitchBend;
+	unsigned int BLK_FNUM;
 };
 
 struct SND_PCM_Channel_State
 {
 	_Far struct PCM_Voice_Header *header;
 	_Far unsigned char *playPtr;
+
+	unsigned short pitchBend;
+	unsigned int playFreq;
 
 	// for Inst mode.
 	unsigned char instrument,vol,pan;

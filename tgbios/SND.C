@@ -31,6 +31,7 @@
 #define YM_REG27H_TMB_LOAD  0x02
 #define YM_REG27H_TMA_LOAD  0x01
 
+static unsigned int GetPitchBendScale(int pitch);
 static unsigned short GetFNUM_BLOCK_from_Number(unsigned char num);
 static unsigned int GetFreqScale(unsigned int note,unsigned int baseNote);
 
@@ -250,8 +251,22 @@ void SND_KEY_ON(
 				}
 				carrierSlots>>=8;
 			}
-			YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
-			YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
+			stat->FMCh[ch].BLK_FNUM=BLK_FNUM;
+			if(0==stat->FMCh[ch].pitchBend)
+			{
+				YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
+				YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
+			}
+			else
+			{
+				unsigned short BLK=(BLK_FNUM>>11)&3;
+				unsigned short FNUM=(BLK_FNUM&0x7FF);
+				unsigned int s=GetPitchBendScale(stat->PCMCh[ch].pitchBend);
+				FNUM=MUL_SHR(FNUM,s,16);
+				BLK_FNUM=(BLK<<11)|FNUM;
+				YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
+				YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
+			}
 
 			YM2612_Write(0,0x28,0x00|ch);
 			YM2612_Write(0,0x28,0xF0|ch);
@@ -331,6 +346,13 @@ void SND_KEY_ON(
 				unsigned int freqScale=GetFreqScale(note,sound->snd.baseNote);
 
 				unsigned int playFreq=MUL_SHR(baseFreq,freqScale,20);
+
+				stat->PCMCh[ch].playFreq=playFreq;
+				if(0!=stat->PCMCh[ch].pitchBend)
+				{
+					unsigned int s=GetPitchBendScale(stat->PCMCh[ch].pitchBend);
+					playFreq=MUL_SHR(playFreq,s,16);
+				}
 
 				// PCM Frequency is 20725Hz according to the analysis done during Tsugaru development.
 				// I am still not sure where this 20725Hz is coming from.
@@ -645,12 +667,56 @@ void SND_PITCH_CHANGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Status *stat=SND_GetStatus();
+	unsigned char ch=(EBX);
+	short pitchBend=EDX;
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	if(SND_Is_FM_Channel(ch))
+	{
+		unsigned short BLK_FNUM=stat->FMCh[ch].BLK_FNUM;
+		unsigned int regSet=ch/3;
+		unsigned int chMOD3=ch%3;
+
+		stat->FMCh[ch].pitchBend=pitchBend;
+		if(0==pitchBend)
+		{
+			YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
+			YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
+		}
+		else
+		{
+			unsigned short BLK=(BLK_FNUM>>11)&3;
+			unsigned short FNUM=(BLK_FNUM&0x7FF);
+			unsigned int s=GetPitchBendScale(pitchBend);
+			FNUM=MUL_SHR(FNUM,s,16);
+			BLK_FNUM=(BLK<<11)|FNUM;
+			YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
+			YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
+		}
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		ch-=SND_PCM_CHANNEL_START;
+
+		unsigned int playFreq=stat->PCMCh[ch].playFreq;
+
+		stat->PCMCh[ch].pitchBend=pitchBend;
+		if(0!=pitchBend)
+		{
+			unsigned int s=GetPitchBendScale(pitchBend);
+			playFreq=MUL_SHR(playFreq,s,16);
+		}
+		unsigned int stride=MULDIV(0x800,playFreq,PCM_NATIVE_FREQUENCY);
+		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+		_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
+		_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+	}
 }
 
 void SND_VOLUME_CHANGE(
@@ -698,7 +764,7 @@ void SND_VOLUME_CHANGE(
 	else
 	{
 		SND_SetError(EAX,SND_ERROR_WRONG_CH);
-		TSUGARU_BREAK;
+		// TSUGARU_BREAK; VSGP wants to change channel 3CH.
 	}
 }
 
@@ -2629,4 +2695,278 @@ static unsigned int GetFreqScale(unsigned int note,unsigned int baseNote)
 	_FP_SEG(ptr)=SEG_TGBIOS_CODE;
 	_FP_OFF(ptr)=(unsigned int)freqScale;
 	return ptr[noteDiff];
+}
+
+unsigned int pitchBendTable[257]=
+{
+	0x00004000, // 0.250000
+	0x000040b2, // 0.252722
+	0x00004166, // 0.255474
+	0x0000421d, // 0.258256
+	0x000042d5, // 0.261068
+	0x0000438f, // 0.263911
+	0x0000444c, // 0.266785
+	0x0000450a, // 0.269690
+	0x000045ca, // 0.272627
+	0x0000468d, // 0.275596
+	0x00004752, // 0.278597
+	0x00004818, // 0.281630
+	0x000048e1, // 0.284697
+	0x000049ad, // 0.287797
+	0x00004a7a, // 0.290931
+	0x00004b4a, // 0.294099
+	0x00004c1b, // 0.297302
+	0x00004cf0, // 0.300539
+	0x00004dc6, // 0.303812
+	0x00004e9f, // 0.307120
+	0x00004f7a, // 0.310464
+	0x00005058, // 0.313845
+	0x00005138, // 0.317263
+	0x0000521a, // 0.320718
+	0x000052ff, // 0.324210
+	0x000053e6, // 0.327740
+	0x000054d0, // 0.331309
+	0x000055bd, // 0.334917
+	0x000056ac, // 0.338564
+	0x0000579d, // 0.342251
+	0x00005891, // 0.345977
+	0x00005988, // 0.349745
+	0x00005a82, // 0.353553
+	0x00005b7e, // 0.357403
+	0x00005c7d, // 0.361295
+	0x00005d7f, // 0.365229
+	0x00005e84, // 0.369207
+	0x00005f8b, // 0.373227
+	0x00006096, // 0.377291
+	0x000061a3, // 0.381400
+	0x000062b3, // 0.385553
+	0x000063c6, // 0.389751
+	0x000064dc, // 0.393995
+	0x000065f6, // 0.398286
+	0x00006712, // 0.402623
+	0x00006831, // 0.407007
+	0x00006954, // 0.411439
+	0x00006a79, // 0.415919
+	0x00006ba2, // 0.420448
+	0x00006cce, // 0.425027
+	0x00006dfd, // 0.429655
+	0x00006f30, // 0.434333
+	0x00007066, // 0.439063
+	0x0000719f, // 0.443844
+	0x000072dc, // 0.448677
+	0x0000741c, // 0.453563
+	0x00007560, // 0.458502
+	0x000076a7, // 0.463495
+	0x000077f2, // 0.468542
+	0x00007940, // 0.473644
+	0x00007a92, // 0.478802
+	0x00007be8, // 0.484015
+	0x00007d41, // 0.489286
+	0x00007e9f, // 0.494614
+	0x00008000, // 0.500000
+	0x00008164, // 0.505445
+	0x000082cd, // 0.510949
+	0x0000843a, // 0.516512
+	0x000085aa, // 0.522137
+	0x0000871f, // 0.527823
+	0x00008898, // 0.533570
+	0x00008a14, // 0.539380
+	0x00008b95, // 0.545254
+	0x00008d1a, // 0.551191
+	0x00008ea4, // 0.557193
+	0x00009031, // 0.563261
+	0x000091c3, // 0.569394
+	0x0000935a, // 0.575595
+	0x000094f4, // 0.581862
+	0x00009694, // 0.588198
+	0x00009837, // 0.594604
+	0x000099e0, // 0.601078
+	0x00009b8d, // 0.607624
+	0x00009d3e, // 0.614240
+	0x00009ef5, // 0.620929
+	0x0000a0b0, // 0.627690
+	0x0000a270, // 0.634525
+	0x0000a435, // 0.641435
+	0x0000a5fe, // 0.648420
+	0x0000a7cd, // 0.655481
+	0x0000a9a1, // 0.662618
+	0x0000ab7a, // 0.669834
+	0x0000ad58, // 0.677128
+	0x0000af3b, // 0.684501
+	0x0000b123, // 0.691955
+	0x0000b311, // 0.699490
+	0x0000b504, // 0.707107
+	0x0000b6fd, // 0.714807
+	0x0000b8fb, // 0.722590
+	0x0000baff, // 0.730459
+	0x0000bd08, // 0.738413
+	0x0000bf17, // 0.746454
+	0x0000c12c, // 0.754582
+	0x0000c346, // 0.762799
+	0x0000c567, // 0.771105
+	0x0000c78d, // 0.779502
+	0x0000c9b9, // 0.787990
+	0x0000cbec, // 0.796571
+	0x0000ce24, // 0.805245
+	0x0000d063, // 0.814014
+	0x0000d2a8, // 0.822878
+	0x0000d4f3, // 0.831838
+	0x0000d744, // 0.840896
+	0x0000d99d, // 0.850053
+	0x0000dbfb, // 0.859310
+	0x0000de60, // 0.868667
+	0x0000e0cc, // 0.878126
+	0x0000e33f, // 0.887688
+	0x0000e5b9, // 0.897355
+	0x0000e839, // 0.907126
+	0x0000eac0, // 0.917004
+	0x0000ed4f, // 0.926990
+	0x0000efe4, // 0.937084
+	0x0000f281, // 0.947288
+	0x0000f525, // 0.957603
+	0x0000f7d0, // 0.968031
+	0x0000fa83, // 0.978572
+	0x0000fd3e, // 0.989228
+	0x00010000, // 1.000000
+	0x000102c9, // 1.010889
+	0x0001059b, // 1.021897
+	0x00010874, // 1.033025
+	0x00010b55, // 1.044274
+	0x00010e3e, // 1.055645
+	0x00011130, // 1.067140
+	0x00011429, // 1.078761
+	0x0001172b, // 1.090508
+	0x00011a35, // 1.102383
+	0x00011d48, // 1.114387
+	0x00012063, // 1.126522
+	0x00012387, // 1.138789
+	0x000126b4, // 1.151189
+	0x000129e9, // 1.163725
+	0x00012d28, // 1.176397
+	0x0001306f, // 1.189207
+	0x000133c0, // 1.202157
+	0x0001371a, // 1.215247
+	0x00013a7d, // 1.228481
+	0x00013dea, // 1.241858
+	0x00014160, // 1.255381
+	0x000144e0, // 1.269051
+	0x0001486a, // 1.282870
+	0x00014bfd, // 1.296840
+	0x00014f9b, // 1.310961
+	0x00015342, // 1.325237
+	0x000156f4, // 1.339668
+	0x00015ab0, // 1.354256
+	0x00015e76, // 1.369002
+	0x00016247, // 1.383910
+	0x00016623, // 1.398980
+	0x00016a09, // 1.414214
+	0x00016dfb, // 1.429613
+	0x000171f7, // 1.445181
+	0x000175fe, // 1.460918
+	0x00017a11, // 1.476826
+	0x00017e2f, // 1.492908
+	0x00018258, // 1.509164
+	0x0001868d, // 1.525598
+	0x00018ace, // 1.542211
+	0x00018f1a, // 1.559004
+	0x00019373, // 1.575981
+	0x000197d8, // 1.593142
+	0x00019c49, // 1.610490
+	0x0001a0c6, // 1.628027
+	0x0001a550, // 1.645755
+	0x0001a9e6, // 1.663677
+	0x0001ae89, // 1.681793
+	0x0001b33a, // 1.700106
+	0x0001b7f7, // 1.718619
+	0x0001bcc1, // 1.737334
+	0x0001c199, // 1.756252
+	0x0001c67f, // 1.775376
+	0x0001cb72, // 1.794709
+	0x0001d072, // 1.814252
+	0x0001d581, // 1.834008
+	0x0001da9e, // 1.853979
+	0x0001dfc9, // 1.874168
+	0x0001e502, // 1.894576
+	0x0001ea4a, // 1.915207
+	0x0001efa1, // 1.936062
+	0x0001f507, // 1.957144
+	0x0001fa7c, // 1.978456
+	0x00020000, // 2.000000
+	0x00020593, // 2.021779
+	0x00020b36, // 2.043794
+	0x000210e8, // 2.066050
+	0x000216ab, // 2.088548
+	0x00021c7d, // 2.111290
+	0x00022260, // 2.134281
+	0x00022853, // 2.157522
+	0x00022e57, // 2.181015
+	0x0002346b, // 2.204765
+	0x00023a90, // 2.228773
+	0x000240c7, // 2.253043
+	0x0002470f, // 2.277577
+	0x00024d68, // 2.302378
+	0x000253d3, // 2.327450
+	0x00025a50, // 2.352794
+	0x000260df, // 2.378414
+	0x00026781, // 2.404313
+	0x00026e34, // 2.430495
+	0x000274fb, // 2.456961
+	0x00027bd4, // 2.483716
+	0x000282c1, // 2.510762
+	0x000289c1, // 2.538102
+	0x000290d4, // 2.565740
+	0x000297fb, // 2.593679
+	0x00029f36, // 2.621922
+	0x0002a685, // 2.650473
+	0x0002ade8, // 2.679335
+	0x0002b560, // 2.708511
+	0x0002bced, // 2.738005
+	0x0002c48f, // 2.767820
+	0x0002cc47, // 2.797959
+	0x0002d413, // 2.828427
+	0x0002dbf6, // 2.859227
+	0x0002e3ee, // 2.890362
+	0x0002ebfd, // 2.921836
+	0x0002f422, // 2.953652
+	0x0002fc5e, // 2.985815
+	0x000304b1, // 3.018329
+	0x00030d1b, // 3.051196
+	0x0003159c, // 3.084422
+	0x00031e35, // 3.118009
+	0x000326e6, // 3.151962
+	0x00032fb0, // 3.186284
+	0x00033892, // 3.220981
+	0x0003418c, // 3.256055
+	0x00034aa0, // 3.291511
+	0x000353cd, // 3.327353
+	0x00035d13, // 3.363586
+	0x00036674, // 3.400213
+	0x00036fee, // 3.437239
+	0x00037983, // 3.474668
+	0x00038333, // 3.512504
+	0x00038cfe, // 3.550753
+	0x000396e4, // 3.589418
+	0x0003a0e5, // 3.628504
+	0x0003ab03, // 3.668016
+	0x0003b53c, // 3.707958
+	0x0003bf92, // 3.748335
+	0x0003ca05, // 3.789152
+	0x0003d495, // 3.830413
+	0x0003df43, // 3.872124
+	0x0003ea0e, // 3.914288
+	0x0003f4f8, // 3.956912
+	0x00040000, // 4.000000
+};
+
+unsigned int GetPitchBendScale(int pitch)
+{
+	pitch+=8192;
+	pitch>>=6;
+	pitch=_max(0,pitch);
+	pitch=_min(256,pitch);
+
+	_Far unsigned int *table;
+	_FP_SEG(table)=SEG_TGBIOS_CODE;
+	_FP_OFF(table)=(unsigned int)pitchBendTable;
+	return table[pitch];
 }
