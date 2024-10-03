@@ -480,7 +480,28 @@ CDC_TOCREAD_17H_STORE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_55H_CDDA_PAUSE:
-						TSUGARU_DEBUG
+						;  What am I supposed to do if CDDA is not playing?
+
+						CLI
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_CDDA_PAUSE+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+CDC_CDDA_PSUE_LOOP:
+						CALL	CDC_GET_STATUS	; This destroys DX
+						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AL,21H
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AL,12H
+						JNE		CDC_TOCREAD_LOOP
+
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
