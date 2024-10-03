@@ -40,7 +40,7 @@ def Run(argv):
 		proc.communicate()
 		if 0!=proc.returncode:
 			print("Error building "+src)
-			quit()
+			quit(1)
 
 	for ren in rename:
 		print("Rename "+ren[0]+" to "+ren[1])

@@ -1,3 +1,9 @@
+%macro					CDC_ZERO_PARAMETER	0
+						XOR		EAX,EAX
+						MOV		CS:[CDC_PARAM],EAX
+						MOV		CS:[CDC_PARAM+4],EAX
+%endmacro
+
 
 CD_EMULATION_SCSI		DB		0
 CD_EMULATION_SCSI_ID	DB		0
@@ -311,7 +317,36 @@ INT93H_CD_51H_CDDA_GET_INFO:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_52H_CDDA_STOP:
-						TSUGARU_DEBUG
+						CLI
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_CDDA_STOP+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+INT93H_CD_52H_CDDA_STOP_LOOP:
+						CALL	CDC_GET_STATUS
+						TEST	AL,AL
+						JE		INT93H_CD_52H_CDDA_STOP_LOOP
+
+						CMP		AL,21H		; Error
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+						CMP		AL,011H		; Stop done
+						JNE		INT93H_CD_52H_CDDA_STOP_LOOP
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+						CALL	CDC_GET_STATUS	; This command may return 00 0D 00 00.  The meaning unknown.  I just want to clear status queue.
+
+						OUT		IO_1US_WAIT,AL
+						OUT		IO_1US_WAIT,AL
+						CALL	CDC_GET_STATUS	; This command may return 00 0D 00 00.  The meaning unknown.  I just want to clear status queue.
+
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -323,7 +358,123 @@ INT93H_CD_53H_CDDA_GET_STATUS:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_54H_CDDA_GET_CDINFO:
-						TSUGARU_DEBUG
+						CLI
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_TOCREAD+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+						MOV		DS,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+						MOV		BYTE DS:[DI],0
+
+CDC_TOCREAD_LOOP:
+						CALL	CDC_GET_STATUS	; This destroys DX
+						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AL,21H
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						AND		AL,AL
+						JE		CDC_TOCREAD_LOOP
+
+						CMP		AL,16H
+						JE		CDC_TOCREAD_16H
+						CMP		AL,17H
+						JE		CDC_TOCREAD_17H
+						JMP		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+CDC_TOCREAD_16H:
+						MOV		ECX,EAX
+						ROR		ECX,8
+						JMP		CDC_TOCREAD_LOOP
+
+CDC_TOCREAD_17H:
+						CMP		CH,0A0H		; First track number
+						JNE		CDC_TOCREAD_17H_NOT_A0H
+						MOV		AL,AH
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+1],AL
+						JMP		CDC_TOCREAD_LOOP
+CDC_TOCREAD_17H_NOT_A0H:
+						CMP		CH,0A1H		; Last track number
+						JNE		CDC_TOCREAD_17H_NOT_A1H
+						MOV		AL,AH
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+2],AL
+						JMP		CDC_TOCREAD_LOOP
+CDC_TOCREAD_17H_NOT_A1H:
+						CMP		CH,0A2H		; Disc Length
+						JNE		CDC_TOCREAD_17H_NOT_A2H
+						MOV		ESI,EAX
+						MOV		AL,AH
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+3],AL
+						MOV		EAX,ESI
+						SHR		EAX,16
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+4],AL
+						MOV		EAX,ESI
+						SHR		EAX,24
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+5],AL
+						JMP		CDC_TOCREAD_LOOP
+CDC_TOCREAD_17H_NOT_A2H:
+						XCHG	EAX,ECX		; Now EAX is 16H status code (already shifted right by 8 bits), ECX is 17H status code
+						ROR		EAX,8
+						CALL	BCD2BIN_AL
+						DEC		AL
+						MOV		BL,AL
+						ADD		BL,BL
+						ADD		BL,AL	; 3 times (tracknum-1).
+						MOVZX	BX,BL
+						ADD		BX,6	; DS:[DI+6] for the firs track.
+						INC		AL		; Make it back to the max track number.
+						ROL		EAX,8
+						XCHG	EAX,ECX		; Now EAX is 17H status code, ECX is 16H status code except the track number is in BIN.
+
+						MOV		ESI,EAX
+						MOV		AL,AH
+						CALL	BCD2BIN_AL
+						CMP		CL,40H
+						JNE		CDC_TOCREAD_17H_NOT_DATATRK
+
+						OR		AL,80H
+						OR		BYTE DS:[DI],2
+						JMP		CDC_TOCREAD_17H_STORE
+CDC_TOCREAD_17H_NOT_DATATRK:
+						OR		BYTE DS:[DI],1
+CDC_TOCREAD_17H_STORE:
+						MOV		DS:[DI+BX],AL
+
+						MOV		EAX,ESI
+						ROR		EAX,16
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+BX+1],AL
+
+						MOV		EAX,ESI
+						ROR		EAX,24
+						CALL	BCD2BIN_AL
+						MOV		DS:[DI+BX+2],AL
+
+						ROR		ECX,8	; CL is track number.  Already converted from BCD to BIN.
+						CMP		CL,DS:[DI+2]
+						JNE		CDC_TOCREAD_LOOP
+
+						; Sequence (all hexadecimal)
+						; 16 xx A0 xx (ECX=xxA0xx16)
+						; 17 TT xx xx (EAX=xxxxTT17)   TT is the first track in BCD
+						; 16 xx A1 xx (ECX=xxA1xx16)
+						; 17 TT xx xx (EAX=xxxxTT17)   TT is the last track in BCD
+						; 16 xx A2 xx (ECX=xxA2xx16)
+						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,frm of the total disc in BCD
+						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 40h for data track. TT is the track number
+						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,from of the track.
+
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
