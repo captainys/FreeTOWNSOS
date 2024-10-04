@@ -377,7 +377,7 @@ void SPR_READATTRIBUTE(
 {
 	/*_Far unsigned char *ram;
 	_FP_SEG(ram) = DS;
-	_FP_OFF(ram) = ESI;
+	_FP_OFF(ram) = EDI;
 
 	_Far unsigned char *sprram;
 	_FP_SEG(sprram) = SEG_PATTERN_RAM;
@@ -393,7 +393,7 @@ void SPR_READATTRIBUTE(
 		sprram++
 	}*/
 
-	_movedata(SEG_PATTERN_RAM, 8 * (ECX & 1023), DS, ESI, (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8);
+	_movedata(SEG_PATTERN_RAM, 8 * (ECX & 1023), DS, EDI, (EDX & 0xff) * ((EDX >> 8) & 0xff) * 8);
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
 }
