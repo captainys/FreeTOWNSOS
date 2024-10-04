@@ -1164,11 +1164,11 @@ void SND_20H_PCM_WAVE_TRANSFER(
 
 	unsigned char data;
 
-	if(ECX<=0x10000||EBX<=0x10000)
+	if(ECX>=0x10000||EBX>=0x10000)
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)<=0x10000)
+	else if((ECX+EBX)>0x10000)
 	{
 		while(EBX<0x10000)
 		{
@@ -1495,12 +1495,36 @@ void SND_2AH_PCM_PCMRAM_TO_MAINRAM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far unsigned char *mainram;
+	_FP_SEG(mainram)=DS;
+	_FP_OFF(mainram)=ESI;
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	if(ECX>=0x10000||EBX>=0x10000)
+	{
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
+	}
+	else if((ECX+EBX)>0x10000)
+	{
+		while(EBX<0x10000)
+		{
+			*mainram=SND_ReadFromWaveRAM(EBX);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_ERROR_OUT_OF_PCM_RAM);
+	}
+	else
+	{
+		for(int i=0;i<ECX;i++)
+		{
+			*mainram=SND_ReadFromWaveRAM(EBX);
+			EBX++;
+			mainram++;
+		}
+
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
 }
 
 void SND_2BH_PCM_PCMRAM_TO_PCMRAM(
@@ -1543,11 +1567,11 @@ void SND_2CH_PCM_TRANSFER2(
 	_FP_SEG(mainram)=DS;
 	_FP_OFF(mainram)=ESI;
 
-	if(ECX<=0x10000||EBX<=0x10000)
+	if(ECX>=0x10000||EBX>=0x10000)
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)<=0x10000)
+	else if((ECX+EBX)>0x10000)
 	{
 		while(EBX<0x10000)
 		{
