@@ -761,6 +761,9 @@ void EGB_02H_DISPLAYSTART(
 				wid1X=horizontal*zoomX/scrnModeProp->defZoom.x;
 				hei1X=vertical*zoomY/scrnModeProp->defZoom.y;
 
+				wid1X=_min(wid1X,640);
+				hei1X=_min(hei1X,512);
+
 				if(15==scrnModeProp->KHz)
 				{
 					wid1X*=2;
