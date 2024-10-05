@@ -1711,8 +1711,6 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
 			ST<<=4;
 
-			info->PCMCh[ch].vol
-
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
 			MUL=(volume+1);
 			MUL*=(info->PCMCh[ch].vol+1);
