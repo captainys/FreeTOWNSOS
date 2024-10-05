@@ -198,7 +198,7 @@ void SND_INIT(
 		status->PCMCh[i].playing=0;
 		status->PCMCh[i].instrument=0;
 		status->PCMCh[i].vol=80;
-		status->PCMCh[i].pan=0x88;
+		status->PCMCh[i].pan=0x77;
 	}
 	status->PCMKey=0xFF;
 
@@ -332,12 +332,17 @@ void SND_KEY_ON(
 				_CLI
 
 				unsigned char curVol;
+				unsigned short MUL;
 				stat->PCMCh[ch].playing=1;
 				stat->PCMCh[ch].env=env;
 				if(0==env.AR)
 				{
 					stat->PCMCh[ch].phase=1;
-					curVol=((vol<<1)|(vol&1));
+					MUL=(vol+1);
+					MUL*=(stat->PCMCh[ch].vol+1);
+					MUL--;
+					MUL>>=6
+					curVol=MUL;
 					stat->PCMCh[ch].envVol=curVol;
 					stat->PCMCh[ch].phaseStepLeft=env.DR;
 					stat->PCMCh[ch].dx=env.DR;
@@ -397,7 +402,7 @@ void SND_KEY_ON(
 				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);
 				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // I'll be worried about loop sometime in the future.
 
-				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);  // Was it 0-127?  or 0-255?
+				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);
 				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
 
 				unsigned char keyFlag=(1<<ch);
@@ -508,14 +513,14 @@ void SND_PAN_SET(
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
-		// probably the center pan is not 0xff(11111111) but 0x88(10001000).
+		// probably the center pan is not 0xff(11111111) but 0x77(01110111).
 		// At 0xff, the maximum volume will flow from both ch, making it twice as loud.
-		// center = 0x88, left only = 0x0f, right only = 0xf0.
+		// center = 0x77, left only = 0x0f, right only = 0xf0.
 		ch-=SND_PCM_CHANNEL_START;
 		pan_set&=0x7f;
 		if(pan_set==64)
 		{
-			status->PCMCh[ch].pan=0x88;
+			status->PCMCh[ch].pan=0x77;
 		}
 		else
 		{
@@ -1639,6 +1644,7 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 	unsigned char ch=(unsigned char)EBX;
 	unsigned char note=(unsigned char)(EDX>>8);
 	unsigned char volume=(unsigned char)EDX;
+	unsigned short MUL;
 	_Far struct PCM_Voice_Header *sndData;
 	_Far struct SND_Status *info=SND_GetStatus();
 
@@ -1649,7 +1655,7 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		SND_SetError(EAX,SND_ERROR_WRONG_CH);
 		return;
 	}
-	ch-=64;
+	ch-=SND_PCM_CHANNEL_START;
 	keyFlag=(1<<ch);
 	if((info->PCMKey&keyFlag)==0)
 	{
@@ -1705,7 +1711,14 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
 			ST<<=4;
 
+			info->PCMCh[ch].vol
+
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+			MUL=(volume+1);
+			MUL*=(info->PCMCh[ch].vol+1);
+			MUL--;
+			MUL>>=6;
+			volume=MUL;
 			_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
 			_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
 
