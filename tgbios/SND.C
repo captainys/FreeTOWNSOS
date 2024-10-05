@@ -341,7 +341,7 @@ void SND_KEY_ON(
 					MUL=(vol+1);
 					MUL*=(stat->PCMCh[ch].vol+1);
 					MUL--;
-					MUL>>=6
+					MUL>>=6;
 					curVol=MUL;
 					stat->PCMCh[ch].envVol=curVol;
 					stat->PCMCh[ch].phaseStepLeft=env.DR;
