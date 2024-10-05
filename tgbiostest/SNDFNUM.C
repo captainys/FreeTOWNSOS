@@ -45,6 +45,17 @@ int main(void)
 
 			SND_inst_change(0,0); // Ch=0, Inst=0
 
+			// Test what pitch bend does
+			SND_key_on(0,64,64);
+			for(i=1; i<8192; i++)
+			{
+				SND_pitch_change(0,i);
+				clock_t c0=clock();
+				while((clock()-c0)<CLOCKS_PER_SEC/20);
+				_outb(0x2386,0x0C); // Capture F_NUM and BLOCK of YM2612 Ch0
+			}
+			SND_key_off(0);
+
 			// Capture FNUM and BLOCK
 			//for(i=0; i<128; ++i)
 			//{
@@ -56,14 +67,14 @@ int main(void)
 			//}
 
 			// Capture TL
-			for(i=0; i<128; ++i)
-			{
-				clock_t c0=clock();
-				SND_key_on(0,64,i);
-				while((clock()-c0)<CLOCKS_PER_SEC/20);
-				_outb(0x2386,0x0D); // Capture TL of YM2612 Ch0 Slot[3]
-				SND_key_off(0);
-			}
+			// for(i=0; i<128; ++i)
+			// {
+			// 	clock_t c0=clock();
+			// 	SND_key_on(0,64,i);
+			// 	while((clock()-c0)<CLOCKS_PER_SEC/20);
+			// 	_outb(0x2386,0x0D); // Capture TL of YM2612 Ch0 Slot[3]
+			// 	SND_key_off(0);
+			// }
 
 			SND_end();
 

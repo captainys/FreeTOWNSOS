@@ -386,6 +386,12 @@ INT93H_CD_52H_CDDA_STOP:
 
 INT93H_CD_52H_CDDA_STOP_LOOP:
 						CALL	CDC_GET_STATUS
+
+						CMP		AX,0900H	; Drive Not Ready
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AX,0800H
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
 						TEST	AL,AL
 						JE		INT93H_CD_52H_CDDA_STOP_LOOP
 
@@ -408,8 +414,132 @@ INT93H_CD_52H_CDDA_STOP_LOOP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_53H_CDDA_GET_STATUS:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		CX,[BP+SAVED_ECX]
+						OR		CH,CH
+						JNE		INT93H_EXIT_PAREMETER_ERROR
+
+						CLI
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_SET_STATE+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+CDDA_GET_STATUS_LOOP:
+						CALL	CDC_GET_STATUS
+						JC		CDDA_GET_STATUS_LOOP
+
+						OR		AL,AL
+						JNE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+						CMP		AX,0900H
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AX,0800H
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+						; CMP		AH,01H	; CDDA is paused?   Should I take it as playing?
+						; JE		CDDA_GET_STATUS_PLAYING
+
+						CMP		AH,03H	; CDDA is playing?
+						JNE		CDDA_GET_STATUS_NOT_PLAYING
+
+CDDA_GET_STATUS_PLAYING:
+						MOV		BYTE [BP+SAVED_EAX],1
+
+						; Memo to myself:
+						;   See Tsugaru development journal 2020/04/03 for CL=20H case.
+						CMP		CL,20H
+						JE		INT93H_EXIT_NO_ERROR
+
+						MOV		DS,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_SUBQREAD+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+						MOV		CL,0FFh		; Firs time CX is non-zero
+CDDA_SUBQ_READ_LOOP:
+						CALL	CDC_GET_STATUS
+						JC		CDDA_GET_STATUS_LOOP
+
+						OR		AL,AL
+						JE		CDDA_SUBQ_READ_LOOP
+
+						MOV		EBX,EAX
+						; 00 00 00 00  <- First return no error.
+						; 18H xx trkBCD xx
+						; 19H trkTimeBCD trkTimeBCD trkTimeBCD
+						; 19H xx discTimeBCD discTimeBCD
+						; 20H  discTimeBCD xx xx
+
+						CMP		BL,18H
+						JE		CDDA_SUBQ_18H
+						CMP		BL,19H
+						JE		CDDA_SUBQ_19H
+						CMP		BL,20H
+						JE		CDDA_SUBQ_20H
+
+CDDA_SUBQ_18H:
+						SHR		EAX,16
+						CALL	BCD2BIN_AL
+						MOV		[DI+1],AL
+						JMP		CDDA_SUBQ_READ_LOOP
+
+CDDA_SUBQ_19H:
+						JCXZ	CDDA_SUBQ_19H_SECOND	; Second time CX is zero
+						XOR		CX,CX
+
+; First time
+						XCHG	AL,AH
+						CALL	BCD2BIN_AL
+						MOV		[DI+3],AL
+
+						SHR		EAX,8
+						XCHG	AL,AH
+						CALL	BCD2BIN_AL
+						MOV		[DI+4],AL
+
+						SHR		EAX,8
+						XCHG	AL,AH
+						CALL	BCD2BIN_AL
+						MOV		[DI+5],AL
+
+						JMP		CDDA_SUBQ_READ_LOOP
+
+
+CDDA_SUBQ_19H_SECOND:
+						SHR		EAX,8
+						XCHG	AL,AH
+						CALL	BCD2BIN_AL
+						MOV		[DI+7],AL
+
+						SHR		EAX,8
+						XCHG	AL,AH
+						CALL	BCD2BIN_AL
+						MOV		[DI+8],AL
+
+						JMP		CDDA_SUBQ_READ_LOOP
+
+CDDA_SUBQ_20H:
+						XCHG	AL,AH
+						CALL	BCD2BIN_AL
+						MOV		[DI+9],AL
+
+						JMP		INT93H_EXIT_NO_ERROR
+
+
+
+CDDA_GET_STATUS_NOT_PLAYING:
+						MOV		BYTE [BP+SAVED_EAX],0
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -432,6 +562,8 @@ INT93H_CD_54H_CDDA_GET_CDINFO:
 CDC_TOCREAD_LOOP:
 						CALL	CDC_GET_STATUS	; This destroys DX
 						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AX,0800H	; Media Changed
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 						CMP		AL,21H
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
@@ -554,6 +686,8 @@ CDC_CDDA_PSUE_LOOP:
 						CALL	CDC_GET_STATUS	; This destroys DX
 						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						CMP		AX,0800H	; Media Changed
+						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 						CMP		AL,21H
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 						CMP		AL,12H
@@ -637,10 +771,13 @@ CDC_GET_STATUS:
 						IN		AL,DX
 						ROR		EAX,8
 
+						CLC
+
 						RET
 
 CDC_GET_STATUS_NO_STATUS:
 						XOR		EAX,EAX
+						STC
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

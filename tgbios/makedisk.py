@@ -80,6 +80,12 @@ def Run(argv):
 		"-i",		"TGBIOS.BIN",
 	]).wait()
 
+	CopyToResources("TGBIOS.SYS")
+	CopyToResources("TGBIOS.BIN")
+	CopyToResources("FDIMG.BIN")
+	CopyToResources("FDIMG_USEROM.BIN")
+
+
 
 if __name__=="__main__":
 	Run(sys.argv[1:])
