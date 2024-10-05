@@ -49,7 +49,7 @@ YAMAND.COM and YSDOS.SYS are from my project https://github.com/captainys/TOWNSR
 
 
 # History
-10/04/2024  Thanks to the great contribution from BCC and Ryu Takegami, VSGP and PANIC BALL 2 are playable on the TSUGARU OS.
+10/04/2024  Thanks to the great contribution from BCC and Ryu Takegami, VSGP and PANIC BALL 2 and Sky Duel are playable on the TSUGARU OS.
 
 09/06/2024  Can start TGDRV and ORICON.  Support INT AEH, limited functions of INT 90H, INT 93H, and DOS devices.
 
