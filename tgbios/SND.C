@@ -1168,7 +1168,7 @@ void SND_20H_PCM_WAVE_TRANSFER(
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)>0x10000)
+	else if((ECX+EBX)>=0x10000)
 	{
 		while(EBX<0x10000)
 		{
@@ -1503,7 +1503,7 @@ void SND_2AH_PCM_PCMRAM_TO_MAINRAM(
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)>0x10000)
+	else if((ECX+EBX)>=0x10000)
 	{
 		while(EBX<0x10000)
 		{
@@ -1571,7 +1571,7 @@ void SND_2CH_PCM_TRANSFER2(
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
 	}
-	else if((ECX+EBX)>0x10000)
+	else if((ECX+EBX)>=0x10000)
 	{
 		while(EBX<0x10000)
 		{
