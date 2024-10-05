@@ -1482,12 +1482,19 @@ void SND_29H_PCM_ABORT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	int i;
+	unsigned char ch=(unsigned char)EBX;
+	_Far struct SND_Status *stat=SND_GetStatus();
+
+	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
+	{
+		stat->PCMCh[i].playing=0;
+	}
+
+	stat->PCMKey=0xFF;
+	_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,0xFF);
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_2AH_PCM_PCMRAM_TO_MAINRAM(
