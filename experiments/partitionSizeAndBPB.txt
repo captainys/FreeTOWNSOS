@@ -1,0 +1,333 @@
+1MB          1024 bytesPerSect  1 sectPerCluster   256 rootDirEnt  6 sectPerFAT  Media FDh FAT12
+2Å`3MB       1024 bytesPerSect  1 sectPerCluster   256 rootDirEnt  3 sectPerFAT  Media FDh FAT12
+4Å`7MB       2048 bytesPerSect  1 sectPerCluster   512 rootDirEnt  3 sectPerFAT  Media FDh FAT12
+8Å`15MB      2048 bytesPerSect  2 sectPerCluster   512 rootDirEnt  3 sectPerFAT  Media FDh FAT12
+16Å`31MB     2048 bytesPerSect  4 sectPerCluster   512 rootDirEnt  3 sectPerFAT  Media FDh FAT12
+32Å`64MB     2048 bytesPerSect  8 sectPerCluster   512 rootDirEnt  3 sectPerFAT  Media FDh FAT12
+64MBÅ`127MB  2048 bytesPerSect  2 sectPerCluster  1024 rootDirEnt 32 sectPerFAT  Media FEh FAT16
+
+
+++++++++
+MS-DOS          1mb
+1mb
+[0]        3 IPL4
+1024 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  256 rootDirEnts  1024 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  1966095 sectors(32bit)
+++++++++
+MS-DOS          2mb
+2mb
+[1]     2051 IPL4
+1024 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  256 rootDirEnts  2048 sectorsTotal
+Media:fd  6 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  2752533 sectors(32bit)
+++++++++
+MS-DOS          3mb
+3mb
+[2]     6147 IPL4
+1024 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  256 rootDirEnts  3072 sectorsTotal
+Media:fd  6 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  2752533 sectors(32bit)
+++++++++
+MS-DOS          4mb
+4mb
+[3]    12291 IPL4
+2048 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  2048 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          5mb
+5mb
+[4]    20483 IPL4
+2048 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  2560 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          6mb
+6mb
+[0]        3 IPL4
+2048 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  3072 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          7mb
+7mb
+[1]    12291 IPL4
+2048 bytes/sect  1 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  3584 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          8mb
+8mb
+[2]    26627 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  4096 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          9mb
+9mb
+[3]    43011 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  4608 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          10mb
+10mb
+[4]    61443 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  5120 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          11mb
+11mb
+[5]    81923 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  5632 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          12mb
+12mb
+[0]        3 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  6144 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          13mb
+13mb
+[1]    24579 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  6656 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          14mb
+14mb
+[2]    51203 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  7168 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          15mb
+15mb
+[3]    79875 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  7680 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          16mb
+16mb
+[4]   110595 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  8192 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          17mb
+17mb
+[5]   143363 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  8704 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          18mb
+18mb
+[0]        3 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  9216 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          19mb
+19mb
+[1]    36867 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  9728 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          20mb
+20mb
+[2]    75779 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  10240 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          21mb
+21mb
+[3]   116739 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  10752 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          22mb
+22mb
+[4]   159747 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  11264 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+
+
+
+++++++++
+MS-DOS          31mb
+31mb
+[0]        3 IPL4
+2048 bytes/sect  4 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  15872 sectorsTotal
+Media:f9  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          32mb
+32mb
+[1]    63491 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  16384 sectorsTotal
+Media:f9  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          33MB
+33MB
+[2]   129027 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  16896 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+
+
+++++++++
+MS-DOS          47mb
+47mb
+[0]        3 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  24064 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          48mb
+48mb
+[1]    96259 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  24576 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+
+
+++++++++
+MS-DOS          59mb
+59mb
+[0]        3 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  30208 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          60mb
+60mb
+[1]   120835 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  30720 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          61mb
+61mb
+[2]   243715 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  31232 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          62mb
+62mb
+[3]   368643 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  31744 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+++++++++
+MS-DOS          63mb
+63mb
+[4]   495619 IPL4
+2048 bytes/sect  8 sect/cluster  1 resvSect
+2 FATs  512 rootDirEnts  32256 sectorsTotal
+Media:fd  3 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  3932175 sectors(32bit)
+
+
+++++++++
+MS-DOS          64mb
+64mb
+[0]        3 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  32768 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)
+++++++++
+MS-DOS          65mb
+65mb
+[1]   131075 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  33280 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)
+++++++++
+MS-DOS          66mb
+66mb
+[2]   264195 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  33792 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)
+
+++++++++
+MS-DOS          79mb
+79mb
+[3]   399363 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  40448 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)
+++++++++
+MS-DOS          80mb
+80mb
+[4]   561155 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  40960 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)
+++++++++
+MS-DOS          81mb
+81mb
+[5]   724995 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  41472 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)
+
+
+++++++++
+MS-DOS          125mb
+125mb
+[5]   624643 IPL4
+2048 bytes/sect  2 sect/cluster  1 resvSect
+2 FATs  1024 rootDirEnts  64000 sectorsTotal
+Media:fe  32 sectPerFAT  0 sectPerTRK
+0 heads  0 hiddenSect  21233745 sectors(32bit)

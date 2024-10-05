@@ -48,9 +48,6 @@
 
 #define I386_RETF              0xCB
 
-#define FAT12	12
-#define FAT16	16
-
 class DIRENT
 {
 public:

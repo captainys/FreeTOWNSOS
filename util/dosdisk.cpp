@@ -78,30 +78,56 @@ void Disk::MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType) const
 
 bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 {
+	if(0==MB)
+	{
+		return false;
+	}
+
+	unsigned int bytesPerSect;
+	unsigned int sectorsPerCluster;
+	unsigned int rootDirEnt;
+	unsigned int sectorsPerFAT;
+	unsigned char mediaType;
+
+	if(1==MB)
+	{
+		bytesPerSect=1024;   sectPerCluster=1;  rootDirEnt= 256;  sectorsPerFAT= 6;   mediaType=BPB_MEDIA_HD_FAT12;
+	}
+	else if(MB<4) // 2 to 3MB
+	{
+		bytesPerSect=1024;   sectPerCluster=1;  rootDirEnt= 256;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+	}
+	else if(MB<8) // 4 to 7MB
+	{
+		bytesPerSect=2048;   sectPerCluster=1;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+	}
+	else if(MB<16) // 8 to 15MB
+	{
+		bytesPerSect=2048;   sectPerCluster=2;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+	}
+	else if(MB<32) // 16 to 31MB
+	{
+		bytesPerSect=2048;   sectPerCluster=4;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+	}
+	else if(MB<64) // 32 to 63MB
+	{
+		bytesPerSect=2048;   sectPerCluster=8;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+	}
+	else if(MB<128)
+	{
+		bytesPerSect=2048;   sectPerCluster=2;  rootDirEnt=1024;  sectorsPerFAT=32;   mediaType=BPB_MEDIA_HD_FAT16;
+	}
+	else
+	{
+		// Beyond FAT16 capacity
+		return false;
+	}
+
+
 	const size_t reserveSect=1;
 	size_t sizeInBytes=MB*1024*1024;
-	const size_t bytesPerSector=2048;  // Logical sector.  I don't care physical sector in here.
 	unsigned int totalSectors=(sizeInBytes/bytesPerSector);
-	const size_t rootDirEnt=512;
 	const size_t numFATs=2;
-
-	size_t sectPerCluster=1; // Tentative assuming FAT12    2 if FAT16
-	size_t sectPerFAT=3;     // Tentative assuming FAT12
-
-	int FAT=FAT12;
-
-	// Does FAT12 make sense?
-	{
-		unsigned int rootDirSectors=(rootDirEnt*DIRENT_SIZE+bytesPerSector-1)/bytesPerSector;
-
-		// How many sectors to get to the data sector?
-		unsigned dataSector=reserveSect;
-		dataSector+=numFATs*sectPerFAT;
-
-		// Number of data clusters=totalSectors-reserveSect-numFATs*sectPerFAT-rootDirSectors
-		// sectPerFAT=(bytesPerSector-1+(clusters-3)*2/3)/bytesPerSector if FAT12
-		//            (bytesPerSector-1+(clusters-3)/2)/bytesPerSector if FAT16
-	}
 
 	data.resize(MB*1024*1024);
 
