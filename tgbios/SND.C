@@ -338,7 +338,7 @@ void SND_KEY_ON(
 				if(0==env.AR)
 				{
 					stat->PCMCh[ch].phase=1;
-					MUL=(vol>>1)+65;
+					MUL=vol+1;
 					MUL*=(stat->PCMCh[ch].vol+1);
 					MUL--;
 					MUL>>=6;
