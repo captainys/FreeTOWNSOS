@@ -5,82 +5,8 @@
 #include <stdint.h>
 #include <ctype.h>
 
+#include "dosdisk.h"
 
-
-std::vector <unsigned char> ReadBinaryFile(std::string fileName)
-{
-	std::vector <unsigned char> data;
-	std::ifstream ifp(fileName,std::ios::binary);
-	if(true==ifp.is_open())
-	{
-		ifp.seekg(0,std::ios::end);
-		auto sz=ifp.tellg();
-		ifp.seekg(0,std::ios::beg);
-
-		data.resize(sz);
-		ifp.read((char *)data.data(),data.size());
-	}
-	return data;
-}
-
-
-
-#define BPB_BYTES_PER_SECTOR   0x0B
-#define BPB_SECTOR_PER_CLUSTER 0x0D
-#define BPB_RESERVED_SECTOR_CT 0x0E
-#define BPB_NUM_FATS           0x10
-#define BPB_NUM_ROOT_DIR_ENT   0x11
-#define BPB_TOTALNUM_SECT      0x13
-#define BPB_MEDIA_DESC         0x15
-#define BPB_SECT_PER_FAT       0x16
-#define BPB_SECT_PER_TRACK     0x18
-#define BPB_NUM_HEADS          0x1A
-#define BPB_HIDDEN_SECT        0x1C
-#define BPB_32BIT_NUM_SECT     0x20  // Used to indicate the location of IO.SYS in FM-R/TOWNS IPL.
-
-#define BPB_MEDIA_1440K        0xF0
-#define BPB_MEDIA_HARD_DISK    0xF8
-#define BPB_MEDIA_720K         0xF9
-#define BPB_MEDIA_1232K        0xFE
-#define BPB_MEDIA_320K         0xFF
-
-
-#define DIRENT_ATTR_READONLY	0x01
-#define DIRENT_ATTR_HIDDEN		0x02
-#define DIRENT_ATTR_SYSTEM		0x04
-#define DIRENT_ATTR_VOLLABEL	0x08
-#define DIRENT_ATTR_DIRECTORY	0x10
-#define DIRENT_ATTR_ARCHIVE		0x20
-
-#define DIRENT_FILENAME			0x00
-#define DIRENT_EXT				0x08
-#define DIRENT_ATTR				0x0B
-#define DIRENT_UNUSED			0x0C
-#define DIRENT_TIME				0x16
-#define DIRENT_DATE				0x18
-#define DIRENT_FIRST_CLUSTER	0x1A
-#define DIRENT_FILE_SIZE		0x1C
-
-class DIRENT
-{
-public:
-	char file[8];
-	char ext[3];
-	uint8_t attr;
-	char unused[10];
-	uint16_t time; // HHHHHMMMMMMSSSSS (SSSSS=seconds/2)
-	uint16_t date; // YYYYYYYMMMMDDDDD (D=1 to 31, M=1 to 12, Y=Year-1980)
-	uint16_t firstCluster;
-	uint32_t fileSize;
-};
-
-
-
-#define DIRENT_SHIFT			5    // 32 bytes per dirent
-
-#define NULL_CLUSTER 0xFFFFFFFF
-
-#define I386_RETF              0xCB
 
 
 static void WriteWord(unsigned char *ptr,unsigned short data)
@@ -103,115 +29,7 @@ static unsigned short ReadDword(const unsigned char *ptr)
 	return *(uint32_t *)ptr;
 }
 
-// The disk layout:
-// 
-// Sector 0
-//     Number of reserve sectors.  IPL etc.
-// --------
-//     File Allocation Table
-//     Back Up File Allocation Table
-//     (In total File Allocation Table times [BPB_NUM_FATS])
-// --------
-//     Root Directory
-// --------
-//     Data
-// --------
-
-class Disk
-{
-public:
-	class BPB
-	{
-	public:
-		uint16_t bytesPerSector;
-		uint8_t sectorsPerCluster;
-		uint16_t numReservedSectors; // Such as IPL sector.
-		uint8_t numFATs;
-		uint16_t numRootDirEnt;
-		uint16_t totalNumSectors; // Including reserved sectors
-		uint8_t mediaDesc;
-		uint16_t sectorsPerFAT;
-		uint16_t sectorsPerTrack;
-		uint16_t numHeads;
-		uint16_t numHiddenSectors;
-		uint32_t totalNumSectors32bit;
-
-		size_t GetBytesPerCluster(void) const
-		{
-			return sectorsPerCluster*bytesPerSector;
-		}
-
-		unsigned int GetFATSector(void) const
-		{
-			return numReservedSectors;  // Skip IPL
-		}
-		unsigned int GetBackupFATSector(void) const // NULL_CLUSTER if no backup FAT
-		{
-			if(2==numFATs)
-			{
-				return numReservedSectors+sectorsPerFAT;
-			}
-			else
-			{
-				return NULL_CLUSTER;
-			}
-		}
-		unsigned int GetRootDirSector(void) const
-		{
-			return numReservedSectors+sectorsPerFAT*numFATs;
-		}
-		unsigned int GetFirstDataSector(void) const
-		{
-			unsigned int dirEntPerSector=(bytesPerSector>>DIRENT_SHIFT);
-			unsigned int numDirEntSectors=(numRootDirEnt+dirEntPerSector-1)/dirEntPerSector;
-			return numReservedSectors+sectorsPerFAT*numFATs+numDirEntSectors;
-		}
-	};
-
-	std::vector <unsigned char> data;
-
-	bool Create(unsigned int BPB_mediaType);
-	void MakeBootSectBPB(unsigned char sect[],unsigned char mediaType) const;
-	void MakeInitialFAT(unsigned char FAT[]) const;
-	void MakeInitialRootDir(unsigned char rootDir[],unsigned int numEnt) const;
-
-	void WriteIPLSector(const std::vector <unsigned char> &ipl);
-
-	BPB GetBPB(void) const;
-
-	size_t GetFATLength(void) const;
-	size_t GetNumClusters(const BPB &bpb) const;
-	unsigned char *GetFAT(void);
-	unsigned char *GetBackupFAT(void);
-	const unsigned char *GetFAT(void) const;
-	const unsigned char *GetBackupFAT(void) const;
-
-	unsigned char *GetRootDir(void);
-	const unsigned char *GetRootDir(void) const;
-
-	uint32_t GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int cluster) const;
-	void PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,unsigned int incoming) const;
-	uint32_t FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const;
-	unsigned char *GetCluster(int cluster,const BPB &bpb);
-	const unsigned char *GetCluster(int cluster,const BPB &bpb) const;
-
-	unsigned char *FindAvailableDirEnt(void);
-	void WriteDirEnt(
-	    unsigned char *dirEnt,std::string file,std::string ext,
-	    uint8_t attr,
-	    unsigned int hour,unsigned int min,unsigned int sec,
-	    unsigned int year,unsigned int month,unsigned int date,
-	    unsigned int firstCluster,
-	    unsigned int fileSize);
-
-	unsigned int WriteData(const std::vector <unsigned char> &data);
-
-
-	void ReadSector(unsigned char data[],int trk,int sid,int sec);
-	void WriteSector(unsigned char data[],int trk,int sid,int sec);
-};
-
-bool Disk::Create(unsigned int BPB_mediaType)
+bool Disk::CreateFD(unsigned int BPB_mediaType)
 {
 	if(BPB_MEDIA_1232K==BPB_mediaType)
 	{
@@ -222,7 +40,7 @@ bool Disk::Create(unsigned int BPB_mediaType)
 		std::cout << "Media Type Not Supported Yet." << std::endl;
 		return false;
 	}
-	MakeBootSectBPB(data.data(),BPB_mediaType);
+	MakeFDBootSectBPB(data.data(),BPB_mediaType);
 
 	auto bpb=GetBPB();
 	MakeInitialFAT(GetFAT());
@@ -231,7 +49,7 @@ bool Disk::Create(unsigned int BPB_mediaType)
 	return true;
 }
 
-void Disk::MakeBootSectBPB(unsigned char sect[],unsigned char mediaType) const
+void Disk::MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType) const
 {
 	for(int i=0; i<256; ++i)
 	{
@@ -255,6 +73,41 @@ void Disk::MakeBootSectBPB(unsigned char sect[],unsigned char mediaType) const
 		WriteWord(sect+BPB_HIDDEN_SECT,0);
 		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
 	}
+}
+
+
+bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
+{
+	const size_t reserveSect=1;
+	size_t sizeInBytes=MB*1024*1024;
+	const size_t bytesPerSector=2048;  // Logical sector.  I don't care physical sector in here.
+	unsigned int totalSectors=(sizeInBytes/bytesPerSector);
+	const size_t rootDirEnt=512;
+	const size_t numFATs=2;
+
+	size_t sectPerCluster=1; // Tentative assuming FAT12    2 if FAT16
+	size_t sectPerFAT=3;     // Tentative assuming FAT12
+
+	int FAT=FAT12;
+
+	// Does FAT12 make sense?
+	{
+		unsigned int rootDirSectors=(rootDirEnt*DIRENT_SIZE+bytesPerSector-1)/bytesPerSector;
+
+		// How many sectors to get to the data sector?
+		unsigned dataSector=reserveSect;
+		dataSector+=numFATs*sectPerFAT;
+
+		// Number of data clusters=totalSectors-reserveSect-numFATs*sectPerFAT-rootDirSectors
+		// sectPerFAT=(bytesPerSector-1+(clusters-3)*2/3)/bytesPerSector if FAT12
+		//            (bytesPerSector-1+(clusters-3)/2)/bytesPerSector if FAT16
+	}
+
+	data.resize(MB*1024*1024);
+
+
+
+	return true;
 }
 
 void Disk::MakeInitialFAT(unsigned char FAT[]) const
@@ -537,210 +390,3 @@ unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
 	return firstCluster;
 }
 
-class CommandParameterInfo
-{
-public:
-	std::vector <std::string> outFile;
-	std::vector <std::string> inFile;
-	std::string IPLFile;
-
-	bool RecognizeCommandParameter(int ac,char *av[])
-	{
-		for(int i=1; i<ac; ++i)
-		{
-			std::string opt(av[i]);
-			for(auto &c : opt)
-			{
-				c=tolower(c);
-			}
-			if("-h"==opt || "-help"==opt || "-?"==opt)
-			{
-				Help();
-			}
-			else if("-o"==opt || "-out"==opt)
-			{
-				if(i+1<ac)
-				{
-					outFile.push_back(av[i+1]);
-					++i;
-				}
-				else
-				{
-					std::cout << "Missing argument for -o option.\n";
-					return false;
-				}
-			}
-			else if("-i"==opt || "-in"==opt)
-			{
-				if(i+1<ac)
-				{
-					inFile.push_back(av[i+1]);
-					++i;
-				}
-				else
-				{
-					std::cout << "Missing argument for -i option.\n";
-					return false;
-				}
-			}
-			else if("-ipl"==opt || "-bootsect"==opt)
-			{
-				if(i+1<ac)
-				{
-					if(""!=IPLFile)
-					{
-						std::cout << "-ipl or -bootsect option is specified multiple times.\n";
-						return false;
-					}
-					IPLFile=av[i+1];
-					++i;
-				}
-				else
-				{
-					std::cout << "Missing argument for -ipl option.\n";
-					return false;
-				}
-			}
-			else
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	static void Help(void)
-	{
-		std::cout << "-h, -help, -?\n";
-		std::cout << "  Print this message.\n";
-		std::cout << "-o outfile.bin\n";
-		std::cout << "-out outfile.bin\n";
-		std::cout << "  Specify output file.\n";
-		std::cout << "  If no output file is specified, this program does nothing.\n";
-		std::cout << "  If multiple output files are specfied, this program makes multiple disk images.\n";
-		std::cout << "-i input\n";
-		std::cout << "-in input-file\n";
-		std::cout << "  Specify input file.\n";
-		std::cout << "  If no output file is specified, this program makes an empty disk.\n";
-		std::cout << "-ipl ipl-image-file\n";
-		std::cout << "  Specify IPL-image file.\n";
-	}
-};
-
-bool MakeDisk(std::string outFile,const CommandParameterInfo &cpi)
-{
-	Disk disk;
-	disk.Create(BPB_MEDIA_1232K);
-
-	if(""!=cpi.IPLFile)
-	{
-		auto file=ReadBinaryFile(cpi.IPLFile);
-		if(0==file.size())
-		{
-			std::cout << "Cannot open the IPL image: "<< cpi.IPLFile << "\n";
-			return false;
-		}
-		disk.WriteIPLSector(file);
-	}
-
-	std::cout << "Making: " << outFile << "\n";
-
-	auto bpb=disk.GetBPB();
-
-	{
-		auto dirEnt=disk.FindAvailableDirEnt();
-		if(nullptr!=dirEnt)
-		{
-			disk.WriteDirEnt(
-				dirEnt,
-			   "AOMORIKE",
-			   "N  ",
-			   DIRENT_ATTR_VOLLABEL|DIRENT_ATTR_ARCHIVE,
-			   23,42,00,
-			   2024,8,28,
-			   0,
-			   0);
-		}
-	}
-
-	for(auto inFile : cpi.inFile)
-	{
-		auto dirEnt=disk.FindAvailableDirEnt();
-		auto file=ReadBinaryFile(inFile);
-		if(0==file.size())
-		{
-			std::cout << "Cannot open input file: " << inFile << "\n";
-			return false;
-		}
-
-		char DOS8PLUS3[11];
-		for(auto &c : DOS8PLUS3)
-		{
-			c=' ';
-		}
-		int strPtr=inFile.size();
-		while(0<strPtr && '/'!=inFile[strPtr] && '\\'!=inFile[strPtr] && ':'!=inFile[strPtr])
-		{
-			--strPtr;
-		}
-		if('/'==inFile[strPtr] || '\\'==inFile[strPtr] || ':'==inFile[strPtr])
-		{
-			++strPtr;
-		}
-		for(int i=0; i<8 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
-		{
-			DOS8PLUS3[i]=toupper(inFile[strPtr]);
-		}
-		if('.'==inFile[strPtr])
-		{
-			++strPtr;
-		}
-		for(int i=0; i<3 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
-		{
-			DOS8PLUS3[8+i]=toupper(inFile[strPtr]);
-		}
-
-		for(auto &c : DOS8PLUS3)
-		{
-			std::cout << c;
-		}
-		std::cout << "\n";
-
-		auto firstCluster=disk.WriteData(file);
-		if(nullptr!=dirEnt)
-		{
-			disk.WriteDirEnt(
-				dirEnt,
-			   DOS8PLUS3,
-			   DOS8PLUS3+8,
-			   DIRENT_ATTR_READONLY|DIRENT_ATTR_ARCHIVE /*|DIRENT_ATTR_SYSTEM*/,
-			   23,42,00,
-			   2024,8,28,
-			   firstCluster,
-			   file.size());
-		}
-	}
-
-	std::ofstream ofp(outFile,std::ios::binary);
-	ofp.write((char *)disk.data.data(),disk.data.size());
-
-	return true;
-}
-
-int main(int ac,char *av[])
-{
-	CommandParameterInfo cpi;
-	if(true!=cpi.RecognizeCommandParameter(ac,av))
-	{
-		std::cout << "Error in the command parameter(s)\n";
-		CommandParameterInfo::Help();
-		return 1;
-	}
-
-	for(auto &o : cpi.outFile)
-	{
-		MakeDisk(o,cpi);
-	}
-
-	return 0;
-}

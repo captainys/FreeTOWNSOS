@@ -60,15 +60,15 @@ def Run(argv):
 
 
 
-	proc=subprocess.Popen(["cl","../util/dosdisk.cpp","/EHsc"])
+	proc=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
 	proc.communicate()
 	if 0!=proc.returncode:
-		print("Error bulding dosdisk.exe")
+		print("Error bulding makefd.exe")
 		quit()
 
 	subprocess.Popen(["./assemble"]).wait()
 
-	subprocess.Popen(["./dosdisk",
+	subprocess.Popen(["./makefd",
 		"-o",		"FDIMG.bin",
 		"-ipl",		"FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
@@ -83,7 +83,7 @@ def Run(argv):
 		"-i",		"../externals/Free386/free386.com",
 	]).wait()
 
-	subprocess.Popen(["./dosdisk",
+	subprocess.Popen(["./makefd",
 		"-o",		"FDIMG_USEROM.bin",
 		"-ipl",		"FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",

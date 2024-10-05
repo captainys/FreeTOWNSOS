@@ -42,13 +42,13 @@ def Run(argv):
 		print("Error bulding TGBIOS.BIN")
 		quit()
 
-	proc=subprocess.Popen(["cl","../util/dosdisk.cpp","/EHsc"])
+	proc=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
 	proc.communicate()
 	if 0!=proc.returncode:
-		print("Error bulding dosdisk.exe")
+		print("Error bulding makefd.exe")
 		quit()
 
-	subprocess.Popen(["./dosdisk",
+	subprocess.Popen(["./makefd",
 		"-o",		"FDIMG.bin",
 		"-ipl",		"../src/FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
@@ -65,7 +65,7 @@ def Run(argv):
 		"-i",		"TGBIOS.BIN",
 	]).wait()
 
-	subprocess.Popen(["./dosdisk",
+	subprocess.Popen(["./makefd",
 		"-o",		"FDIMG_USEROM.bin",
 		"-ipl",		"../src/FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
