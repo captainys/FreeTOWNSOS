@@ -65,7 +65,7 @@ void Disk::MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType) const
 		WriteWord(sect+BPB_RESERVED_SECTOR_CT,1);
 		sect[BPB_NUM_FATS]=2;
 		WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,0xC0);
-		WriteWord(sect+BPB_TOTALNUM_SECT,0x4D0);
+		WriteWord(sect+BPB_TOTALNUM_SECT,0x4D0);  // 0x4D0=1232
 		sect[BPB_MEDIA_DESC]=mediaType;
 		WriteWord(sect+BPB_SECT_PER_FAT,2);
 		WriteWord(sect+BPB_SECT_PER_TRACK,8);
@@ -91,31 +91,31 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 
 	if(1==MB)
 	{
-		bytesPerSect=1024;   sectPerCluster=1;  rootDirEnt= 256;  sectorsPerFAT= 6;   mediaType=BPB_MEDIA_HD_FAT12;
+		bytesPerSect=1024;   sectorsPerCluster=1;  rootDirEnt= 256;  sectorsPerFAT= 6;   mediaType=BPB_MEDIA_HD_FAT12;
 	}
 	else if(MB<4) // 2 to 3MB
 	{
-		bytesPerSect=1024;   sectPerCluster=1;  rootDirEnt= 256;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+		bytesPerSect=1024;   sectorsPerCluster=1;  rootDirEnt= 256;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
 	}
 	else if(MB<8) // 4 to 7MB
 	{
-		bytesPerSect=2048;   sectPerCluster=1;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+		bytesPerSect=2048;   sectorsPerCluster=1;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
 	}
 	else if(MB<16) // 8 to 15MB
 	{
-		bytesPerSect=2048;   sectPerCluster=2;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+		bytesPerSect=2048;   sectorsPerCluster=2;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
 	}
 	else if(MB<32) // 16 to 31MB
 	{
-		bytesPerSect=2048;   sectPerCluster=4;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+		bytesPerSect=2048;   sectorsPerCluster=4;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
 	}
 	else if(MB<64) // 32 to 63MB
 	{
-		bytesPerSect=2048;   sectPerCluster=8;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
+		bytesPerSect=2048;   sectorsPerCluster=8;  rootDirEnt= 512;  sectorsPerFAT= 3;   mediaType=BPB_MEDIA_HD_FAT12;
 	}
 	else if(MB<128)
 	{
-		bytesPerSect=2048;   sectPerCluster=2;  rootDirEnt=1024;  sectorsPerFAT=32;   mediaType=BPB_MEDIA_HD_FAT16;
+		bytesPerSect=2048;   sectorsPerCluster=2;  rootDirEnt=1024;  sectorsPerFAT=32;   mediaType=BPB_MEDIA_HD_FAT16;
 	}
 	else
 	{
@@ -126,12 +126,24 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 
 	const size_t reserveSect=1;
 	size_t sizeInBytes=MB*1024*1024;
-	unsigned int totalSectors=(sizeInBytes/bytesPerSector);
+	unsigned int totalSectors=(sizeInBytes/bytesPerSect);
 	const size_t numFATs=2;
 
 	data.resize(MB*1024*1024);
 
-
+	unsigned char *sect=data.data();
+	WriteWord(sect+BPB_BYTES_PER_SECTOR,bytesPerSect);
+	sect[BPB_SECTOR_PER_CLUSTER]=sectorsPerCluster;
+	WriteWord(sect+BPB_RESERVED_SECTOR_CT,reserveSect);
+	sect[BPB_NUM_FATS]=numFATs;
+	WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,rootDirEnt);
+	WriteWord(sect+BPB_TOTALNUM_SECT,totalSectors);
+	sect[BPB_MEDIA_DESC]=mediaType;
+	WriteWord(sect+BPB_SECT_PER_FAT,sectorsPerFAT);
+	WriteWord(sect+BPB_SECT_PER_TRACK,0); // 0 for HD
+	WriteWord(sect+BPB_NUM_HEADS,0);      // 0 for HD
+	WriteWord(sect+BPB_HIDDEN_SECT,0);
+	WriteDword(sect+BPB_32BIT_NUM_SECT,0);
 
 	return true;
 }

@@ -48,6 +48,9 @@
 
 #define I386_RETF              0xCB
 
+#define FAT12					12
+#define FAT16					16
+
 class DIRENT
 {
 public:
@@ -81,6 +84,9 @@ public:
 	class BPB
 	{
 	public:
+		// DOS BPB is so deficient that same mediaDesc is used for FAT16 of HD and FAT12 of 1232KB floppy disk.
+		// How can I identify FAT12 or FAT16 then?
+		// All I can think of is sectorsPerTrack is zero for HD.  Then mediaDesc for FAT12 or FAT16.
 		uint16_t bytesPerSector;
 		uint8_t sectorsPerCluster;
 		uint16_t numReservedSectors; // Such as IPL sector.
