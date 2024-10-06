@@ -35,7 +35,7 @@ unsigned int Disk::BPB::GetFATType(void) const
 {
 	unsigned int a=bytesPerSector;
 	unsigned int b=sectorsPerCluster;
-	if(FAT16_THRESHOLD<=a*b)
+	if(FAT16_SIZE_THRESHOLD<=a*b)
 	{
 		return FAT16;
 	}
@@ -283,7 +283,7 @@ uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	// if(FAT12)
+	if(FAT12==bpb.GetFATType())
 	{
 		if(0==(cluster&1))
 		{
@@ -301,6 +301,10 @@ uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int
 			return data;
 		}
 	}
+	else
+	{
+		return ReadWord(FAT+cluster*2);
+	}
 }
 
 void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,unsigned int incoming) const
@@ -308,7 +312,7 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	// if(FAT12)
+	if(FAT12==bpb.GetFATType())
 	{
 		if(0==(cluster&1))
 		{
@@ -326,6 +330,10 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 			data|=(incoming<<4);
 			WriteWord(FAT+(cluster/2)*3+1,data);
 		}
+	}
+	else
+	{
+		WriteWord(FAT+cluster*2,incoming);
 	}
 }
 
