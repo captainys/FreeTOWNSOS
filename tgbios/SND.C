@@ -496,17 +496,17 @@ void SND_PAN_SET(
 
 	if(SND_Is_FM_Channel(ch))
 	{
-		switch(pan_set)
+		if(pan_set==64) // Both
 		{
-		case 127: // Right only
-			status->FMCh[ch].pan=0x40;
-			break;
-		case 0:   // Left only
-			status->FMCh[ch].pan=0x80;
-			break;
-		default:  // Both
 			status->FMCh[ch].pan=0xc0;
-			break;
+		}
+		else if(pan_set>=65) // Right only
+		{
+			status->FMCh[ch].pan=0x40;
+		}
+		else // Left only
+		{
+			status->FMCh[ch].pan=0x80;
 		}
 
 		SND_SetError(EAX,SND_NO_ERROR);
