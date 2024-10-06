@@ -29,6 +29,21 @@ static unsigned short ReadDword(const unsigned char *ptr)
 	return *(uint32_t *)ptr;
 }
 
+////////////////////////////////////////////////////////////
+
+unsigned int Disk::BPB::GetFATType(void) const
+{
+	unsigned int a=bytesPerSector;
+	unsigned int b=sectorsPerCluster;
+	if(FAT16_THRESHOLD<=a*b)
+	{
+		return FAT16;
+	}
+	return FAT12;
+}
+
+////////////////////////////////////////////////////////////
+
 bool Disk::CreateFD(unsigned int BPB_mediaType)
 {
 	if(BPB_MEDIA_1232K==BPB_mediaType)
@@ -156,9 +171,19 @@ void Disk::MakeInitialFAT(unsigned char FAT[]) const
 	{
 		FAT[i]=0;
 	}
-	FAT[0]=0xFE;  // If HDD, FA FF FF FF.
-	FAT[1]=0xFF;
-	FAT[2]=0xFF;
+	if(FAT12==BPB.GetFATType())
+	{
+		FAT[0]=0xFE;  // If HDD, FA FF FF FF.
+		FAT[1]=0xFF;
+		FAT[2]=0xFF;
+	}
+	else
+	{
+		FAT[0]=0xFA;  // If HDD, FA FF FF FF.
+		FAT[1]=0xFF;
+		FAT[2]=0xFF;
+		FAT[3]=0xFF;
+	}
 }
 
 void Disk::MakeInitialRootDir(unsigned char rootDir[],unsigned int numEnt) const

@@ -48,6 +48,7 @@
 
 #define I386_RETF              0xCB
 
+#define FAT16_SIZE_THRESHOLD	(64*1024*1024)
 #define FAT12					12
 #define FAT16					16
 
@@ -130,6 +131,7 @@ public:
 			unsigned int numDirEntSectors=(numRootDirEnt+dirEntPerSector-1)/dirEntPerSector;
 			return numReservedSectors+sectorsPerFAT*numFATs+numDirEntSectors;
 		}
+		unsigned int GetFATType(void) const; // Returns FAT12 or FAT16
 	};
 
 	unsigned int FAT12or16=FAT12;
