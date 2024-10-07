@@ -1,0 +1,1 @@
+SCSI_DATABUF			DB		256 dup (0)

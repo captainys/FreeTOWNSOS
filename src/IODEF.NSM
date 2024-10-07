@@ -130,6 +130,12 @@ CDCCMD_STATUSREQ		EQU		20H
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+IO_SCSI_DATA			EQU		0C30H
+IO_SCSI_STATUS			EQU		0C32H
+IO_SCSI_COMMAND			EQU		0C32H
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 TSUGARUIO_VM_HOST_IF_CMD_STATUS	EQU		02386h
 TSUGARUIO_VM_HOST_IF_DATA		EQU		02387h
 
