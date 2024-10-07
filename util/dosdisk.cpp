@@ -9,26 +9,6 @@
 
 
 
-static void WriteWord(unsigned char *ptr,unsigned short data)
-{
-	*(uint16_t *)ptr=data;
-}
-
-static uint16_t ReadWord(const unsigned char *ptr)
-{
-	return *(uint16_t *)ptr;
-}
-
-static void WriteDword(unsigned char *ptr,unsigned short data)
-{
-	*(uint32_t *)ptr=data;
-}
-
-static unsigned short ReadDword(const unsigned char *ptr)
-{
-	return *(uint32_t *)ptr;
-}
-
 ////////////////////////////////////////////////////////////
 
 unsigned int Disk::BPB::GetFATType(void) const
@@ -145,6 +125,9 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 	const size_t numFATs=2;
 
 	data.resize(MB*1024*1024);
+	memset(data.data(),0,data.size());
+	memcpy(data.data(),"IPL4",4);
+	data[4]=I386_RETF;
 
 	unsigned char *sect=data.data();
 	WriteWord(sect+BPB_BYTES_PER_SECTOR,bytesPerSect);
@@ -152,13 +135,18 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 	WriteWord(sect+BPB_RESERVED_SECTOR_CT,reserveSect);
 	sect[BPB_NUM_FATS]=numFATs;
 	WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,rootDirEnt);
-	WriteWord(sect+BPB_TOTALNUM_SECT,totalSectors);
+		WriteWord(sect+BPB_TOTALNUM_SECT,totalSectors);
 	sect[BPB_MEDIA_DESC]=mediaType;
 	WriteWord(sect+BPB_SECT_PER_FAT,sectorsPerFAT);
-	WriteWord(sect+BPB_SECT_PER_TRACK,0); // 0 for HD
-	WriteWord(sect+BPB_NUM_HEADS,0);      // 0 for HD
+	WriteWord(sect+BPB_SECT_PER_TRACK,16); // 16 for HD
+	WriteWord(sect+BPB_NUM_HEADS,1);      // 1 for HD
 	WriteWord(sect+BPB_HIDDEN_SECT,0);
 	WriteDword(sect+BPB_32BIT_NUM_SECT,0);
+
+	auto bpb=GetBPB();
+	MakeInitialFAT(GetFAT());
+	MakeInitialFAT(GetBackupFAT());
+	MakeInitialRootDir(GetRootDir(),bpb.numRootDirEnt);
 
 	return true;
 }
@@ -173,9 +161,18 @@ void Disk::MakeInitialFAT(unsigned char FAT[]) const
 	}
 	if(FAT12==BPB.GetFATType())
 	{
-		FAT[0]=0xFE;  // If HDD, FA FF FF FF.
-		FAT[1]=0xFF;
-		FAT[2]=0xFF;
+		if(true==isFloppyDisk)
+		{
+			FAT[0]=0xFE;
+			FAT[1]=0xFF;
+			FAT[2]=0xFF;
+		}
+		else
+		{
+			FAT[0]=0xF9;
+			FAT[1]=0xFF;
+			FAT[2]=0xFF;
+		}
 	}
 	else
 	{

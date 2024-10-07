@@ -105,8 +105,6 @@ int main(int ac,char *av[])
 		return 1;
 	}
 
-	printf("%lx %lx %lx\n",sizeof(struct PartitionHeader),sizeof(struct Partition),sizeof(struct PartitionTable));
-
 	if(SECTOR_LENGTH!=ReadSector(&partition,av[1],LBA_PARTITION_TABLE,1))
 	{
 		printf("Cannot read the partition table.\n");
