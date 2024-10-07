@@ -9,25 +9,20 @@
 
 
 
-static void WriteWord(unsigned char *ptr,unsigned short data)
+////////////////////////////////////////////////////////////
+
+unsigned int Disk::BPB::GetFATType(void) const
 {
-	*(uint16_t *)ptr=data;
+	unsigned int a=bytesPerSector;
+	unsigned int b=sectorsPerCluster;
+	if(FAT16_SIZE_THRESHOLD<=a*b)
+	{
+		return FAT16;
+	}
+	return FAT12;
 }
 
-static uint16_t ReadWord(const unsigned char *ptr)
-{
-	return *(uint16_t *)ptr;
-}
-
-static void WriteDword(unsigned char *ptr,unsigned short data)
-{
-	*(uint32_t *)ptr=data;
-}
-
-static unsigned short ReadDword(const unsigned char *ptr)
-{
-	return *(uint32_t *)ptr;
-}
+////////////////////////////////////////////////////////////
 
 bool Disk::CreateFD(unsigned int BPB_mediaType)
 {
@@ -130,6 +125,9 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 	const size_t numFATs=2;
 
 	data.resize(MB*1024*1024);
+	memset(data.data(),0,data.size());
+	memcpy(data.data(),"IPL4",4);
+	data[4]=I386_RETF;
 
 	unsigned char *sect=data.data();
 	WriteWord(sect+BPB_BYTES_PER_SECTOR,bytesPerSect);
@@ -137,13 +135,18 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 	WriteWord(sect+BPB_RESERVED_SECTOR_CT,reserveSect);
 	sect[BPB_NUM_FATS]=numFATs;
 	WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,rootDirEnt);
-	WriteWord(sect+BPB_TOTALNUM_SECT,totalSectors);
+		WriteWord(sect+BPB_TOTALNUM_SECT,totalSectors);
 	sect[BPB_MEDIA_DESC]=mediaType;
 	WriteWord(sect+BPB_SECT_PER_FAT,sectorsPerFAT);
-	WriteWord(sect+BPB_SECT_PER_TRACK,0); // 0 for HD
-	WriteWord(sect+BPB_NUM_HEADS,0);      // 0 for HD
+	WriteWord(sect+BPB_SECT_PER_TRACK,16); // 16 for HD
+	WriteWord(sect+BPB_NUM_HEADS,1);      // 1 for HD
 	WriteWord(sect+BPB_HIDDEN_SECT,0);
 	WriteDword(sect+BPB_32BIT_NUM_SECT,0);
+
+	auto bpb=GetBPB();
+	MakeInitialFAT(GetFAT());
+	MakeInitialFAT(GetBackupFAT());
+	MakeInitialRootDir(GetRootDir(),bpb.numRootDirEnt);
 
 	return true;
 }
@@ -156,9 +159,28 @@ void Disk::MakeInitialFAT(unsigned char FAT[]) const
 	{
 		FAT[i]=0;
 	}
-	FAT[0]=0xFE;  // If HDD, FA FF FF FF.
-	FAT[1]=0xFF;
-	FAT[2]=0xFF;
+	if(FAT12==BPB.GetFATType())
+	{
+		if(true==isFloppyDisk)
+		{
+			FAT[0]=0xFE;
+			FAT[1]=0xFF;
+			FAT[2]=0xFF;
+		}
+		else
+		{
+			FAT[0]=0xF9;
+			FAT[1]=0xFF;
+			FAT[2]=0xFF;
+		}
+	}
+	else
+	{
+		FAT[0]=0xFA;  // If HDD, FA FF FF FF.
+		FAT[1]=0xFF;
+		FAT[2]=0xFF;
+		FAT[3]=0xFF;
+	}
 }
 
 void Disk::MakeInitialRootDir(unsigned char rootDir[],unsigned int numEnt) const
@@ -258,7 +280,7 @@ uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	// if(FAT12)
+	if(FAT12==bpb.GetFATType())
 	{
 		if(0==(cluster&1))
 		{
@@ -276,6 +298,10 @@ uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int
 			return data;
 		}
 	}
+	else
+	{
+		return ReadWord(FAT+cluster*2);
+	}
 }
 
 void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,unsigned int incoming) const
@@ -283,7 +309,7 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	// if(FAT12)
+	if(FAT12==bpb.GetFATType())
 	{
 		if(0==(cluster&1))
 		{
@@ -301,6 +327,10 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 			data|=(incoming<<4);
 			WriteWord(FAT+(cluster/2)*3+1,data);
 		}
+	}
+	else
+	{
+		WriteWord(FAT+cluster*2,incoming);
 	}
 }
 

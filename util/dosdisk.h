@@ -48,6 +48,7 @@
 
 #define I386_RETF              0xCB
 
+#define FAT16_SIZE_THRESHOLD	(64*1024*1024)
 #define FAT12					12
 #define FAT16					16
 
@@ -130,8 +131,10 @@ public:
 			unsigned int numDirEntSectors=(numRootDirEnt+dirEntPerSector-1)/dirEntPerSector;
 			return numReservedSectors+sectorsPerFAT*numFATs+numDirEntSectors;
 		}
+		unsigned int GetFATType(void) const; // Returns FAT12 or FAT16
 	};
 
+	bool isFloppyDisk=true;  // false for HD.
 	unsigned int FAT12or16=FAT12;
 	std::vector <unsigned char> data;
 
@@ -178,6 +181,26 @@ public:
 	void ReadSector(unsigned char data[],int trk,int sid,int sec);
 	void WriteSector(unsigned char data[],int trk,int sid,int sec);
 };
+
+inline void WriteWord(unsigned char *ptr,unsigned short data)
+{
+	*(uint16_t *)ptr=data;
+}
+
+inline uint16_t ReadWord(const unsigned char *ptr)
+{
+	return *(uint16_t *)ptr;
+}
+
+inline void WriteDword(unsigned char *ptr,unsigned short data)
+{
+	*(uint32_t *)ptr=data;
+}
+
+inline unsigned short ReadDword(const unsigned char *ptr)
+{
+	return *(uint32_t *)ptr;
+}
 
 /* } */
 #endif
