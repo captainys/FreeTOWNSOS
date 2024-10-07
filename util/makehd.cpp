@@ -9,6 +9,22 @@
 
 #include "dosdisk.h"
 
+std::vector <unsigned char> ReadBinaryFile(std::string fileName)
+{
+	std::vector <unsigned char> data;
+	std::ifstream ifp(fileName,std::ios::binary);
+	if(true==ifp.is_open())
+	{
+		ifp.seekg(0,std::ios::end);
+		auto sz=ifp.tellg();
+		ifp.seekg(0,std::ios::beg);
+
+		data.resize(sz);
+		ifp.read((char *)data.data(),data.size());
+	}
+	return data;
+}
+
 
 
 #define HD_PHYSICAL_SECTOR_SIZE 512
@@ -223,7 +239,7 @@ public:
 					inp.fileName=av[i+1];
 					inp.partition=atoi(av[i+2]);
 					inFile.push_back(inp);
-					++i;
+					i+=2;
 				}
  				else
 				{
@@ -325,6 +341,71 @@ int MakeHardDiskImage(const CommandParameterInfo &cpi)
 		{
 			std::cout << "Failed to create a partition.\n";
 			return 1;
+		}
+	}
+
+	for(auto in : cpi.inFile)
+	{
+		auto &disk=hd.partitions[in.partition].disk;
+		auto dirEnt=disk.FindAvailableDirEnt();
+		auto file=ReadBinaryFile(in.fileName);
+		if(0==file.size())
+		{
+			std::cout << "Cannot open input file: " << in.fileName << "\n";
+			return false;
+		}
+
+		if(hd.partitions.size()<=in.partition)
+		{
+			std::cout << "Destination partition does not exist.\n";
+			return false;
+		}
+
+		char DOS8PLUS3[11];
+		for(auto &c : DOS8PLUS3)
+		{
+			c=' ';
+		}
+		int strPtr=in.fileName.size();
+		while(0<strPtr && '/'!=in.fileName[strPtr] && '\\'!=in.fileName[strPtr] && ':'!=in.fileName[strPtr])
+		{
+			--strPtr;
+		}
+		if('/'==in.fileName[strPtr] || '\\'==in.fileName[strPtr] || ':'==in.fileName[strPtr])
+		{
+			++strPtr;
+		}
+		for(int i=0; i<8 && strPtr<in.fileName.size() && '.'!=in.fileName[strPtr]; ++i,++strPtr)
+		{
+			DOS8PLUS3[i]=toupper(in.fileName[strPtr]);
+		}
+		if('.'==in.fileName[strPtr])
+		{
+			++strPtr;
+		}
+		for(int i=0; i<3 && strPtr<in.fileName.size() && '.'!=in.fileName[strPtr]; ++i,++strPtr)
+		{
+			DOS8PLUS3[8+i]=toupper(in.fileName[strPtr]);
+		}
+
+		for(auto &c : DOS8PLUS3)
+		{
+			std::cout << c;
+		}
+		std::cout << "\n";
+
+		auto firstCluster=disk.WriteData(file);
+		if(nullptr!=dirEnt)
+		{
+			disk.WriteDirEnt(
+				dirEnt,
+			   DOS8PLUS3,
+			   DOS8PLUS3+8,
+			   DIRENT_ATTR_READONLY|DIRENT_ATTR_ARCHIVE /*|DIRENT_ATTR_SYSTEM*/,
+			   23,42,00,
+			   2024,8,28,
+			   firstCluster,
+			   file.size());
 		}
 	}
 
