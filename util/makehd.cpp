@@ -25,6 +25,159 @@ std::vector <unsigned char> ReadBinaryFile(std::string fileName)
 	return data;
 }
 
+class CommandParameterInfo
+{
+public:
+	class InputFile
+	{
+	public:
+		std::string fileName;
+		int partition;
+	};
+	class Partition
+	{
+	public:
+		std::string label;
+		int sizeInMB;
+	};
+
+	std::vector <Partition> partitions;
+	std::vector <std::string> outFile;
+	std::vector <InputFile> inFile;
+	std::string MBRFile,IPLFile;
+
+	bool RecognizeCommandParameter(int ac,char *av[])
+	{
+		if(ac<=1)
+		{
+			return false;
+		}
+
+		for(int i=1; i<ac; ++i)
+		{
+			std::string opt(av[i]);
+			for(auto &c : opt)
+			{
+				c=tolower(c);
+			}
+			if("-h"==opt || "-help"==opt || "-?"==opt)
+			{
+				Help();
+			}
+			else if("-o"==opt || "-out"==opt)
+			{
+				if(i+1<ac)
+				{
+					outFile.push_back(av[i+1]);
+					++i;
+				}
+				else
+				{
+					std::cout << "Missing argument for -o option.\n";
+					return false;
+				}
+			}
+			else if("-i"==opt || "-in"==opt)
+			{
+				if(i+2<ac)
+				{
+					InputFile inp;
+					inp.partition=atoi(av[i+1]);
+					inp.fileName=av[i+2];
+					inFile.push_back(inp);
+					i+=2;
+				}
+ 				else
+				{
+					std::cout << "Missing argument for -i option.\n";
+					return false;
+				}
+			}
+			else if("-p"==opt || "-part"==opt)
+			{
+				if(i+2<ac)
+				{
+					Partition p;
+					p.sizeInMB=atoi(av[i+1]);
+					p.label=av[i+2];
+					partitions.push_back(p);
+					i+=2;
+				}
+				else
+				{
+					std::cout << "Missing argument for -p option.\n";
+					return false;
+				}
+			}
+			else if("-mbr"==opt)
+			{
+				if(i+1<ac)
+				{
+					if(""!=MBRFile)
+					{
+						std::cout << "-ipl or -bootsect option is specified multiple times.\n";
+						return false;
+					}
+					MBRFile=av[i+1];
+					++i;
+				}
+				else
+				{
+					std::cout << "Missing argument for -ipl option.\n";
+					return false;
+				}
+			}
+			else if("-ipl"==opt || "-bootsect"==opt)
+			{
+				if(i+1<ac)
+				{
+					if(""!=IPLFile)
+					{
+						std::cout << "-ipl or -bootsect option is specified multiple times.\n";
+						return false;
+					}
+					IPLFile=av[i+1];
+					++i;
+				}
+				else
+				{
+					std::cout << "Missing argument for -ipl option.\n";
+					return false;
+				}
+			}
+			else
+			{
+				std::cout << "Unrecognized option " << opt << "\n";
+				return false;
+			}
+		}
+		return true;
+	}
+
+	static void Help(void)
+	{
+		std::cout << "-h, -help, -?\n";
+		std::cout << "  Print this message.\n";
+		std::cout << "-o outfile.bin\n";
+		std::cout << "-out outfile.bin\n";
+		std::cout << "  Specify output file.\n";
+		std::cout << "  If no output file is specified, this program does nothing.\n";
+		std::cout << "  If multiple output files are specfied, this program makes multiple disk images.\n";
+		std::cout << "-p sizeInMB label\n";
+		std::cout << "-part sizeInMB label\n";
+		std::cout << "  Partition.  Label will be used as a partition name and volume label.\n";
+		std::cout << "-i partition input\n";
+		std::cout << "-in partition input-file\n";
+		std::cout << "  Specify input file.\n";
+		std::cout << "  If no output file is specified, this program makes an empty disk.\n";
+		std::cout << "  Specify partition where the file is written to.\n";
+		std::cout << "-mbr mbr-image-file\n";
+		std::cout << "  Specify MBR-image file. (Written to the first sector of the HDD image)\n";
+		std::cout << "-ipl ipl-image-file\n";
+		std::cout << "  Specify IPL-image file. (Written to the first sector of each partition)\n";
+	}
+};
+
 
 
 #define HD_PHYSICAL_SECTOR_SIZE 512
@@ -54,7 +207,7 @@ public:
 	const unsigned char *GetPartitionTable(void) const;
 
 	bool AddPartition(size_t sizeInMB,std::string label,std::string volumeLabel);
-	std::vector <unsigned char> GenerateHDImage(void) const;
+	std::vector <unsigned char> GenerateHDImage(std::string MBRFile,std::string IPLFile) const;
 };
 
 unsigned char *HardDisk::GetPartitionTable(void)
@@ -165,10 +318,28 @@ bool HardDisk::AddPartition(size_t sizeInMB,std::string label,std::string volume
 	return true;
 }
 
-std::vector <unsigned char> HardDisk::GenerateHDImage(void) const
+std::vector <unsigned char> HardDisk::GenerateHDImage(std::string MBRFile,std::string IPLFile) const
 {
 	std::vector <unsigned char> data;
 	data.insert(data.end(),MBR_PartTable.begin(),MBR_PartTable.end());
+
+	if(""!=MBRFile)
+	{
+		auto MBR=ReadBinaryFile(MBRFile);
+		if(MBR.size()<HD_PHYSICAL_SECTOR_SIZE)
+		{
+			for(int i=0; i<MBR.size(); ++i)
+			{
+				data[i]=MBR[i];
+			}
+		}
+		else
+		{
+			std::cout << "MBR sector image exceeds physical sector size.\n";
+			data.clear();
+			return data;
+		}
+	}
 
 	for(auto &p : partitions)
 	{
@@ -178,159 +349,6 @@ std::vector <unsigned char> HardDisk::GenerateHDImage(void) const
 	return data;
 }
 
-
-class CommandParameterInfo
-{
-public:
-	class InputFile
-	{
-	public:
-		std::string fileName;
-		int partition;
-	};
-	class Partition
-	{
-	public:
-		std::string label;
-		int sizeInMB;
-	};
-
-	std::vector <Partition> partitions;
-	std::vector <std::string> outFile;
-	std::vector <InputFile> inFile;
-	std::string MBRFile,IPLFile;
-
-	bool RecognizeCommandParameter(int ac,char *av[])
-	{
-		if(ac<=1)
-		{
-			return false;
-		}
-
-		for(int i=1; i<ac; ++i)
-		{
-			std::string opt(av[i]);
-			for(auto &c : opt)
-			{
-				c=tolower(c);
-			}
-			if("-h"==opt || "-help"==opt || "-?"==opt)
-			{
-				Help();
-			}
-			else if("-o"==opt || "-out"==opt)
-			{
-				if(i+1<ac)
-				{
-					outFile.push_back(av[i+1]);
-					++i;
-				}
-				else
-				{
-					std::cout << "Missing argument for -o option.\n";
-					return false;
-				}
-			}
-			else if("-i"==opt || "-in"==opt)
-			{
-				if(i+2<ac)
-				{
-					InputFile inp;
-					inp.fileName=av[i+1];
-					inp.partition=atoi(av[i+2]);
-					inFile.push_back(inp);
-					i+=2;
-				}
- 				else
-				{
-					std::cout << "Missing argument for -i option.\n";
-					return false;
-				}
-			}
-			else if("-p"==opt || "-part"==opt)
-			{
-				if(i+2<ac)
-				{
-					Partition p;
-					p.sizeInMB=atoi(av[i+1]);
-					p.label=av[i+2];
-					partitions.push_back(p);
-					i+=2;
-				}
-				else
-				{
-					std::cout << "Missing argument for -p option.\n";
-					return false;
-				}
-			}
-			else if("-mbr"==opt)
-			{
-				if(i+1<ac)
-				{
-					if(""!=MBRFile)
-					{
-						std::cout << "-ipl or -bootsect option is specified multiple times.\n";
-						return false;
-					}
-					MBRFile=av[i+1];
-					++i;
-				}
-				else
-				{
-					std::cout << "Missing argument for -ipl option.\n";
-					return false;
-				}
-			}
-			else if("-ipl"==opt || "-bootsect"==opt)
-			{
-				if(i+1<ac)
-				{
-					if(""!=IPLFile)
-					{
-						std::cout << "-ipl or -bootsect option is specified multiple times.\n";
-						return false;
-					}
-					IPLFile=av[i+1];
-					++i;
-				}
-				else
-				{
-					std::cout << "Missing argument for -ipl option.\n";
-					return false;
-				}
-			}
-			else
-			{
-				std::cout << "Unrecognized option " << opt << "\n";
-				return false;
-			}
-		}
-		return true;
-	}
-
-	static void Help(void)
-	{
-		std::cout << "-h, -help, -?\n";
-		std::cout << "  Print this message.\n";
-		std::cout << "-o outfile.bin\n";
-		std::cout << "-out outfile.bin\n";
-		std::cout << "  Specify output file.\n";
-		std::cout << "  If no output file is specified, this program does nothing.\n";
-		std::cout << "  If multiple output files are specfied, this program makes multiple disk images.\n";
-		std::cout << "-p sizeInMB label\n";
-		std::cout << "-part sizeInMB label\n";
-		std::cout << "  Partition.  Label will be used as a partition name and volume label.\n";
-		std::cout << "-i input partition\n";
-		std::cout << "-in input-file partition\n";
-		std::cout << "  Specify input file.\n";
-		std::cout << "  If no output file is specified, this program makes an empty disk.\n";
-		std::cout << "  Specify partition where the file is written to.\n";
-		std::cout << "-mbr mbr-image-file\n";
-		std::cout << "  Specify MBR-image file. (Written to the first sector of the HDD image)\n";
-		std::cout << "-ipl ipl-image-file\n";
-		std::cout << "  Specify IPL-image file. (Written to the first sector of each partition)\n";
-	}
-};
 
 int MakeHardDiskImage(const CommandParameterInfo &cpi)
 {
@@ -352,13 +370,13 @@ int MakeHardDiskImage(const CommandParameterInfo &cpi)
 		if(0==file.size())
 		{
 			std::cout << "Cannot open input file: " << in.fileName << "\n";
-			return false;
+			return 1;
 		}
 
 		if(hd.partitions.size()<=in.partition)
 		{
 			std::cout << "Destination partition does not exist.\n";
-			return false;
+			return 1;
 		}
 
 		char DOS8PLUS3[11];
@@ -409,7 +427,11 @@ int MakeHardDiskImage(const CommandParameterInfo &cpi)
 		}
 	}
 
-	auto img=hd.GenerateHDImage();
+	auto img=hd.GenerateHDImage(cpi.MBRFile,cpi.IPLFile);
+	if(0==img.size())
+	{
+		return 1;
+	}
 	for(auto outFile : cpi.outFile)
 	{
 		std::ofstream ofp(outFile,std::ios::binary);
@@ -426,6 +448,5 @@ int main(int ac,char *av[])
 		cpi.Help();
 		return 1;
 	}
-
 	return MakeHardDiskImage(cpi);
 }

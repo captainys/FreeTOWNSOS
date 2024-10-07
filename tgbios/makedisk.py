@@ -48,6 +48,12 @@ def Run(argv):
 		print("Error bulding makefd.exe")
 		quit()
 
+	proc=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error bulding makehd.exe")
+		quit()
+
 	subprocess.Popen(["./makefd",
 		"-o",		"FDIMG.bin",
 		"-ipl",		"../src/FD_IPL.bin",
@@ -80,10 +86,29 @@ def Run(argv):
 		"-i",		"TGBIOS.BIN",
 	]).wait()
 
+	subprocess.Popen(["./makehd",
+		"-o",		"HDIMG.bin",
+		"-p",		"8", "TSUGARU_OS",
+		"-mbr",		"../src/HD_MBR.bin",
+		"-i",		"0",	"../resources/IO.SYS",
+		"-i",		"0",	"../resources/YSDOS.SYS",
+		"-i",		"0",	"../resources/YAMAND.COM",
+		"-i",		"0",	"CONFIG.SYS",
+		"-i",		"0",	"../resources/AUTOEXEC.BAT",
+		"-i",		"0",	"../resources/TGDRV.COM",
+		"-i",		"0",	"../resources/TEST.EXP",
+		"-i",		"0",	"../src/MINVCPI.SYS",
+		"-i",		"0",	"../externals/ORICON/ORICON.COM",
+		"-i",		"0",	"../externals/Free386/free386.com",
+		"-i",		"0",	"TGBIOS.SYS",
+		"-i",		"0",	"TGBIOS.BIN",
+	]).wait()
+
 	CopyToResources("TGBIOS.SYS")
 	CopyToResources("TGBIOS.BIN")
 	CopyToResources("FDIMG.BIN")
 	CopyToResources("FDIMG_USEROM.BIN")
+	CopyToResources("HDIMG.BIN")
 
 
 

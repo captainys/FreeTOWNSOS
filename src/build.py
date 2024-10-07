@@ -15,6 +15,7 @@ def Run(argv):
 
 	srcs=[
 		"FD_IPL",
+		"HD_MBR",
 		"IOSYS",
 		"INT8EH",
 		"INT90H",

@@ -27,7 +27,7 @@ ERREND:
 						RETF
 
 BOOT_DEVICE:			DW		0
-FUJITSU_IN_SHIFTJIS		EB		95H,78H,8EH,6DH,92H,CAH
+FUJITSU_IN_SHIFTJIS		DB		095H,078H,08EH,06DH,092H,0CAH
 
 BOOT:
 						MOV		CS:[BOOT_DEVICE],BX
@@ -38,6 +38,8 @@ BOOT:
 						MOV		AX,MBR_COPY_SEGMENT
 						MOV		ES,AX
 
+						XOR		SI,SI
+						XOR		DI,DI
 						MOV		CX,512
 						REP		MOVSB
 
@@ -91,7 +93,7 @@ FOUND_BOOT_PART:
 						SHR		EDI,16
 						MOV		CX,DI
 
-						MOV		AX,B000h
+						MOV		AX,0B000h
 						MOV		DS,AX
 						XOR		DI,DI
 
@@ -101,6 +103,17 @@ FOUND_BOOT_PART:
 
 						MOV		BX,1
 						CALL	READ_SECTORS;
+
+						XOR		DI,DI
+						CMP		DWORD DS:[DI],344C5049H	; 'IPL4'
+
+						JNE		ERREND
+
+						MOV		BX,CS:[BOOT_DEVICE]
+						DB		0EAH ; JMPF
+						DW		00004H
+						DW		0B000H
+
 
 
 ; Input
@@ -114,9 +127,6 @@ FOUND_BOOT_PART:
 ;   CX		Error Info
 ;   CF		Set if Error
 READ_SECTORS:
-						PUSH	AX
-						PUSH	CX
-
 						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
 
 						; How can I write CALL 		FAR PTR 0FFFBH:0014H
@@ -124,19 +134,5 @@ READ_SECTORS:
 						DW		 0014H
 						DW		0FFFBH
 
-						POP		CX
-						POP		AX
-
-						AND		AH,AH
-						JNE		READ_SECTORS_ERROR
-
-						CLC
 						RET
 
-READ_SECTORS_ERROR:
-						STC
-						RET
-
-
-
-CODE					SEGMENT USE16
