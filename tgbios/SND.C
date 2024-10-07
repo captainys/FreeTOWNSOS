@@ -1176,8 +1176,6 @@ void SND_20H_PCM_WAVE_TRANSFER(
 	_FP_SEG(mainram)=DS;
 	_FP_OFF(mainram)=ESI;
 
-	unsigned char data;
-
 	if(ECX>=0x10000||EBX>=0x10000)
 	{
 		SND_SetError(EAX,SND_ERROR_PARAMETER);
@@ -1186,9 +1184,7 @@ void SND_20H_PCM_WAVE_TRANSFER(
 	{
 		while(EBX<0x10000)
 		{
-			data=*mainram;
-			if(data==PCM_LOOP_STOP_CODE) data=0xfe;
-			SND_WriteToWaveRAM((EBX&0xffff),data);
+			SND_WriteToWaveRAM((EBX&0xffff),_min(*mainram,PCM_LOOP_STOP_CODE-1));
 			EBX++;
 			mainram++;
 		}
@@ -1199,9 +1195,7 @@ void SND_20H_PCM_WAVE_TRANSFER(
 	{
 		for(int i=0;i<ECX;i++)
 		{
-			data=*mainram;
-			if(data==PCM_LOOP_STOP_CODE) data=0xfe;
-			SND_WriteToWaveRAM((EBX&0xffff),data);
+			SND_WriteToWaveRAM((EBX&0xffff),_min(*mainram,PCM_LOOP_STOP_CODE-1));
 			EBX++;
 			mainram++;
 		}
@@ -1325,7 +1319,8 @@ void SND_22H_PCM_SOUND_SET(
 	addr=status->instSoundLastAddr;
 	for(i=0; i<totalBytes; ++i)
 	{
-		SND_WriteToWaveRAM(addr++,*(wave++));
+		SND_WriteToWaveRAM(addr++,_min(*wave,PCM_LOOP_STOP_CODE-1));
+		wave++;
 	}
 	for(i=0; i<32; ++i)
 	{
@@ -1692,7 +1687,10 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			{
 				unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
-				MOVSB_FAR(waveRAM,info->PCMCh[ch].playPtr,oneTransferSize);
+				for(int i=0;i<oneTransferSize;i++)
+				{
+					waveRAM[i]=_min(info->PCMCh[ch].playPtr[i],PCM_LOOP_STOP_CODE-1);
+				}
 				if(oneTransferSize<PCM_BANK_SIZE)
 				{
 					waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
@@ -2282,6 +2280,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 			{
 				unsigned int bytesLeft=stat->PCMCh[ch].header->totalBytes-stat->PCMCh[ch].curPos;
 				unsigned int transferSize=PCM_BANK_SIZE;
+				unsigned int currentPosition=stat->PCMCh[ch].curPos;
 				_Far unsigned char *waveRAM;
 				_FP_SEG(waveRAM)=SEG_WAVE_RAM;
 				_FP_OFF(waveRAM)=0;
@@ -2293,7 +2292,10 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 				transferSize=_min(transferSize,bytesLeft);
 
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->PCMCh[ch].nextFillBank);
-				MOVSB_FAR(waveRAM,stat->PCMCh[ch].playPtr+stat->PCMCh[ch].curPos,transferSize);
+				for(int i=0;i<transferSize;i++)
+				{
+					waveRAM[i]=_min(stat->PCMCh[ch].playPtr[i+currentPosition],PCM_LOOP_STOP_CODE-1);
+				}
 				if(transferSize<PCM_BANK_SIZE)
 				{
 					waveRAM[transferSize]=PCM_LOOP_STOP_CODE;
