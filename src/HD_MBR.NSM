@@ -1,0 +1,142 @@
+; To be written to LBA=0 of the hard-disk image.
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+
+; Root directory will be read from B000:4000
+MBR_COPY_SEGMENT			EQU		0B020h
+PARTITION_TABLE_OFFSET		EQU		4000h
+PARTITION_TABLE_LBA			EQU		1
+
+
+PARTITION_TYPE_MSDOS_BASIC	EQU		1
+
+
+CODE					SEGMENT USE16
+
+						DB		"IPL4"
+
+						CMP		BL,BOOTDEV_HD
+ERREND:
+						JE		BOOT
+						RETF
+
+BOOT_DEVICE:			DW		0
+FUJITSU_IN_SHIFTJIS		EB		95H,78H,8EH,6DH,92H,CAH
+
+BOOT:
+						MOV		CS:[BOOT_DEVICE],BX
+
+						PUSH	CS
+						POP		DS
+
+						MOV		AX,MBR_COPY_SEGMENT
+						MOV		ES,AX
+
+						MOV		CX,512
+						REP		MOVSB
+
+						DB		0EAH ; JMPF
+						DW		BOOT_CONTINUE
+						DW		MBR_COPY_SEGMENT
+BOOT_CONTINUE:
+						MOV		AX,CS
+						MOV		DS,AX
+						MOV		ES,AX
+						MOV		FS,AX
+
+						MOV		DI,PARTITION_TABLE_OFFSET
+						XOR		CX,CX
+						MOV		DX,PARTITION_TABLE_LBA
+
+						; BX is still the boot device
+						MOV		AL,BH
+						AND		AL,7
+						OR		AL,0B0H	; 0BnH for SCSI ID n
+
+						MOV		BX,1	; 1 sector
+
+						CALL	READ_SECTORS
+						JB		ERREND
+
+						MOV		SI,PARTITION_TABLE_OFFSET
+						MOV		DI,FUJITSU_IN_SHIFTJIS
+						MOV		CX,6
+						REPE	CMPSB
+						JNE		ERREND
+
+						MOV		EDI,[PARTITION_TABLE_OFFSET+6]	; First partition sector (Prob)
+						MOV		SI,PARTITION_TABLE_OFFSET+20H
+						MOV		CX,10	; Max 10 partitions per HDD
+FIND_BOOT_PART_LOOP:
+						CMP		WORD [SI],01FFH		; Boot and BASIC MS-DOS partition
+						JE		FOUND_BOOT_PART
+
+						ADD		EDI,[SI+6] ; sectors for the partition
+						ADD		SI,030H
+						LOOP	FIND_BOOT_PART_LOOP
+
+						JMP		ERREND	; BASIC MS-DOS Boot partition not found
+
+FOUND_BOOT_PART:
+						; EDI is the LBA for the partition IPL
+
+						; Set LBA to CX:DX
+						MOV		DX,DI
+						SHR		EDI,16
+						MOV		CX,DI
+
+						MOV		AX,B000h
+						MOV		DS,AX
+						XOR		DI,DI
+
+						MOV		AL,CS:[BOOT_DEVICE+1]
+						AND		AL,7
+						OR		AL,0B0h
+
+						MOV		BX,1
+						CALL	READ_SECTORS;
+
+
+; Input
+;   AL		20h or 21h
+;   CX		LBA High
+;	DX		LBA Low
+;	BX		Number of Sectors
+;	DS:DI	Data Buffer
+; Output
+;   AH		BIOS Error Code
+;   CX		Error Info
+;   CF		Set if Error
+READ_SECTORS:
+						PUSH	AX
+						PUSH	CX
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+
+						; How can I write CALL 		FAR PTR 0FFFBH:0014H
+						DB		9AH		; CALLF FFFB:0014
+						DW		 0014H
+						DW		0FFFBH
+
+						POP		CX
+						POP		AX
+
+						AND		AH,AH
+						JNE		READ_SECTORS_ERROR
+
+						CLC
+						RET
+
+READ_SECTORS_ERROR:
+						STC
+						RET
+
+
+
+CODE					SEGMENT USE16
