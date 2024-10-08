@@ -946,15 +946,13 @@ LOAD_FROM_HD_PARTITION_LOOP_EXIT:
 						JNE		LOAD_DOS_FROM_HD_ERR
 
 
-						TSUGARU_DEBUG
-
 
 						MOV		DI,BPB_POS_IN_IPL	; FS:DI is BPB
 
 						CALL	BPB_CALC_ROOTDIR_SECT_CT	; In DOSUTIL.NSM  AX is # root-dir sectors, DX destroyed
+						PUSH	AX	; Save ROOTDIR Logical sector count
 						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
 						MOV		BX,AX
-						PUSH	AX	; Save ROOTDIR physical sector count
 
 						; BX is the number of sectors of the root dir.
 
@@ -974,7 +972,7 @@ LOAD_FROM_HD_PARTITION_LOOP_EXIT:
 						INT		93H
 						JB		HDBOOT_YSDOS_NOT_FOUND
 
-						TSUGARU_DEBUG
+
 
 						; Input
 						;   DS:SI	Directory
@@ -995,6 +993,10 @@ LOAD_FROM_HD_PARTITION_LOOP_EXIT:
 						MOV		DX,FS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
 						CALL	SEARCH_DIRECTORY
 						JB		HDBOOT_YSDOS_NOT_FOUND
+
+
+		TSUGARU_DEBUG
+
 
 						; Need to know
 						;   Where YSDOS.SYS started (LBA)
