@@ -1,4 +1,5 @@
-BLKDEV_PART_TABLE_SEG			EQU		7F00h
+BLKDEV_PART_TABLE_SEG			EQU		7F00h	; Used during initialization only
+BLKDEV_IPL_OFFSET				EQU		0400h	; Used during initialization only
 
 BLKDEV_HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
 								DW	0FFFFh
@@ -188,15 +189,83 @@ AUTOMOUNT_HDD_SCSIID_LOOP:
 
 						MOV		SI,020H
 						MOV		EBX,DS:[6]
-						MOV		CX,10	; Max 10 partitions
+						XOR		CX,CX
 AUTOMOUNT_HDD_PARTITION_LOOP:
+						CMP		BYTE [SI+1],1	; BASIC MS-DOS?
+						JNE		AUTOMOUNT_HDD_PARTITION_NEXT
+
 						; If the partition type is MS-DOS BASIC, and the IPL sector starts with "IPL4"
 						; Add a unit.
+						PUSH	SI
+						PUSH	CX
+						PUSH	EBX
+
+						SHLD	ECX,EBX,16	; CX:DX is LBA
+						MOV		DX,BX
+
+						MOV		BX,1
+
+						MOV		AL,CS:[AUTOMOUNT_SCSIID]
+						OR		AL,DISKBIOS_SCSI_0
+
+						MOV		DI,BLKDEV_IPL_OFFSET
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						INT		93H
+						JB		AUTOMOUNT_HDD_PARTITION_READ_ERROR
+
+						CMP		DWORD DS:[DI],344C5049H
+						JNE		AUTOMOUNT_HDD_PARTITION_READ_ERROR
+
+						MOV		AL,CS:[NUM_HD_BPB]
+						MOV		AH,BIOS_PARAMETER_BLOCK_size
+						MUL		AH
+						ADD		AX,HD_BPB
+
+						MOV		DI,AX	; CS:DI is BPB for this partition
+						MOV		SI,BLKDEV_IPL_OFFSET+BPB_POS_IN_IPL
+						MOV		CX,BIOS_PARAMETER_BLOCK_size
+						REP		MOVSB
+
+						MOV		DI,AX	; CS:DI is BPB for this partition again
+
+						POP		EBX		; EBX is partition LBA
+						POP		CX		; CX is partition number
+						PUSH	CX
+						PUSH	EBX
 
 
+						MOV		AL,CS:[NUM_HD_BPB]
+						MOV		AH,DSKDRV_size
+						MUL		AH
+						ADD		AX,HD_TABLE
+						MOV		SI,AX
+
+						MOV		CS:[SI+DSKDRV_BPB_OFFSET],DI
+						MOV		CS:[SI+DSKDRV_BPB_SEG],CS
+
+						MOV		AL,CS:[AUTOMOUNT_SCSIID]
+						OR		AL,DISKBIOS_SCSI_0
+						MOV		CS:[SI+DSKDRV_BIOSCODE],AL
+
+						MOV		CS:[SI+DSKDRV_PARTITION],CL
+
+						MOV		AL,CS:[NUM_HD_BPB]
+						ADD		AL,'D'
+						MOV		CS:[SI+DSKDRV_LETTER],AL
+						MOV		BYTE CS:[SI+DSKDRV_FLAGS],0
+						MOV		CS:[SI+DSKDRV_FIRST_SECTOR_LBA],EBX
+
+AUTOMOUNT_HDD_PARTITION_READ_ERROR:
+						POP		EBX
+						POP		CX
+						POP		SI
+
+AUTOMOUNT_HDD_PARTITION_NEXT:
 						ADD		EBX,DS:[SI+6]
 						ADD		SI,030H
-						LOOP	AUTOMOUNT_HDD_PARTITION_LOOP
+						INC		CX
+						CMP		CX,10
+						JB		AUTOMOUNT_HDD_PARTITION_LOOP
 
 AUTOMOUNT_SCSIID_NEXT:
 						INC		BYTE CS:[AUTOMOUNT_SCSIID]
