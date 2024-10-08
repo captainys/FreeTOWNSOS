@@ -39,7 +39,7 @@ REALENTRY:
 						MOV		SS,DX
 						MOV		SP,100H
 
-						MOV		CS:[BOOT_DEVICE],BX	; Sent from the IPL
+						MOV		CS:[BOOT_DEVICE],EBX	; Sent from the IPL.  If HD, high-word is partition number.
 						CALL	SETUP_REALMODE_INT_HANDLER
 						MOV		BX,CS:[BOOT_DEVICE]
 
@@ -155,6 +155,7 @@ NOP_INT_HANDLER:
 
 
 BOOT_DEVICE				DW		0
+BOOT_PARTITION			DW		0
 SECTBUF_PTR				DW		0
 SECTBUF_SEG				DW		0
 

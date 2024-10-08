@@ -132,6 +132,8 @@ FOUND_IOSYS:
 						CDQ
 						DIV		ECX
 
+						; Scale logical sector to physical sector
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
 						MOV		EBX,EAX	; BX is number of sectors.
 
 						PUSH	BX

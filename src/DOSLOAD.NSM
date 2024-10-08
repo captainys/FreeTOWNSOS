@@ -23,6 +23,11 @@ ROOTDIR_OFFSET			EQU		00800h	; Rootdir loaded at BOOTSECT_SEG:ROOTDIR_OFFSET
 
 BOOTSECT_SEG			EQU		08000h
 
+PARTITION_TABLE_LBA		EQU		1
+PARTITION_TABLE_FIRST_PARTITION_LBA		EQU		6
+PARTITION_TABLE_NUM_SECTORS				EQU		6
+PARTITION_TABLE_FIRST_PARTITION			EQU		020h
+PARTITION_ENTRY_SIZE					EQU		030h
 
 CODE					SEGMENT	USE16
 
@@ -41,11 +46,17 @@ SYSVARS_PTR				DW		0	; +08h
 SYSVARS_SEG				DW		0	; +0Ah
 CDS_PTR					DD		0	; +0Ch
 
-NUM_FILES				DW		15
+NUM_FILES				DW		15	; +10h
+						DW		0
+
 
 DISKBIOS_BOOT_DEVICE	DB		0
+BOOT_PARTITION			DB		0		; If booting from HDD
 
 CONDEV_PTR				DD		0
+
+HDD_AUTO_ASSIGN			DB		01h		; 00h Assign drive letters according to the CMOS settings.
+										; 01h Automatically assign drive letters, not relying on CMOS.
 
 ROMDRIVE_BPB:			DW		200H	; bytesPerSect
 						DB		2		; sectPerCluster
@@ -64,6 +75,8 @@ ROMDRIVE_BPB:			DW		200H	; bytesPerSect
 
 REALENTRY:
 						MOV		CS:[BOOT_DEVICE],BX
+						SHL		EBX,16
+						MOV		CS:[BOOT_PARTITION],BX
 						MOV		CS:[DOSSEG],CS  ; DOS will be loaded this location.
 
 						MOV		CS:[CONDEV_PTR],SI
@@ -878,6 +891,59 @@ INFINITY				JMP		INFINITY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 LOAD_DOS_FROM_HD:
+						; BH is SCSI ID, it is backed up in CS:[BOOT_DEVICE]
+
+						; First get partition table.
+						MOV		AL,BH
+						AND		AL,0FH
+						OR		AL,DISKBIOS_SCSI_0
+						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
+
+						MOV		AH,DISKBIOS_CMD_03H_RESTORE
+						INT		93H
+
+						TSUGARU_DEBUG
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+						MOV		CX,0		; LBA High
+						MOV		DX,0001h	; LBA Low
+						MOV		BX,1		; 1 sector
+						MOV		DI,BOOTSECT_SEG
+						MOV		DS,DI
+						XOR		DI,DI
+						INT		93H
+						JB		INFINITY
+
+						MOV		EDI,DS:[PARTITION_TABLE_FIRST_PARTITION_LBA]
+						MOV		SI,PARTITION_TABLE_FIRST_PARTITION
+
+						MOVZX	CX,BYTE CS:[BOOT_PARTITION]
+						JCXZ	LOAD_FROM_HD_PARTITION_LOOP_EXIT
+LOAD_FROM_HD_PARTITION_LOOP:
+						ADD		EDI,DS:[SI+PARTITION_TABLE_NUM_SECTORS]
+						ADD		SI,PARTITION_ENTRY_SIZE
+						LOOP	LOAD_FROM_HD_PARTITION_LOOP
+
+LOAD_FROM_HD_PARTITION_LOOP_EXIT:
+						;	EDI is the first sector of the partition.
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+						SHRD	ECX,EDI,16
+						MOV		DX,DI
+						MOV		BX,1		; 1 sector
+						MOV		DI,BOOTSECT_SEG
+						MOV		DS,DI
+						MOV		FS,DI		; Prepare to use as BPB
+						XOR		DI,DI
+						INT		93H
+						JB		INFINITY
+
+						TSUGARU_DEBUG
+
+
+LOAD_DOS_FROM_HD_ERR:
 						STC
 						RET
 
