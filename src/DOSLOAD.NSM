@@ -58,6 +58,8 @@ CONDEV_PTR				DD		0
 HDD_AUTO_ASSIGN			DB		01h		; 00h Assign drive letters according to the CMOS settings.
 										; 01h Automatically assign drive letters, not relying on CMOS.
 
+BOOT_PARTITION_LBA0		DD		0
+
 ROMDRIVE_BPB:			DW		200H	; bytesPerSect
 						DB		2		; sectPerCluster
 						DW		1		; reservedSectors
@@ -482,7 +484,7 @@ DEVICE_LOAD_POINT		DW		0
 
 DO_CONFIG_SYS:
 						CALL	LOAD_CONFIG_SYS
-						JC		DO_CONFIG_SYS_EXIT
+						JC		CONFIG_SYS_NOT_FOUND
 
 
 						LDS		SI,CS:[SYSVARS_PTR]
@@ -556,6 +558,7 @@ DO_CONFIG_SYS_EXIT:
 						;       FS:BX = DOS SYSVARS
 						CALL	PUSH_MCB
 
+CONFIG_SYS_NOT_FOUND:
 						RET
 
 
@@ -902,8 +905,6 @@ LOAD_DOS_FROM_HD:
 						MOV		AH,DISKBIOS_CMD_03H_RESTORE
 						INT		93H
 
-						TSUGARU_DEBUG
-
 						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
 						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
 						MOV		CX,0		; LBA High
@@ -927,6 +928,7 @@ LOAD_FROM_HD_PARTITION_LOOP:
 
 LOAD_FROM_HD_PARTITION_LOOP_EXIT:
 						;	EDI is the first sector of the partition.
+						MOV		CS:[BOOT_PARTITION_LBA0],EDI
 
 						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
 						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
@@ -938,11 +940,108 @@ LOAD_FROM_HD_PARTITION_LOOP_EXIT:
 						MOV		FS,DI		; Prepare to use as BPB
 						XOR		DI,DI
 						INT		93H
-						JB		INFINITY
+						JB		LOAD_DOS_FROM_HD_ERR
+
+						CMP		DWORD DS:[DI],344C5049H	; 'IPL4'
+						JNE		LOAD_DOS_FROM_HD_ERR
+
 
 						TSUGARU_DEBUG
 
 
+						MOV		DI,BPB_POS_IN_IPL	; FS:DI is BPB
+
+						CALL	BPB_CALC_ROOTDIR_SECT_CT	; In DOSUTIL.NSM  AX is # root-dir sectors, DX destroyed
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+						MOV		BX,AX
+						PUSH	AX	; Save ROOTDIR physical sector count
+
+						; BX is the number of sectors of the root dir.
+
+						CALL	BPB_CALC_ROOTDIR_LBA		; In DOSUTIL.NSM
+
+						PUSH	AX	; Save ROOTDIR Logical Sector
+
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+						ADD		EAX,CS:[BOOT_PARTITION_LBA0]
+
+						SHLD	ECX,EAX,16	; CX:AX is LBA (physical sector)
+						MOV		DX,AX
+
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+						MOV		DI,ROOTDIR_OFFSET
+						INT		93H
+						JB		HDBOOT_YSDOS_NOT_FOUND
+
+						TSUGARU_DEBUG
+
+						; Input
+						;   DS:SI	Directory
+						;   ES:DI	File name in DOS 8+3 format
+						;   DX		Number of files in the directory (including unused directory)
+						; Output
+						;   CX      Destroyed
+						;   DX		0
+						;   DF      Clear
+						;   CF=0    DS:SI=Found directory entry
+						;   CF=1    Not found  SI points to the end of the directory
+
+						; DS is already set.
+						MOV		SI,ROOTDIR_OFFSET
+						PUSH	CS
+						POP		ES
+						MOV		DI,YSDOS_SYS_FILENAME
+						MOV		DX,FS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
+						CALL	SEARCH_DIRECTORY
+						JB		HDBOOT_YSDOS_NOT_FOUND
+
+						; Need to know
+						;   Where YSDOS.SYS started (LBA)
+						;   How many sectors.
+
+						MOV		DI,BPB_POS_IN_IPL
+
+						MOV		EAX,[SI+DIRENT_FILE_SIZE]
+						MOVZX	ECX,WORD [DI+BPB_BYTES_PER_SECTOR]
+
+						ADD		EAX,ECX	; For rounding up (+bytesPerSector-1)
+						DEC		EAX
+
+						XOR		EDX,EDX
+						DIV		ECX
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+
+						MOVZX	EBX,AX
+
+						; BX is number of sectors.
+
+						MOV		AX,[SI+DIRENT_FIRST_CLUSTER]
+
+						CALL	BPB_CLUSTER_TO_SECT_CT
+						POP		DX	; DX will be overwritten by BPB_LBA_TO_CYLINDER_HEAD_SECTOR anyway
+						ADD		AX,DX
+						POP		DX
+						ADD		AX,DX
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+						ADD		EAX,CS:[BOOT_PARTITION_LBA0]
+
+						SHLD	ECX,EAX,16	; CX:AX is LBA (physical sector)
+						MOV		DX,AX
+
+						MOV		DS,CS:[DOSSEG]	; YSDOS Loading Point
+						XOR		DI,DI
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
+
+						INT		93H
+
+						; CF set by INT 93H
+
+						RET
+
+HDBOOT_YSDOS_NOT_FOUND:
+						ADD		SP,4
 LOAD_DOS_FROM_HD_ERR:
 						STC
 						RET
