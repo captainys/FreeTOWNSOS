@@ -1,3 +1,5 @@
+BLKDEV_PART_TABLE_SEG			EQU		7F00h
+
 BLKDEV_HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
 								DW	0FFFFh
 BLKDEV_HEADER_ATTRIBWORD		DW	0800h   ; BlockDev|open/close/removable media
@@ -7,9 +9,21 @@ BLKDEV_HEADER_NAME				DB	"QUACK!!!"
 
 BLKDEV_REQHDR_PTR		DD	0
 
-INITIAL_BPB_ARRAY		DW		FD_BPB,FD_BPB,ROMDRIVE_BPB
+BLOCKDEV_MAX_ADDITIONAL_DRIVES	EQU		10		; Let's keep it 10 for the time being
 
-; I think BPS should be updated when disk is re-inserted
+INITIAL_BPB_ARRAY		DW		FD_BPB,FD_BPB,ROMDRIVE_BPB
+						DW		HD_BPB
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*1
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*2
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*3
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*4
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*5
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*6
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*7
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*8
+						DW		HD_BPB+BIOS_PARAMETER_BLOCK_size*9
+
+; I think BPB should be updated when disk is re-inserted
 FD_BPB:					DW		400H	; bytesPerSect
 						DB		1		; sectPerCluster
 						DW		1		; reservedSectors
@@ -35,6 +49,14 @@ ROMDRIVE_BPB:			DW		200H	; bytesPerSect
 						DW		1		; #heads
 						DW		0		; #hiddenSect
 						DD		0		; 32-bit #sectors
+
+
+
+NUM_HD_BPB				DB		0
+HD_BPB:					DB		(BLOCKDEV_MAX_ADDITIONAL_DRIVES*BIOS_PARAMETER_BLOCK_size) dup(0)
+HD_TABLE:				DB		(BLOCKDEV_MAX_ADDITIONAL_DRIVES*DSKDRV_size) dup (0)
+
+
 
 BLKDEV_STRATEGY:
 						MOV		CS:[BLKDEV_REQHDR_PTR],BX
@@ -112,13 +134,77 @@ BLKDEV_INIT:
 						;   xxxx:yyyy ptr0 ptr1 ptr2 ptr3 ... ptr(#unit-1)
 						; each pointer is a short pointer. xxxx:ptr0 is the first BPB.
 
-						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],3 ; 3 units
+						CALL	AUTOMOUNT_HDD_PARTITIONS
+
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+
+						MOV		AL,CS:[NUM_HD_BPB]
+						ADD		AL,3	; FD0, FD1, ROMDrv   3 units
+
+						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],AL
 						MOV		AX,CS
 						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN+2],AX
 						MOV		AX,INITIAL_BPB_ARRAY
 						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],AX
 
 						JMP		BLKDEV_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AUTOMOUNT_SCSIID		DB		0
+FUJITSU_IN_SHIFTJIS		DB		095H,078H,08EH,06DH,092H,0CAH
+
+AUTOMOUNT_HDD_PARTITIONS:
+						XOR		AL,AL
+						MOV		BYTE CS:[AUTOMOUNT_SCSIID],0
+						MOV		BYTE CS:[NUM_HD_BPB],0
+
+						PUSH	CS
+						POP		ES
+
+AUTOMOUNT_HDD_SCSIID_LOOP:
+						MOV		AL,CS:[AUTOMOUNT_SCSIID]
+						OR		AL,DISKBIOS_SCSI_0
+
+						MOV		CX,0
+						MOV		DX,1	; LBA1=partition table
+
+						MOV		BX,BLKDEV_PART_TABLE_SEG
+						MOV		DS,BX
+						XOR		DI,DI
+
+						MOV		BX,1
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+
+						INT		93H
+						JB		AUTOMOUNT_SCSIID_NEXT
+
+						XOR		SI,SI
+						MOV		DI,FUJITSU_IN_SHIFTJIS
+						MOV		CX,6
+						CLD
+						REPE	CMPSB
+						JNE		AUTOMOUNT_SCSIID_NEXT
+
+						MOV		SI,020H
+						MOV		EBX,DS:[6]
+						MOV		CX,10	; Max 10 partitions
+AUTOMOUNT_HDD_PARTITION_LOOP:
+						; If the partition type is MS-DOS BASIC, and the IPL sector starts with "IPL4"
+						; Add a unit.
+
+
+						ADD		EBX,DS:[SI+6]
+						ADD		SI,030H
+						LOOP	AUTOMOUNT_HDD_PARTITION_LOOP
+
+AUTOMOUNT_SCSIID_NEXT:
+						INC		BYTE CS:[AUTOMOUNT_SCSIID]
+						CMP		BYTE CS:[AUTOMOUNT_SCSIID],7
+						JB		AUTOMOUNT_HDD_SCSIID_LOOP
+
+						RET
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
