@@ -90,6 +90,7 @@ def Run(argv):
 		"-o",		"HDIMG.bin",
 		"-p",		"8", "TSUGARU_OS",
 		"-mbr",		"../src/HD_MBR.bin",
+		"-ipl",		"../src/HD_IPL.bin",
 		"-i",		"0",	"../resources/IO.SYS",
 		"-i",		"0",	"../resources/YSDOS.SYS",
 		"-i",		"0",	"../resources/YAMAND.COM",

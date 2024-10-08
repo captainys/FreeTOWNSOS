@@ -84,4 +84,15 @@ BPB_LBA_TO_CYLINDER_HEAD_SECTOR:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Input   AX     Logical sector
+;         FS:DI  BPB
+; Output  EAX    LBA
+BPB_LOGICAL_SECTOR_TO_HD_LBA:
+						PUSH	EDX
 
+						MOVZX	EDX,WORD FS:[DI+BPB_BYTES_PER_SECTOR]
+						MUL		EDX
+						SHRD	EAX,EDX,9	; Assume 512-bytes per physical sector
+
+						POP		EDX
+						RET

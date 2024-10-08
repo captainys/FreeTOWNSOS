@@ -320,13 +320,19 @@ bool HardDisk::AddPartition(size_t sizeInMB,std::string label,std::string volume
 
 std::vector <unsigned char> HardDisk::GenerateHDImage(std::string MBRFile,std::string IPLFile) const
 {
-	std::vector <unsigned char> data;
+	std::vector <unsigned char> data,IPL;
 	data.insert(data.end(),MBR_PartTable.begin(),MBR_PartTable.end());
 
 	if(""!=MBRFile)
 	{
 		auto MBR=ReadBinaryFile(MBRFile);
-		if(MBR.size()<HD_PHYSICAL_SECTOR_SIZE)
+		if(0==MBR.size())
+		{
+			std::cout << "Cannot read HD MBR or the MBR size is zero.\n";
+			data.clear();
+			return data;
+		}
+		else if(MBR.size()<HD_PHYSICAL_SECTOR_SIZE)
 		{
 			for(int i=0; i<MBR.size(); ++i)
 			{
@@ -341,9 +347,40 @@ std::vector <unsigned char> HardDisk::GenerateHDImage(std::string MBRFile,std::s
 		}
 	}
 
+	if(""!=IPLFile)
+	{
+		IPL=ReadBinaryFile(IPLFile);
+		if(0==IPL.size())
+		{
+			std::cout << "Cannot read HD IPL or the IPL size is zero.\n";
+			data.clear();
+			return data;
+		}
+		if(HD_PHYSICAL_SECTOR_SIZE<IPL.size())
+		{
+			std::cout << "IPL sector image exceeds physical sector size.\n";
+			data.clear();
+			return data;
+		}
+	}
+
+	int partitionNumber=0;
 	for(auto &p : partitions)
 	{
+		size_t offset=data.size();
 		data.insert(data.end(),p.disk.data.begin(),p.disk.data.end());
+
+		for(int i=0; i<0x0B && i<IPL.size(); ++i)
+		{
+			data[offset+i]=IPL[i];
+		}
+		for(int i=0x24; i<0x200 && i<IPL.size(); ++i)
+		{
+			data[offset+i]=IPL[i];
+		}
+		WriteDword(data.data()+offset+0x1FB,partitionNumber);
+		WriteDword(data.data()+offset+0x1FC,offset/HD_PHYSICAL_SECTOR_SIZE);
+		++partitionNumber;
 	}
 
 	return data;
