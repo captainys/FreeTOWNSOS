@@ -20,6 +20,7 @@ def Run(argv):
 		"FD_IPL.BIN",
 		"FDIMG.BIN",
 		"FDIMG_USEROM.BIN",
+		"HDIMG.h0",
 	]
 	for file in files:
 		Copy(file)

@@ -60,8 +60,8 @@ def Run(argv):
 		"-i",		"../resources/IO.SYS",
 		"-i",		"../resources/YSDOS.SYS",
 		"-i",		"../resources/YAMAND.COM",
-		"-i",		"CONFIG.SYS",
-		"-i",		"../resources/AUTOEXEC.BAT",
+		"-i",		"../resources/FD/CONFIG.SYS",
+		"-i",		"../resources/FD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../src/MINVCPI.SYS",
@@ -75,8 +75,8 @@ def Run(argv):
 		"-o",		"FDIMG_USEROM.bin",
 		"-ipl",		"../src/FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
-		"-i",		"CONFIG.SYS",
-		"-i",		"../resources/AUTOEXEC.BAT",
+		"-i",		"../resources/FD/CONFIG.SYS",
+		"-i",		"../resources/FD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../src/MINVCPI.SYS",
@@ -87,15 +87,15 @@ def Run(argv):
 	]).wait()
 
 	subprocess.Popen(["./makehd",
-		"-o",		"HDIMG.bin",
+		"-o",		"HDIMG.h0",
 		"-p",		"8", "TSUGARU_OS",
 		"-mbr",		"../src/HD_MBR.bin",
 		"-ipl",		"../src/HD_IPL.bin",
 		"-i",		"0",	"../resources/IO.SYS",
 		"-i",		"0",	"../resources/YSDOS.SYS",
 		"-i",		"0",	"../resources/YAMAND.COM",
-		"-i",		"0",	"CONFIG.SYS",
-		"-i",		"0",	"../resources/AUTOEXEC.BAT",
+		"-i",		"0",	"../resources/HD/CONFIG.SYS",
+		"-i",		"0",	"../resources/HD/AUTOEXEC.BAT",
 		"-i",		"0",	"../resources/TGDRV.COM",
 		"-i",		"0",	"../resources/TEST.EXP",
 		"-i",		"0",	"../src/MINVCPI.SYS",
@@ -109,7 +109,7 @@ def Run(argv):
 	CopyToResources("TGBIOS.BIN")
 	CopyToResources("FDIMG.BIN")
 	CopyToResources("FDIMG_USEROM.BIN")
-	CopyToResources("HDIMG.BIN")
+	CopyToResources("HDIMG.h0")
 
 
 
