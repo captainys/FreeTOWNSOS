@@ -94,10 +94,10 @@ BLKDEV_BIOS_FD_HARDERROR:
 						TEST	CL,DISKBIOS_HARDERROR_DRIVE_NOT_READY
 						JNE		BLKDEV_BIOS_DRIVE_NOT_READY
 
-						TEST	DL,DISKBIOS_HARDERROR_WRITE_PROTECTED
+						TEST	CL,DISKBIOS_HARDERROR_WRITE_PROTECTED
 						JNE		BLKDEV_BIOS_WRITE_PROTECTED
 
-						TEST	DL,DISKBIOS_HARDERROR_RECORD_NOT_FOUND+DISKBIOS_HARDERROR_CRC_ERROR
+						TEST	CL,DISKBIOS_HARDERROR_RECORD_NOT_FOUND+DISKBIOS_HARDERROR_CRC_ERROR
 						JNE		BLKDEV_BIOS_CRC_ERROR
 
 BLKDEV_BIOS_UNKNOWN_ERROR:
@@ -124,6 +124,18 @@ BLKDEV_BIOS_DEVICE_CODE_ERROR:
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
 						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR+DEVERR_UNKNOWN_UNIT
 						JMP		BLKDEV_RETURN
+
+
+BLKDEV_BIOS_HD_HARDERROR:
+						LES		BX,CS:[BLKDEV_REQHDR_PTR]
+						TEST	CL,DISKBIOS_HARDERROR_SCSI_DRIVE_NOT_READY
+						JNE		BLKDEV_BIOS_DRIVE_NOT_READY
+
+						TEST	CX,DISKBIOS_HARDERROR_SCSI_WRITE_PROTECTED
+						JNE		BLKDEV_BIOS_WRITE_PROTECTED
+
+						JMP		BLKDEV_BIOS_UNKNOWN_ERROR
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -349,6 +361,10 @@ BLKDEV_READ:
 						CMP		AH,2
 						JB		BLKDEV_READ_INTERNAL_FD ; Unit 0 or 1 Internal FD
 
+						SUB		AH,3
+						CMP		AH,CS:[NUM_HD_BPB]
+						JB		BLKDEV_READ_HDD
+
 						TSUGARU_DEBUG
 
 						JMP		BLKDEV_RETURN
@@ -425,6 +441,67 @@ BLKDEV_READ_INTERNAL_FD:
 						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
 
 						JMP		BLKDEV_RETURN
+
+
+BLKDEV_READ_HDD:
+						PUSH	CS
+						POP		FS
+
+						MOV		AL,ES:[BX+REQ_UNIT]
+						SUB		AL,3
+						MOV		AH,BIOS_PARAMETER_BLOCK_size
+						MUL		AH
+						ADD		AX,HD_BPB
+						MOV		DI,AX		; FS:DI is BPB for this drive.
+
+						CMP		WORD FS:[DI+BPB_BYTES_PER_SECTOR],0
+						JE		BLKDEV_BIOS_DRIVE_NOT_READY
+
+						MOV		AL,ES:[BX+REQ_UNIT]
+						SUB		AL,3
+						MOV		AH,DSKDRV_size
+						MUL		AH
+						ADD		AX,HD_TABLE
+						MOV		SI,AX		; CS:SI is 
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
+
+						; EAX is the number of logical sectors from the beginning of the partition.
+
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+
+						; EAX is the number of physical sectors from the beginning of the partition.
+
+						ADD		EAX,CS:[SI+DSKDRV_FIRST_SECTOR_LBA]
+
+						; EAX is the LBA.
+
+						SHLD	ECX,EAX,16
+						MOV		DX,AX		; CX|DX is LBA
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]	; Do BX last.  Need ES:BX for other parameters.
+
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+						MOV		DI,BX			; Now ES:DI is the request header.
+						MOV		EBX,EAX
+
+						; EAX is the number of physical sectors to read.  Do it in the end.  ES:BX is needed for other things until this point.
+
+						LDS		DI,ES:[DI+REQ_READ_WRITE_BUFFER_PTR]
+
+						MOV		AL,CS:[SI+DSKDRV_BIOSCODE]
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+
+						INT		93H
+
+						CMP		AH,80h
+						JE		BLKDEV_BIOS_HD_HARDERROR
+						CMP		AH,02h
+						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
+
+						JMP		BLKDEV_RETURN
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
