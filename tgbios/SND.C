@@ -284,7 +284,7 @@ void SND_KEY_ON(
 			}
 			else
 			{
-				BLK_FNUM=YM2612_ApplyPitchBend(BLK_FNUM,stat->PCMCh[ch].pitchBend);
+				BLK_FNUM=YM2612_ApplyPitchBend(BLK_FNUM,stat->FMCh[ch].pitchBend);
 				YM2612_Write(regSet,0xA4+chMOD3,BLK_FNUM>>8);
 				YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
 			}
