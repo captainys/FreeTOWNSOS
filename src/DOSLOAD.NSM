@@ -48,30 +48,9 @@ CDS_PTR					DD		0	; +0Ch
 
 NUM_FILES				DW		15	; +10h
 						DW		0
+HD_PARTITION_TABLE_PTR	DD		0	; +14h  IO.SYS uses this offset.  Do not change.
+NUM_HD_BPB_PTR			DD		0	; +18h  IO.SYS uses this offset.  Do not change.
 
-
-DISKBIOS_BOOT_DEVICE	DB		0
-BOOT_PARTITION			DB		0		; If booting from HDD
-
-CONDEV_PTR				DD		0
-
-HDD_AUTO_ASSIGN			DB		01h		; 00h Assign drive letters according to the CMOS settings.
-										; 01h Automatically assign drive letters, not relying on CMOS.
-
-BOOT_PARTITION_LBA0		DD		0
-
-ROMDRIVE_BPB:			DW		200H	; bytesPerSect
-						DB		2		; sectPerCluster
-						DW		1		; reservedSectors
-						DB		2		; #FATs
-						DW		0070H	; #rootDirEntries
-						DW		0500H	; #sectors including reserved sectors
-						DB		0FBh	; mediaDesc
-						DW		2		; #sectPerFAT
-						DW		8		; #sectPerTrack
-						DW		1		; #heads
-						DW		0		; #hiddenSect
-						DD		0		; 32-bit #sectors
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -263,6 +242,15 @@ YSDOS_LOADED:
 						MOV		BX,ES
 						MOV		AH,50H	; SetPSP
 						INT		21H
+
+
+						MOV		DL,CS:[BOOT_DEVICE]
+						CMP		DL,BOOTDEV_FD
+						JE		BOOTDRV_ALREADY_SET
+
+						CALL	FIND_BOOT_DRIVE
+						MOV		CS:[BOOT_DRIVE],AL
+BOOTDRV_ALREADY_SET:
 
 						MOV		DL,CS:[BOOT_DRIVE]
 						MOV		AH,0Eh
@@ -994,10 +982,6 @@ LOAD_FROM_HD_PARTITION_LOOP_EXIT:
 						CALL	SEARCH_DIRECTORY
 						JB		HDBOOT_YSDOS_NOT_FOUND
 
-
-		TSUGARU_DEBUG
-
-
 						; Need to know
 						;   Where YSDOS.SYS started (LBA)
 						;   How many sectors.
@@ -1298,7 +1282,64 @@ SEARCH_DIR_FOUND:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+FIND_BOOT_DRIVE:
+						MOVZX	DX,BYTE CS:[DISKBIOS_BOOT_DEVICE]
+						CMP		BYTE CS:[BOOT_DEVICE],BOOTDEV_HD
+						JNE		FIND_BOOT_DRIVE_NOT_HD
+						MOV		DH,CS:[BOOT_PARTITION]
+FIND_BOOT_DRIVE_NOT_HD:
+
+						LGS		SI,CS:[NUM_HD_BPB_PTR]
+						MOVZX	CX,GS:[SI]
+
+						LDS		SI,CS:[HD_PARTITION_TABLE_PTR]
+
+FIND_BOOT_DRIVE_LOOP:
+						MOV		AL,DS:[SI+DSKDRV_BIOSCODE]
+						MOV		AH,DS:[SI+DSKDRV_PARTITION]
+						CMP		AX,DX
+						JE		FOUND_BOOT_DRIVE
+
+						ADD		SI,DSKDRV_size
+						LOOP	FIND_BOOT_DRIVE_LOOP
+
+						XOR		AX,AX	; Nothing I can do
+						RET
+
+FOUND_BOOT_DRIVE:
+						MOV		AL,DS:[SI+DSKDRV_LETTER]
+						SUB		AL,'A'
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+						%INCLUDE	"DOSUTIL.NSM"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 YSDOS_SYS_FILENAME		DB		"YSDOS   SYS"
 MSDOS_SYS_FILENAME		DB		"MSDOS   SYS"
 
-						%INCLUDE	"DOSUTIL.NSM"
+DISKBIOS_BOOT_DEVICE	DB		0
+BOOT_PARTITION			DB		0		; If booting from HDD
+
+CONDEV_PTR				DD		0
+
+HDD_AUTO_ASSIGN			DB		01h		; 00h Assign drive letters according to the CMOS settings.
+										; 01h Automatically assign drive letters, not relying on CMOS.
+
+BOOT_PARTITION_LBA0		DD		0
+
+ROMDRIVE_BPB:			DW		200H	; bytesPerSect
+						DB		2		; sectPerCluster
+						DW		1		; reservedSectors
+						DB		2		; #FATs
+						DW		0070H	; #rootDirEntries
+						DW		0500H	; #sectors including reserved sectors
+						DB		0FBh	; mediaDesc
+						DW		2		; #sectPerFAT
+						DW		8		; #sectPerTrack
+						DW		1		; #heads
+						DW		0		; #hiddenSect
+						DD		0		; 32-bit #sectors

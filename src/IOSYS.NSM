@@ -39,6 +39,14 @@ REALENTRY:
 						MOV		SS,DX
 						MOV		SP,100H
 
+						MOV		DX,CS:[SEG_DOSLOADER_SRC]
+						MOV		FS,DX
+
+						MOV		WORD FS:[14H],HD_TABLE
+						MOV		FS:[16H],CS
+						MOV		WORD FS:[18H],NUM_HD_BPB
+						MOV		FS:[1AH],CS
+
 						MOV		CS:[BOOT_DEVICE],EBX	; Sent from the IPL.  If HD, high-word is partition number.
 						CALL	SETUP_REALMODE_INT_HANDLER
 						MOV		BX,CS:[BOOT_DEVICE]
