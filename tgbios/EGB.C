@@ -561,7 +561,7 @@ void EGB_02H_DISPLAYSTART(
 	case 0:  // Top-Left corner
 		{
 			unsigned int CLKSEL=work->crtcRegs[CRTC_REG_CR1]&3;
-			_Far unsigned short *regSet=EGB_GetCRTCRegs(work->CRTCRegSet);
+			// _Far unsigned short *regSet=EGB_GetCRTCRegs(work->CRTCRegSet);
 			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
 			unsigned int HDS,VDS,x0,y0,zoomX,zoomY;
 			unsigned HDSReg,HDEReg,HAJReg,VDSReg,VDEReg;
@@ -1463,7 +1463,259 @@ void EGB_24H_GETBLOCK(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+	struct POINTW p0,p1;
+
+	if(NULL==ptrSet.page)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+	p0=blkInfo->p0;
+	p1=blkInfo->p1;
+	EGB_MakeP0SmallerThanP1(&p0,&p1);
+
+	unsigned int dx=p1.x-p0.x+1;
+	unsigned int dy=p1.y-p0.y+1;
+
+	// Out of the screen?
+	if(p1.x<0 || ptrSet.mode->size.x<=p0.x ||
+	   p1.y<0 || ptrSet.mode->size.y<=p0.y)
+	{
+		unsigned int bytesToFill=0;
+		switch(ptrSet.mode->bitsPerPixel)
+		{
+		case 1:
+			bytesToFill=(dx+7)/8*dy;		// byte-aligned
+			break;
+		case 4:
+			bytesToFill=(dx+7)/8*4*dy;	// dword-aligned
+			break;
+		case 8:
+			bytesToFill=dx*dy;
+			break;
+		case 16:
+			bytesToFill=dx*dy*2;
+			break;
+		}
+		MEMSETB_FAR(blkInfo->data,0,bytesToFill);
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		return;
+	}
+
+	unsigned int dstBytesPerLine=0,transferBytesPerLine=0;
+	switch(ptrSet.mode->bitsPerPixel)
+	{
+	case 1:
+		dstBytesPerLine=(dx+7)/8;
+		transferBytesPerLine=dx/8;
+		break;
+	case 4:
+		dstBytesPerLine=((dx+7)/8)*4;
+		transferBytesPerLine=dx/2;
+		break;
+	case 8:
+		dstBytesPerLine=dx;
+		transferBytesPerLine=dx;
+		break;
+	case 16:
+		dstBytesPerLine=dx*2;
+		transferBytesPerLine=dx*2;
+		break;
+	}
+
+
+	_Far unsigned char *dst=blkInfo->data;
+	if(p0.y<0)
+	{
+		unsigned int toFill=-p0.y*dstBytesPerLine;
+		MEMSETB_FAR(dst,0,toFill);
+		p0.y=0;
+		dst+=toFill;
+	}
+
+	unsigned int vramOffset=EGB_CoordToVRAMOffset(ptrSet.mode,_max(p0.x,0),p0.y);
+	if(1==ptrSet.mode->bitsPerPixel)
+	{
+		// I'll come back when someone do it.
+		TSUGARU_BREAK;
+	}
+	else
+	{
+		int x,y;
+		unsigned int yBelowScreen=0;
+		_Far unsigned char *vram=ptrSet.vram+vramOffset;
+
+		if(ptrSet.mode->size.y<=p1.y)
+		{
+			yBelowScreen=ptrSet.mode->size.y+1-p1.y;
+			p1.y=ptrSet.mode->size.y-1;
+		}
+
+		unsigned int xLeft=0,xRight=0;
+		int x0=p0.x,x1=p1.x;
+
+		if(x0<0)
+		{
+			xLeft=-x0;
+			x0=0;
+		}
+		if(ptrSet.mode->size.x<=x1)
+		{
+			xRight=x1+1-ptrSet.mode->size.x;
+			x1=ptrSet.mode->size.x-1;
+		}
+
+		if(4==ptrSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
+		{
+			for(y=p0.y; y<=p1.y; ++y)
+			{
+				_Far unsigned char *nextDst=dst+dstBytesPerLine;
+				_Far unsigned char *nextVram=vram+ptrSet.mode->bytesPerLine;
+				unsigned char hangingByte=0,hangingPixel=0;
+				int x=x0;
+
+				if(0!=xLeft)
+				{
+					// If x starts left of the screen, (0<xLeft)
+					//   (1) If xLeft is even, just clear xLeft/2 (which is same as (xLeft+1)/2) bytes, fast-forward dst by xLeft/2.
+					//   (2) If xLeft is odd, clear (xLeft+1)/2 bytes, fast forward dst by xLeft-1/2 (which is same as xLeft/2) bytes.
+					//       The low 4-bits of the first vram byte will be high 4-bits of the next *dst.
+					MEMSETB_FAR(dst,0,(xLeft+1)/2);
+					dst+=xLeft/2;
+					if(xLeft&1)
+					{
+						hangingPixel=1;  // // Next low-4bits of *vram will be high-4bits of *dst.
+					}
+					// x0 is zero already.  Therefore x=zero.
+					// In this case, vram points to the x=0 of the line.
+				}
+				else if(x&1)
+				{
+					// If x starts on or right of the screen and x is odd,
+					hangingByte=((*vram)>>4);  // Copy high-4bits of the *vram to the low-4bits of *dst.
+					hangingPixel=1;  // Next low-4bits of *vram will be high-4bits of *dst.
+					++vram;
+					++x;
+				}
+
+				// Either way, x is even at this point.
+
+				if(0==hangingPixel)
+				{
+					unsigned int w=x1+1-x0;
+					unsigned int bytes=w/2;
+					MEMCPY_FAR(dst,vram,bytes);
+					dst+=bytes;
+					vram+=bytes;
+					if(w&1)
+					{
+						(*dst)=(*vram);
+						(*dst++)&=0x0F;
+					}
+					if(xRight)
+					{
+						MEMSETB_FAR(dst,0,(xRight-(w&1))/2);
+					}
+				}
+				else
+				{
+					while(x<=x1)
+					{
+						if(hangingPixel) // low-4bits of VRAM byte will be high-4bits of *dst.
+						{
+							*(dst++)=(hangingByte|((*vram)<<4));
+							hangingPixel=0;
+						}
+						else // high-4bits of VRAM byte will be low-4bits of *dst.  High-4bits of *dst to be determined.
+						{
+							hangingByte=((*vram)>>4);
+							hangingPixel=1;
+						}
+					}
+
+					if(hangingPixel)
+					{
+						(*dst)=hangingByte;
+					}
+
+					if(xRight)
+					{
+						MEMSETB_FAR(dst,0,(xRight-hangingPixel)/2);
+					}
+				}
+
+				dst=nextDst;
+				vram=nextVram;
+			}
+		}
+		else if(0<=p0.x && p1.x<ptrSet.mode->size.x)
+		{
+			for(y=p0.y; y<=p1.y; ++y)
+			{
+				MEMCPY_FAR(dst,vram,transferBytesPerLine);
+				dst+=dstBytesPerLine;
+				vram+=ptrSet.mode->bytesPerLine;
+			}
+		}
+		else if(8==ptrSet.mode->bitsPerPixel)
+		{
+			for(y=p0.y; y<=p1.y; ++y)
+			{
+				_Far unsigned char *nextDst=dst+dstBytesPerLine;
+				_Far unsigned char *nextVram=vram+ptrSet.mode->bytesPerLine;
+
+				MEMSETB_FAR(dst,0,xLeft);
+				dst+=xLeft;
+				// If x<0, vramOffset is set to x=0.
+
+				unsigned int w=x1+1-x0;
+				MEMCPY_FAR(dst,vram,w);
+				dst+=w;
+
+				MEMSETB_FAR(dst,0,xRight);
+
+				dst=nextDst;
+				vram=nextVram;
+			}
+		}
+		else if(16==ptrSet.mode->bitsPerPixel)
+		{
+			for(y=p0.y; y<=p1.y; ++y)
+			{
+				_Far unsigned char *nextDst=dst+dstBytesPerLine;
+				_Far unsigned char *nextVram=vram+ptrSet.mode->bytesPerLine;
+
+				MEMSETB_FAR(dst,0,xLeft*2);
+				dst+=xLeft*2;
+				// If x<0, vramOffset is set to x=0.
+
+				unsigned int w=x1+1-x0;
+				MEMCPY_FAR(dst,vram,w*2);
+				dst+=w*2;
+
+				MEMSETB_FAR(dst,0,xRight*2);
+
+				dst=nextDst;
+				vram=nextVram;
+			}
+		}
+
+		if(0<yBelowScreen)
+		{
+			MEMSETB_FAR(dst,0,yBelowScreen*dstBytesPerLine);
+		}
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
