@@ -17,7 +17,11 @@ Let's see how far we can go!  But, so far so good.  Now Tsugaru OS is capable of
 
 とりあえず、お試しに release/FDIMG.bin を津軽から起動できます。release/FDIMG_USEROM.bin を使うと、ディスク上のYSDOS.SYS, YAMAND.COMの代わりにROMドライブのMSDOS.SYS, COMMAND.COMを使います。いずれ実機での動作も想定しているので、その実験用です。
 
+あるいは、release/HDIMG.h0 をSCSI-ID 0にマウントして、他に何もメディアを入れずに津軽を起動しても津軽OSを起動することができます。なお、津軽OSはCMOSのドライブ設定に依存せず、SCSI ID 0のPartition 0から順にドライブレターを割り振っていくので、CMOS設定が無くてもハードディスクから起動できます。
+
 To try it, you can boot from release/FDIMG.bin from Tsugaru.  release/FDIMG_USEROM.bin uses MSDOS.SYS and COMMAND.COM in the ROM drive, instead of YSDOS.SYS and YAMAND.COM on the disk.  I'm going to make it work on the real hardware.  It's a preparation for it.
+
+Or, you can mount release/HDIMG.h0 on SCSI ID 0 and run it from Tsugaru.  Tsugaru OS does not rely on CMOS setting, so the first partition of SCSI ID 0 (or whatever found first) will be assigned to D drive.  It can start without CMOS setup.
 
 
 
