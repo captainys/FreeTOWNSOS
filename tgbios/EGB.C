@@ -619,11 +619,29 @@ void EGB_02H_DISPLAYSTART(
 
 			unsigned int W=work->crtcRegs[HDEReg]-work->crtcRegs[HDSReg];
 			unsigned int H=work->crtcRegs[VDEReg]-work->crtcRegs[VDSReg];
-			EGB_WriteCRTCReg(work,HDSReg,HDS);
-			EGB_WriteCRTCReg(work,HDEReg,HDS+W);
-			EGB_WriteCRTCReg(work,VDSReg,VDS);
-			EGB_WriteCRTCReg(work,VDEReg,VDS+H);
-			EGB_WriteCRTCReg(work,HAJReg,HAJ);
+			if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
+			{
+				// Single-page mode
+				EGB_WriteCRTCReg(work,CRTC_REG_HDS0,HDS);
+				EGB_WriteCRTCReg(work,CRTC_REG_HDE0,HDS+W);
+				EGB_WriteCRTCReg(work,CRTC_REG_VDS0,VDS);
+				EGB_WriteCRTCReg(work,CRTC_REG_VDE0,VDS+H);
+				EGB_WriteCRTCReg(work,CRTC_REG_HAJ0,HAJ);
+				EGB_WriteCRTCReg(work,CRTC_REG_HDS1,HDS);
+				EGB_WriteCRTCReg(work,CRTC_REG_HDE1,HDS+W);
+				EGB_WriteCRTCReg(work,CRTC_REG_VDS1,VDS);
+				EGB_WriteCRTCReg(work,CRTC_REG_VDE1,VDS+H);
+				EGB_WriteCRTCReg(work,CRTC_REG_HAJ1,HAJ);
+			}
+			else
+			{
+				// Double-page mode
+				EGB_WriteCRTCReg(work,HDSReg,HDS);
+				EGB_WriteCRTCReg(work,HDEReg,HDS+W);
+				EGB_WriteCRTCReg(work,VDSReg,VDS);
+				EGB_WriteCRTCReg(work,VDEReg,VDS+H);
+				EGB_WriteCRTCReg(work,HAJReg,HAJ);
+			}
 		}
 		break;
 	case 1:  // Scroll
@@ -688,13 +706,23 @@ void EGB_02H_DISPLAYSTART(
 						}
 						break;
 					}
-					if(0==writePage)
+					if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
 					{
+						// Single-page mode
 						EGB_WriteCRTCReg(work,CRTC_REG_FA0,FAx);
+						EGB_WriteCRTCReg(work,CRTC_REG_FA1,FAx);
 					}
 					else
 					{
-						EGB_WriteCRTCReg(work,CRTC_REG_FA1,FAx);
+						// Double-page mode
+						if(0==writePage)
+						{
+							EGB_WriteCRTCReg(work,CRTC_REG_FA0,FAx);
+						}
+						else
+						{
+							EGB_WriteCRTCReg(work,CRTC_REG_FA1,FAx);
+						}
 					}
 				}
 			}
@@ -714,7 +742,16 @@ void EGB_02H_DISPLAYSTART(
 					unsigned short ZOOM;
 					unsigned char Z=((vertical-1)<<4)|(horizontal-1);
 					work->perPage[writePage].ZOOM=Z;
-					ZOOM=(work->perPage[1].ZOOM<<8)|work->perPage[0].ZOOM;
+					if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
+					{
+						// Single-page mode
+						ZOOM=(Z<<8)|Z;
+					}
+					else
+					{
+						// Double-page mode
+						ZOOM=(work->perPage[1].ZOOM<<8)|work->perPage[0].ZOOM;
+					}
 					EGB_WriteCRTCReg(work,CRTC_REG_ZOOM,ZOOM);
 				}
 			}
@@ -761,8 +798,8 @@ void EGB_02H_DISPLAYSTART(
 				wid1X=horizontal*zoomX/scrnModeProp->defZoom.x;
 				hei1X=vertical*zoomY/scrnModeProp->defZoom.y;
 
-				wid1X=_min(wid1X,640);
-				hei1X=_min(hei1X,512);
+				wid1X=_min(wid1X,_max(640,scrnModeProp->visiSize.x));
+				hei1X=_min(hei1X,480);
 
 				if(15==scrnModeProp->KHz)
 				{
@@ -778,15 +815,27 @@ void EGB_02H_DISPLAYSTART(
 				HDE=HDS+wid1X;
 				VDE=VDS+hei1X;
 
-				if(0==writePage)
+				if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
 				{
+					// Single-page mode
 					EGB_WriteCRTCReg(work,CRTC_REG_HDE0,HDE);
 					EGB_WriteCRTCReg(work,CRTC_REG_VDE0,VDE);
+					EGB_WriteCRTCReg(work,CRTC_REG_HDE1,HDE);
+					EGB_WriteCRTCReg(work,CRTC_REG_VDE1,VDE);
 				}
 				else
 				{
-					EGB_WriteCRTCReg(work,CRTC_REG_HDE1,HDE);
-					EGB_WriteCRTCReg(work,CRTC_REG_VDE1,VDE);
+					// Double-page mode
+					if(0==writePage)
+					{
+						EGB_WriteCRTCReg(work,CRTC_REG_HDE0,HDE);
+						EGB_WriteCRTCReg(work,CRTC_REG_VDE0,VDE);
+					}
+					else
+					{
+						EGB_WriteCRTCReg(work,CRTC_REG_HDE1,HDE);
+						EGB_WriteCRTCReg(work,CRTC_REG_VDE1,VDE);
+					}
 				}
 			}
 			else
