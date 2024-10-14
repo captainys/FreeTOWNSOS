@@ -110,8 +110,8 @@ struct PCM_Sound
 
 struct SND_FM_Channel_State
 {
-	unsigned char instrument,vol,pan;
-	unsigned short pitchBend;
+	unsigned char instrument,vol,vol_key,pan;
+	short pitchBend;
 	unsigned int BLK_FNUM;
 };
 
@@ -120,11 +120,11 @@ struct SND_PCM_Channel_State
 	_Far struct PCM_Voice_Header *header;
 	_Far unsigned char *playPtr;
 
-	unsigned short pitchBend;
+	short pitchBend;
 	unsigned int playFreq;
 
 	// for Inst mode.
-	unsigned char instrument,vol,pan;
+	unsigned char instrument,vol,vol_key,pan;
 	unsigned char soundID; // Decided on key-on
 	unsigned char phase;  // 0:Attack 1:Decay 2:Sustain 3:Release
 	unsigned char envVol; // Current volume
