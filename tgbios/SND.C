@@ -305,6 +305,19 @@ void SND_KEY_ON(
 				SND_SetError(EAX,SND_ERROR_NO_SOUND_ID);
 			}
 
+			// FM TOWNS Technical Databook p.405.  To disable envelope, AR=0, DR=SR=RR=127.
+			if(0==env.AR &&
+			   127==env.DR &&
+			   127==env.SR &&
+			   127==env.RR)
+			{
+				env.enabled=0;
+			}
+			else
+			{
+				env.enabled=1;
+			}
+
 			_Far struct PCM_Sound *sound=NULL;
 			for(i=0; i<stat->numSound; ++i)
 			{
@@ -321,6 +334,7 @@ void SND_KEY_ON(
 
 				unsigned char curVol;
 				unsigned short MUL;
+
 				stat->PCMCh[ch].playing=1;
 				stat->PCMCh[ch].env=env;
 				if(0==env.AR)
@@ -441,7 +455,7 @@ void SND_KEY_OFF(
 		{
 			_PUSHFD
 			_CLI
-			if(0==stat->PCMCh[ch].env.RR)
+			if(0==stat->PCMCh[ch].env.RR || 0==stat->PCMCh[ch].env.enabled)
 			{
 				stat->PCMCh[ch].playing=0;
 				stat->PCMKey|=(1<<ch);

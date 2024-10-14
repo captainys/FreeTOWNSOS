@@ -88,16 +88,18 @@ struct PCM_ENVELOPE
 	unsigned char SR;
 	unsigned char RR;
 	unsigned char rootKey;
-	unsigned char unused;
+	unsigned char enabled;
 };
+
+#define PCM_INST_NUM_SPLIT 8
 
 struct PMB_INSTRUMENT
 {
 	char name[8];
 	char unused[8];
-	unsigned short split[8];
-	unsigned int soundID[8];
-	struct PCM_ENVELOPE env[8];
+	unsigned short split[PCM_INST_NUM_SPLIT];
+	unsigned int soundID[PCM_INST_NUM_SPLIT];
+	struct PCM_ENVELOPE env[PCM_INST_NUM_SPLIT];
 };
 
 struct PCM_Sound
