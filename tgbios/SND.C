@@ -59,25 +59,13 @@ unsigned short YM2612_ApplyPitchBend(unsigned short BLK_FNUM,short pitchBend)
 {
 	unsigned short BLK=(BLK_FNUM>>11)&7;
 	unsigned short FNUM=(BLK_FNUM&0x7FF);
-	unsigned int s=GetPitchBendScale(pitchBend);
-	FNUM=MUL_SHR(FNUM,s,16);
-	if(FNUM<512)
-	{
-		BLK=(BLK_FNUM>>11)&7;
-		FNUM=(BLK_FNUM&0x7FF);
-		--BLK;
-		FNUM*=2;
-		FNUM=MUL_SHR(FNUM,s,16);
-	}
-	else
-	{
-		while(1800<FNUM)
-		{
-			++BLK;
-			FNUM/=2;
-		}
-	}
-	return (BLK<<11)|FNUM;
+	unsigned int s=(BLK*616)+(FNUM-616);
+	pitchBend=_max(_min(pitchBend,8008),-8008); // pitch limits(616*13=8008).
+	s+=(pitchBend/13);
+	s=_max(_min(s,4927),616); // 4927 = (BLK:7*616) + F-NUM:615
+	BLK=s/616;
+	FNUM=s%616;
+	return (BLK<<11)|(FNUM+616);
 }
 
 unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
