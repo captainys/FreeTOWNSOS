@@ -68,6 +68,21 @@ unsigned short YM2612_ApplyPitchBend(unsigned short BLK_FNUM,short pitchBend)
 	return (BLK<<11)|(FNUM+616);
 }
 
+unsigned int RF5C68_ApplyPitchBend(unsigned int Freq,short pitchBend)
+{
+	int Num=0;
+	pitchBend=_max(_min(pitchBend,8191),-8191); // pitch limits
+	if(pitchBend>=1)
+	{
+		Num=(Freq*pitchBend)/8191;
+	}
+	else if(pitchBend<=-1)
+	{
+		Num=(Freq*pitchBend)/16382;
+	}
+	return Freq+Num;
+}
+
 unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
 {
 	switch(algo)
@@ -173,6 +188,7 @@ void SND_INIT(
 	{
 		status->FMCh[i].instrument=0;
 		status->FMCh[i].vol=80;
+		status->FMCh[i].vol_key=0;
 		status->FMCh[i].pan=0xc0;
 	}
 
@@ -186,6 +202,7 @@ void SND_INIT(
 		status->PCMCh[i].playing=0;
 		status->PCMCh[i].instrument=0;
 		status->PCMCh[i].vol=80;
+		status->FMCh[i].vol_key=0;
 		status->PCMCh[i].pan=0x77;
 	}
 	status->PCMKey=0xFF;
@@ -232,6 +249,7 @@ void SND_KEY_ON(
 	unsigned char vol=(unsigned char)EDX;
 	if(SND_Is_FM_Channel(ch))
 	{
+		stat->FMCh[ch].vol_key=vol;
 		unsigned int instIndex=stat->FMCh[ch].instrument;
 		unsigned short BLK_FNUM=GetFNUM_BLOCK_from_Number(note);
 
@@ -284,6 +302,7 @@ void SND_KEY_ON(
 	else if(SND_Is_PCM_Channel(ch))
 	{
 		ch-=SND_PCM_CHANNEL_START;
+		stat->PCMCh[ch].vol_key=vol;
 		unsigned int instIndex=stat->PCMCh[ch].instrument;
 		if(instIndex<PCM_NUM_INSTRUMENTS)
 		{
@@ -378,8 +397,7 @@ void SND_KEY_ON(
 				stat->PCMCh[ch].playFreq=playFreq;
 				if(0!=stat->PCMCh[ch].pitchBend)
 				{
-					unsigned int s=GetPitchBendScale(stat->PCMCh[ch].pitchBend);
-					playFreq=MUL_SHR(playFreq,s,16);
+					playFreq=RF5C68_ApplyPitchBend(playFreq,stat->PCMCh[ch].pitchBend);
 				}
 
 				// PCM Frequency is 20725Hz according to the analysis done during Tsugaru development.
@@ -728,8 +746,7 @@ void SND_PITCH_CHANGE(
 		stat->PCMCh[ch].pitchBend=pitchBend;
 		if(0!=pitchBend)
 		{
-			unsigned int s=GetPitchBendScale(pitchBend);
-			playFreq=MUL_SHR(playFreq,s,16);
+			playFreq=RF5C68_ApplyPitchBend(playFreq,stat->PCMCh[ch].pitchBend);
 		}
 		unsigned int stride=MULDIV(0x800,playFreq,PCM_NATIVE_FREQUENCY);
 		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
@@ -777,12 +794,60 @@ void SND_VOLUME_CHANGE(
 	if(SND_Is_FM_Channel(ch))
 	{
 		status->FMCh[ch].vol=vol;
+
+		// As far as i have confirmed with the test code, it appears that when SND_VOLUME_CHANGE call,
+		// the volume setting is immediately reflected according to the instrument setting,
+		// but i have disabled it at this time.
+		/*unsigned int instIndex=status->FMCh[ch].instrument;
+		if(instIndex<FM_NUM_INSTRUMENTS)
+		{
+			int i;
+			unsigned int regSet=ch/3;
+			unsigned int chMOD3=ch%3;
+			_Far struct FMB_INSTRUMENT *inst=&status->FMInst[instIndex];
+			unsigned int carrierSlots=YM2612_AlgorithmToCarrierSlot(inst->FB_CNCT&0x07);
+			for(i=0; i<4; ++i)
+			{
+				unsigned int slot=(unsigned char)carrierSlots;
+				slot=YM2612_SlotTwist(slot);
+				if(0xFF!=slot)
+				{
+					unsigned short TL=inst->TL[slot];
+					unsigned short MUL;
+					TL=127-_min(TL,127);
+					MUL=(0x60+(status->FMCh[ch].vol_key>>2));
+					TL*=MUL;
+					TL>>=7;
+					TL++;
+					MUL=vol;
+					TL*=MUL;
+					TL>>=7;
+					TL++;
+					TL=127-TL;
+					YM2612_Write(regSet,0x40+chMOD3+slot*4,TL);
+				}
+				carrierSlots>>=8;
+			}
+		}*/
+
 		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
 		ch-=SND_PCM_CHANNEL_START;
 		status->PCMCh[ch].vol=vol;
+		status->PCMCh[ch].envVol=vol;
+
+		/*unsigned char curVol;
+		unsigned short MUL;
+		MUL=vol+1;
+		MUL*=(status->PCMCh[ch].vol_key+1);
+		MUL--;
+		MUL>>=6;
+		curVol=MUL;
+		status->PCMCh[ch].envVol=curVol;
+		_outb(TOWNSIO_SOUND_PCM_ENV,curVol);*/
+
 		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	else
