@@ -62,7 +62,7 @@ unsigned short YM2612_ApplyPitchBend(unsigned short BLK_FNUM,short pitchBend)
 	unsigned int s=(BLK*616)+(FNUM-616);
 	pitchBend=_max(_min(pitchBend,8008),-8008); // pitch limits(616*13=8008).
 	s+=(pitchBend/13);
-	s=_max(_min(s,4927),616); // 4927 = (BLK:7*616) + F-NUM:615
+	s=_max(_min(s,4927),0); // 4927 = (BLK:7*616) + F-NUM:615
 	BLK=s/616;
 	FNUM=s%616;
 	return (BLK<<11)|(FNUM+616);
