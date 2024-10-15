@@ -183,7 +183,8 @@ void SPR_SETPALETTEBLOCK(
 		sprram++
 	}*/
 
-	_movedata(DS, ESI, SEG_PATTERN_RAM, 32 * (ECX & 511), (EDX & 0xff) * 32);
+	unsigned short DX=EDX;
+	_movedata(DS, ESI, SEG_PATTERN_RAM, 32 * (ECX & 511), _min(DX,0x100) * 32);
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
 }

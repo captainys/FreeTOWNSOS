@@ -440,7 +440,6 @@ void EGB_RESOLUTION(
 		newScreenMode[0]=work->perPage[0].screenMode;
 		newScreenMode[1]=work->perPage[1].screenMode;
 		newScreenMode[AL]=EDX&0x3F;
-
 		{
 			int modeComb;
 			_Far unsigned short *regSet;
@@ -795,17 +794,28 @@ void EGB_02H_DISPLAYSTART(
 				zoomX=(work->perPage[writePage].ZOOM&0x0F)+1;
 				zoomY=(work->perPage[writePage].ZOOM>>4)+1;
 
-				wid1X=horizontal*zoomX/scrnModeProp->defZoom.x;
-				hei1X=vertical*zoomY/scrnModeProp->defZoom.y;
+				wid1X=_min(horizontal*zoomX,scrnModeProp->crtcSize.x);
+				hei1X=_min(vertical*zoomY,scrnModeProp->crtcSize.y);
 
-				wid1X=_min(wid1X,_max(640,scrnModeProp->visiSize.x));
-				hei1X=_min(hei1X,480);
+				// Is it as easy as just multiplying zoom?
+				// This method works for Alltynex 15KHz mode, but ends up making SkyDuel 800x480 where should be 640x480.
+				// >>
+				// wid1X=horizontal*zoomX;
+				// hei1X=vertical*zoomY;
+				// <<
 
-				if(15==scrnModeProp->KHz)
-				{
-					wid1X*=2;
-					hei1X/=2;
-				}
+				// This method works for VSGP, Panic Ball II, and SkyDuel, but not for 15KHz mode.
+				// >>
+				// wid1X=horizontal*zoomX/scrnModeProp->defZoom.x;
+				// hei1X=vertical*zoomY/scrnModeProp->defZoom.y;
+				// wid1X=_min(wid1X,_max(640,scrnModeProp->visiSize.x));
+				// hei1X=_min(hei1X,480);
+				// if(15==scrnModeProp->KHz)
+				// {
+				// 	wid1X*=2;
+				// 	hei1X/=2;
+				// }
+				// <<
 
 				if(0==FO || FO==LO)
 				{

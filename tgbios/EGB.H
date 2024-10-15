@@ -123,6 +123,7 @@ struct EGB_ScreenMode
 {
 	unsigned int KHz;
 	struct POINTW visiSize;
+	struct POINTW crtcSize;
 	struct POINTW size;
 	unsigned short bytesPerLine;
 	unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
