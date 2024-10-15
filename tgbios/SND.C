@@ -361,15 +361,17 @@ void SND_KEY_ON(
 				_PUSHFD
 				_CLI
 
-				unsigned char curVol;
+				unsigned short curVol,playVol;
+
+				playVol=RF5C68_CalculateVolume(vol,stat->PCMCh[ch].vol);
 
 				stat->PCMCh[ch].playing=1;
 				stat->PCMCh[ch].env=env;
+				stat->PCMCh[ch].playVol=playVol;
 				if(0==env.AR)
 				{
 					stat->PCMCh[ch].phase=1;
-					curVol=RF5C68_CalculateVolume(vol,stat->PCMCh[ch].vol);
-					stat->PCMCh[ch].envVol=curVol;
+					stat->PCMCh[ch].envL=env.TL;
 					stat->PCMCh[ch].phaseStepLeft=env.DR;
 					stat->PCMCh[ch].dx=env.DR;
 					stat->PCMCh[ch].dy=(env.SL<env.TL ? env.TL-env.SL : 0);
@@ -377,12 +379,12 @@ void SND_KEY_ON(
 				else
 				{
 					stat->PCMCh[ch].phase=0;
-					curVol=0;
-					stat->PCMCh[ch].envVol=0;
+					stat->PCMCh[ch].envL=0;
 					stat->PCMCh[ch].phaseStepLeft=env.AR;
 					stat->PCMCh[ch].dx=env.AR;
 					stat->PCMCh[ch].dy=env.TL;
 				}
+				curVol=playVol*(stat->PCMCh[ch].envL)/127;
 				stat->PCMCh[ch].balance=0;
 
 				// What to do with the frequency?
@@ -495,7 +497,7 @@ void SND_KEY_OFF(
 				{
 					stat->PCMCh[ch].phase=3;
 					stat->PCMCh[ch].dx=stat->PCMCh[ch].env.RR;
-					stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
+					stat->PCMCh[ch].dy=stat->PCMCh[ch].envL;
 					stat->PCMCh[ch].balance=0;
 				}
 			}
@@ -850,12 +852,14 @@ void SND_VOLUME_CHANGE(
 		ch-=SND_PCM_CHANNEL_START;
 		status->PCMCh[ch].vol=vol;
 
-		unsigned char curVol=RF5C68_CalculateVolume(vol,status->PCMCh[ch].vol_key);
-		status->PCMCh[ch].envVol=curVol;
+		unsigned short playVol=RF5C68_CalculateVolume(vol,status->PCMCh[ch].vol_key);
+		status->PCMCh[ch].playVol=playVol;
 		if(status->PCMCh[ch].playing)
 		{
+			unsigned short vol;
+			vol=playVol*status->PCMCh[ch].envL/127;
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-			_outb(TOWNSIO_SOUND_PCM_ENV,curVol);
+			_outb(TOWNSIO_SOUND_PCM_ENV,vol);
 		}
 
 		SND_SetError(EAX,SND_NO_ERROR);
@@ -1752,6 +1756,8 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		info->PCMCh[ch].nextFillBank=info->voiceChannelBank[ch];
 		info->PCMCh[ch].playing=1;
 		info->PCMCh[ch].vol_key=volume;
+		info->PCMCh[ch].envL=volume; // Will be used when volume_change is called.
+		info->PCMCh[ch].playVol=RF5C68_CalculateVolume(volume,info->PCMCh[ch].vol);
 		info->PCMCh[ch].curPos=0;
 
 		{
@@ -1788,12 +1794,7 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			ST<<=4;
 
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-			MUL=(volume+1);
-			MUL*=(info->PCMCh[ch].vol+1);
-			MUL--;
-			MUL>>=6;
-			volume=MUL;
-			_outb(TOWNSIO_SOUND_PCM_ENV,volume);  // Was it 0-127?  or 0-255?
+			_outb(TOWNSIO_SOUND_PCM_ENV,info->PCMCh[ch].playVol);  // 0-255?
 			_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
 
 			_outb(TOWNSIO_SOUND_PCM_FDL,FD);
@@ -2268,7 +2269,7 @@ void SND_PCM_Envelope_Handler(void)
 				stat->PCMCh[ch].balance+=stat->PCMCh[ch].dy;
 				while(0<stat->PCMCh[ch].balance)
 				{
-					stat->PCMCh[ch].envVol=_min(254,stat->PCMCh[ch].envVol)+1;
+					stat->PCMCh[ch].envL=_min(254,stat->PCMCh[ch].envL)+1;
 					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
 				}
 				--stat->PCMCh[ch].phaseStepLeft;
@@ -2278,14 +2279,14 @@ void SND_PCM_Envelope_Handler(void)
 				{
 					++stat->PCMCh[ch].phase;
 					stat->PCMCh[ch].dx=stat->PCMCh[ch].env.SR;
-					stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
+					stat->PCMCh[ch].dy=stat->PCMCh[ch].envL;
 					stat->PCMCh[ch].balance=0;
 					break;
 				}
 				stat->PCMCh[ch].balance+=stat->PCMCh[ch].dy;
-				while(0<stat->PCMCh[ch].balance && 0<stat->PCMCh[ch].envVol)
+				while(0<stat->PCMCh[ch].balance && 0<stat->PCMCh[ch].envL)
 				{
-					stat->PCMCh[ch].envVol=_max(1,stat->PCMCh[ch].envVol)-1;
+					stat->PCMCh[ch].envL=_max(1,stat->PCMCh[ch].envL)-1;
 					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
 				}
 				--stat->PCMCh[ch].phaseStepLeft;
@@ -2293,9 +2294,9 @@ void SND_PCM_Envelope_Handler(void)
 			case 2: // Sustain
 			case 3: // Release
 				stat->PCMCh[ch].balance+=stat->PCMCh[ch].dy;
-				while(0<stat->PCMCh[ch].balance && 0<stat->PCMCh[ch].envVol)
+				while(0<stat->PCMCh[ch].balance && 0<stat->PCMCh[ch].envL)
 				{
-					stat->PCMCh[ch].envVol=_max(1,stat->PCMCh[ch].envVol)-1;
+					stat->PCMCh[ch].envL=_max(1,stat->PCMCh[ch].envL)-1;
 					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
 				}
 				break;
@@ -2303,7 +2304,7 @@ void SND_PCM_Envelope_Handler(void)
 			case 4: // Indefinite play back.
 				continue;
 			}
-			//if(0==stat->PCMCh[ch].envVol)
+			//if(0==stat->PCMCh[ch].envL)
 			//{
 			//	stat->PCMCh[ch].playing=0;
 			//	stat->PCMKey|=(1<<ch);
@@ -2311,8 +2312,9 @@ void SND_PCM_Envelope_Handler(void)
 			//}
 			//else
 			//{
+				unsigned short vol=stat->PCMCh[ch].playVol*stat->PCMCh[ch].envL/127;
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-				_outb(TOWNSIO_SOUND_PCM_ENV,stat->PCMCh[ch].envVol);
+				_outb(TOWNSIO_SOUND_PCM_ENV,vol);
 			//}
 		}
 	}
