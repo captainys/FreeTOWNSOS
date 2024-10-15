@@ -126,6 +126,7 @@ _Handler Handle_INT4DH(void)
 			context->timerAPostEOICallback.ES,
 			context->timerAPostEOICallback.FS,
 			context->timerAPostEOICallback.GS);
+		context->reentCount=0;
 	}
 
 	_POP_GS;
