@@ -122,6 +122,7 @@ struct SND_PCM_Channel_State
 
 	short pitchBend;
 	unsigned int playFreq;
+	unsigned char playVol;  // Volume given to SND_key_on or SND_pcm_voice_play
 
 	// for Inst mode.
 	unsigned char instrument,vol,vol_key,pan;

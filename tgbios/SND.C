@@ -83,6 +83,16 @@ unsigned int RF5C68_ApplyPitchBend(unsigned int Freq,short pitchBend)
 	return Freq+Num;
 }
 
+unsigned short RF5C68_CalculateVolume(unsigned short vol1,unsigned short vol2)
+{
+	// vol1, vol2  0 to 127 scale
+	// Output      0 to 255 scale
+	vol1+=(vol1>>6); // 0 to 128 scale (Value will be 0 to 63, 65 to 128.  Will never be 64.)
+	vol2+=(vol2>>6); // 0 to 128 scale (Value will be 0 to 63, 65 to 128.  Will never be 64.)
+	vol1*=vol2; // 0 to 16384
+	return _min(255,(vol1>>6));
+}
+
 unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
 {
 	switch(algo)
@@ -187,7 +197,7 @@ void SND_INIT(
 	for(i=0; i<SND_NUM_FM_CHANNELS; ++i)
 	{
 		status->FMCh[i].instrument=0;
-		status->FMCh[i].vol=80;
+		status->FMCh[i].vol=127; // FM TOWNS Technical Databook p.415 tells the default volume is 127.
 		status->FMCh[i].vol_key=0;
 		status->FMCh[i].pan=0xc0;
 	}
@@ -201,7 +211,7 @@ void SND_INIT(
 		status->voiceChannelBank[i]=0;
 		status->PCMCh[i].playing=0;
 		status->PCMCh[i].instrument=0;
-		status->PCMCh[i].vol=80;
+		status->PCMCh[i].vol=127; // FM TOWNS Technical Databook p.415 tells the default volume is 127.
 		status->FMCh[i].vol_key=0;
 		status->PCMCh[i].pan=0x77;
 	}
@@ -352,18 +362,13 @@ void SND_KEY_ON(
 				_CLI
 
 				unsigned char curVol;
-				unsigned short MUL;
 
 				stat->PCMCh[ch].playing=1;
 				stat->PCMCh[ch].env=env;
 				if(0==env.AR)
 				{
 					stat->PCMCh[ch].phase=1;
-					MUL=vol+1;
-					MUL*=(stat->PCMCh[ch].vol+1);
-					MUL--;
-					MUL>>=6;
-					curVol=MUL;
+					curVol=RF5C68_CalculateVolume(vol,stat->PCMCh[ch].vol);
 					stat->PCMCh[ch].envVol=curVol;
 					stat->PCMCh[ch].phaseStepLeft=env.DR;
 					stat->PCMCh[ch].dx=env.DR;
@@ -481,10 +486,18 @@ void SND_KEY_OFF(
 			}
 			else
 			{
-				stat->PCMCh[ch].phase=3;
-				stat->PCMCh[ch].dx=stat->PCMCh[ch].env.RR;
-				stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
-				stat->PCMCh[ch].balance=0;
+				// Looks like RR=127 means indefinite play back.
+				if(127==stat->PCMCh[ch].env.RR)
+				{
+					stat->PCMCh[ch].phase=4;
+				}
+				else
+				{
+					stat->PCMCh[ch].phase=3;
+					stat->PCMCh[ch].dx=stat->PCMCh[ch].env.RR;
+					stat->PCMCh[ch].dy=stat->PCMCh[ch].envVol;
+					stat->PCMCh[ch].balance=0;
+				}
 			}
 			_POPFD
 		}
@@ -836,17 +849,14 @@ void SND_VOLUME_CHANGE(
 	{
 		ch-=SND_PCM_CHANNEL_START;
 		status->PCMCh[ch].vol=vol;
-		status->PCMCh[ch].envVol=vol;
 
-		/*unsigned char curVol;
-		unsigned short MUL;
-		MUL=vol+1;
-		MUL*=(status->PCMCh[ch].vol_key+1);
-		MUL--;
-		MUL>>=6;
-		curVol=MUL;
+		unsigned char curVol=RF5C68_CalculateVolume(vol,status->PCMCh[ch].vol_key);
 		status->PCMCh[ch].envVol=curVol;
-		_outb(TOWNSIO_SOUND_PCM_ENV,curVol);*/
+		if(status->PCMCh[ch].playing)
+		{
+			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+			_outb(TOWNSIO_SOUND_PCM_ENV,curVol);
+		}
 
 		SND_SetError(EAX,SND_NO_ERROR);
 	}
@@ -1741,6 +1751,7 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		info->PCMCh[ch].playPtr=((_Far unsigned char *)sndData)+sizeof(struct PCM_Voice_Header);
 		info->PCMCh[ch].nextFillBank=info->voiceChannelBank[ch];
 		info->PCMCh[ch].playing=1;
+		info->PCMCh[ch].vol_key=volume;
 		info->PCMCh[ch].curPos=0;
 
 		{
@@ -2288,17 +2299,21 @@ void SND_PCM_Envelope_Handler(void)
 					stat->PCMCh[ch].balance-=stat->PCMCh[ch].dx;
 				}
 				break;
+
+			case 4: // Indefinite play back.
+				continue;
 			}
-			if(0==stat->PCMCh[ch].envVol)
-			{
-				stat->PCMCh[ch].playing=0;
-				stat->PCMKey|=(1<<ch);
-				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
-			}
-			else
-			{
+			//if(0==stat->PCMCh[ch].envVol)
+			//{
+			//	stat->PCMCh[ch].playing=0;
+			//	stat->PCMKey|=(1<<ch);
+			//	_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+			//}
+			//else
+			//{
+				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
 				_outb(TOWNSIO_SOUND_PCM_ENV,stat->PCMCh[ch].envVol);
-			}
+			//}
 		}
 	}
 }
