@@ -1921,15 +1921,21 @@ void SND_JOY_IN_2(
 		pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
 	}
 
-	pad|=0xC0;
-	if(0==(pad&(PAD_LEFT|PAD_RIGHT)))
-	{
+	_outb(TOWNSIO_TIMER_1US_WAIT,0);
+
+	pad|=0xF0;
+	if(0==(pad&(PAD_LEFT|PAD_RIGHT)) && (PAD_UP|PAD_DOWN)==(pad&(PAD_UP|PAD_DOWN)))
+	{ // The second condition is based on the observation of the original TBIOS.
 		pad&=(~PAD_RUN);
+		pad|=(PAD_LEFT|PAD_RIGHT);
 	}
-	if(0==(pad&(PAD_UP|PAD_DOWN)))
-	{
+	if(0==(pad&(PAD_UP|PAD_DOWN)) && (PAD_LEFT|PAD_RIGHT)==(pad&(PAD_LEFT|PAD_RIGHT)))
+	{ // The second condition is based on the observation of the original TBIOS.
 		pad&=(~PAD_SELECT);
+		pad|=(PAD_UP|PAD_DOWN);
 	}
+	// Looks like if both UP&DOWN (or LEFT&RIGHT) are both pressed, if LEFT&RIGHT (or UP&DOWN) are both released,
+	// it won't take Run/Select button.
 
 	SET_LOW_BYTE(&EDX,pad);
 

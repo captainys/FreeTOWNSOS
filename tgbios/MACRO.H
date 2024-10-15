@@ -7,6 +7,7 @@
 #define _PUSHFD _inline(0x9C);
 #define _POPFD _inline(0x9D);
 #define _CLI _inline(0xfa);
+#define _STI _inline(0xfb);
 
 #define _PUSH_FS _inline(0x0F,0xA0);
 #define _PUSH_GS _inline(0x0F,0xA8);

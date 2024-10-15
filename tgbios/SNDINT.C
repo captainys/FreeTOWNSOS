@@ -24,6 +24,8 @@ void __SET_PVECT(int INTNum,_Far void (*func)(void));
 
 #endif // MY_RESPONSIBILITY
 
+void CALL_SNDINT_HANDLER(_Far void *SSESP,_Far void (*CSEIP)(void),unsigned int DS,unsigned int ES,unsigned int FS,unsigned int GS);
+
 
 
 #define SNDINT_USING_TIMERB_MOUSE 1
@@ -45,6 +47,9 @@ struct SoundInterruptBIOSContext
 	unsigned long save_INT4DReal;
 #endif
 
+	_Far void *mouseINTStack;
+	_Far void *soundINTStack;
+
 	struct SNDINT_Callback timerAPreEOICallback;
 	struct SNDINT_Callback timerBCallback;
 	struct SNDINT_Callback timerAPostEOICallback;
@@ -54,10 +59,6 @@ struct SoundInterruptBIOSContext
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
 
-_Far void SNDINT_NOP(void)
-{
-}
-
 #pragma Calling_convention(_INTERRUPT|_CALLING_CONVENTION);
 _Handler Handle_INT4DH(void)
 {
@@ -65,6 +66,7 @@ _Handler Handle_INT4DH(void)
 	// Must return by RETF.
 	// _Far is the keyword in High-C.
 	unsigned char INTReason=_inb(TOWNSIO_SOUND_INT_REASON);
+	unsigned char callTimerAPost=0;
 
 	_PUSH_FS;
 	_PUSH_GS;
@@ -77,7 +79,19 @@ _Handler Handle_INT4DH(void)
 
 		if(timerUP&1)
 		{
+			if((context->flags & SNDINT_USING_TIMERA) &&
+			   NULL!=context->timerAPreEOICallback.callback)
+			{
+				CALL_SNDINT_HANDLER(
+					context->soundINTStack,
+					context->timerAPreEOICallback.callback,
+					context->timerAPreEOICallback.DS,
+					context->timerAPreEOICallback.ES,
+					context->timerAPreEOICallback.FS,
+					context->timerAPreEOICallback.GS);
+			}
 			SND_FM_Timer_A_Restart();
+			callTimerAPost=1;
 		}
 		if(timerUP&2)
 		{
@@ -98,6 +112,21 @@ _Handler Handle_INT4DH(void)
 		}
 	}
 	_outb(TOWNSIO_PIC_SECONDARY_ICW1,0x65); // Specific EOI + INT (13-8=5)(4DH).
+
+	if(callTimerAPost &&
+	   (context->flags & SNDINT_USING_TIMERA) &&
+	   0==context->reentCount && NULL!=context->timerAPostEOICallback.callback)
+	{
+		context->reentCount=1;
+		_STI;
+		CALL_SNDINT_HANDLER(
+			NULL,  // I thinks this post-EOI handler must use the same stack frame.
+			context->timerAPostEOICallback.callback,
+			context->timerAPostEOICallback.DS,
+			context->timerAPostEOICallback.ES,
+			context->timerAPostEOICallback.FS,
+			context->timerAPostEOICallback.GS);
+	}
 
 	_POP_GS;
 	_POP_FS;
@@ -158,7 +187,7 @@ static void Stop_TimerA(_Far struct SoundInterruptBIOSContext *context)
 }
 #endif
 
-void SNDINT_Internal_Start_Mouse(void)
+void SNDINT_Internal_Start_Mouse(unsigned int DS,unsigned int EDX)
 {
 	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
 	_PUSHFD
@@ -175,13 +204,18 @@ void SNDINT_Internal_Start_Mouse(void)
 		}
 		#endif
 
+		void *stk;
+		_FP_SEG(stk)=DS;
+		_FP_OFF(stk)=EDX;
+
 		context->flags|=SNDINT_USING_TIMERB_MOUSE;
+		context->mouseINTStack=stk;
 		context->mouseCallback1.callback=NULL;
 		context->mouseCallback2.callback=NULL;
 	}
 	_POPFD
 }
-void SNDINT_Internal_Start_Sound_TimerB(void)
+void SNDINT_Internal_Start_Sound_TimerB(unsigned int DS,unsigned int EDX)
 {
 	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
 	_PUSHFD
@@ -198,7 +232,12 @@ void SNDINT_Internal_Start_Sound_TimerB(void)
 		Start_TimerB(context);
 		#endif
 
+		void *stk;
+		_FP_SEG(stk)=DS;
+		_FP_OFF(stk)=EDX;
+
 		context->flags|=SNDINT_USING_TIMERB_SOUND;
+		context->soundINTStack=stk;
 		context->timerBCallback.callback=NULL;
 	}
 	_POPFD
@@ -266,6 +305,8 @@ void SNDINT_Internal_Stop_Mouse(void)
 			}
 		}
 		#endif
+		context->mouseCallback1.callback=NULL;
+		context->mouseCallback2.callback=NULL;
 	}
 	_POPFD
 }
@@ -289,6 +330,7 @@ void SNDINT_Internal_Stop_Sound_TimerB(void)
 			}
 		}
 		#endif
+		context->timerBCallback.callback=NULL;
 	}
 	_POPFD
 }
@@ -312,6 +354,8 @@ void SNDINT_Internal_Stop_Sound_TimerA(void)
 			}
 		}
 		#endif
+		context->timerAPreEOICallback.callback=NULL;
+		context->timerAPostEOICallback.callback=NULL;
 	}
 	_POPFD
 }
@@ -351,7 +395,7 @@ void SNDINT_01H_REGISTER_MOUSE_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	SNDINT_Internal_Start_Mouse();
+	SNDINT_Internal_Start_Mouse(EDX,DS);
 }
 void SNDINT_02H_UNREGISTER_MOUSE_INT(
 	unsigned int EDI,
@@ -384,7 +428,7 @@ void SNDINT_03H_REGISTER_SOUND_INT(
 	unsigned int FS)
 {
 	SNDINT_Internal_Start_Sound_TimerA();
-	SNDINT_Internal_Start_Sound_TimerB();
+	SNDINT_Internal_Start_Sound_TimerB(DS,EDX);
 	SNDINT_Internal_Start_PCM();
 }
 void SNDINT_04H_UNREGISTER_SOUND_INT(
@@ -442,8 +486,8 @@ void SNDINT_06H_REGISTER_INT_PROC(
 	_FP_OFF(paramBlock)=ESI;
 
 	_Far void (*callback)(void);
-	_FP_SEG(callback)=paramBlock[0];
-	_FP_OFF(callback)=paramBlock[1];
+	_FP_OFF(callback)=paramBlock[0];
+	_FP_SEG(callback)=paramBlock[1];
 
 	switch(AL)
 	{

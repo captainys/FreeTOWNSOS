@@ -18,9 +18,20 @@
 						PUBLIC	__SET_RVECT
 						PUBLIC	__SET_PVECT
 
+						PUBLIC	CALL_SNDINT_HANDLER
+
 						PUBLIC	MULDIV
 						PUBLIC	IMULDIV
 						PUBLIC	MUL_SHR
+
+
+TSUGARU_BREAK			MACRO
+						OUT		0EAH,AL
+						ENDM
+
+TSUGARU_STATUS			MACRO
+						OUT		0EBH,AL
+						ENDM
 
 
 CODE					SEGMENT
@@ -381,6 +392,86 @@ __SET_PVECT				PROC
 
 						RET
 __SET_PVECT				ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; void CALL_SNDINT_HANDLER(_Far void *SSESP,_Far void *CSEIP,unsigned int DS,unsigned int ES,unsigned int FS,unsigned int GS)
+CALL_SNDINT_HANDLER		PROC
+						; TSUGARU_BREAK
+
+						PUSH	FS
+						PUSH	GS
+						PUSH	ESI
+						PUSH	EBP
+
+						CMP		WORD PTR [ESP+18H],0
+						JE		CALL_SNDINT_NO_STACK_CHANGE
+
+; ESP+30H	GS
+; ESP+2CH	FS
+; ESP+28H	ES
+; ESP+24H	DS
+; ESP+20H	CS
+; ESP+1CH	EIP
+; ESP+18H	SS
+; ESP+14H	ESP
+; ---- Input Parameters ----
+; ESP+10H	FS
+; ESP+0CH	GS
+; ESP+08H	ESI
+; ESP+04H	EBP
+; ESP		Return EIP
+
+						MOV		SI,SS
+						MOV		DS,SI
+						MOV		ESI,ESP		; DS:ESI is current stack pointer
+
+						LSS		ESP,[ESP+14H]
+
+						PUSH	DWORD PTR [ESI+30H]
+						PUSH	DWORD PTR [ESI+2CH]
+						PUSH	DWORD PTR [ESI+28H]
+						PUSH	DWORD PTR [ESI+24H]
+						PUSH	DWORD PTR [ESI+20H]
+						PUSH	DWORD PTR [ESI+1CH]
+						PUSH	DS
+						PUSH	ESI
+						MOV		EBP,ESP
+						JMP		CALL_SNDINT_STACK_DID_CHANGE
+
+; Now
+; ---- Input Parameters ----
+; EBP		PrevSSESP
+; EBP+08H	CSEIP
+; EBP+10H	DS
+; EBP+14H	ES
+; EBP+18H	FS
+; EBP+1CH	GS
+
+CALL_SNDINT_NO_STACK_CHANGE:
+						LEA		EBP,[ESP+14H]
+						MOV		[EBP],ESP
+						MOV		[EBP+4],SS
+
+
+CALL_SNDINT_STACK_DID_CHANGE:
+
+						MOV		DS,[EBP+10H]
+						MOV		ES,[EBP+14H]
+						MOV		FS,[EBP+18h]
+						MOV		GS,[EBP+1CH]
+						CALL	FWORD PTR [EBP+8]
+
+						LSS		ESP,[EBP]
+
+						POP		EBP
+						POP		ESI
+						POP		GS
+						POP		FS
+						RET
+CALL_SNDINT_HANDLER		ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
