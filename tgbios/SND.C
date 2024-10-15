@@ -1924,13 +1924,17 @@ void SND_JOY_IN_2(
 	_outb(TOWNSIO_TIMER_1US_WAIT,0);
 
 	pad|=0xF0;
-	if(0==(pad&(PAD_LEFT|PAD_RIGHT)) && (PAD_UP|PAD_DOWN)==(pad&(PAD_UP|PAD_DOWN)))
-	{ // The second condition is based on the observation of the original TBIOS.
+	// if(0==(pad&(PAD_LEFT|PAD_RIGHT)) && (PAD_UP|PAD_DOWN)==(pad&(PAD_UP|PAD_DOWN)))
+	// The second condition is based on the observation of the original TBIOS.
+	if((PAD_UP|PAD_DOWN)==(pad&0x0F)) //The above condition is same as this.
+	{
 		pad&=(~PAD_RUN);
 		pad|=(PAD_LEFT|PAD_RIGHT);
 	}
-	if(0==(pad&(PAD_UP|PAD_DOWN)) && (PAD_LEFT|PAD_RIGHT)==(pad&(PAD_LEFT|PAD_RIGHT)))
-	{ // The second condition is based on the observation of the original TBIOS.
+	// if(0==(pad&(PAD_UP|PAD_DOWN)) && (PAD_LEFT|PAD_RIGHT)==(pad&(PAD_LEFT|PAD_RIGHT)))
+	// The second condition is based on the observation of the original TBIOS.
+	if((PAD_LEFT|PAD_RIGHT)==(pad&0x0F)) // The above condition is same as this.
+	{ 
 		pad&=(~PAD_SELECT);
 		pad|=(PAD_UP|PAD_DOWN);
 	}
