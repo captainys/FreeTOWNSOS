@@ -39,15 +39,24 @@ struct SoundInterruptBIOSContext
 {
 	char ID[8];
 	unsigned int flags;  // Will be initialized to zero on first call.
+	unsigned int reentCount;
 #ifdef MY_RESPONSIBILITY
 	_Far void (*save_INT4DProt)(void);
 	unsigned long save_INT4DReal;
 #endif
+
+	struct SNDINT_Callback timerAPreEOICallback;
+	struct SNDINT_Callback timerBCallback;
+	struct SNDINT_Callback timerAPostEOICallback;
+	struct SNDINT_Callback mouseCallback1;
+	struct SNDINT_Callback mouseCallback2;
 };
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
 
-
+_Far void SNDINT_NOP(void)
+{
+}
 
 #pragma Calling_convention(_INTERRUPT|_CALLING_CONVENTION);
 _Handler Handle_INT4DH(void)
@@ -167,6 +176,8 @@ void SNDINT_Internal_Start_Mouse(void)
 		#endif
 
 		context->flags|=SNDINT_USING_TIMERB_MOUSE;
+		context->mouseCallback1.callback=NULL;
+		context->mouseCallback2.callback=NULL;
 	}
 	_POPFD
 }
@@ -188,6 +199,7 @@ void SNDINT_Internal_Start_Sound_TimerB(void)
 		#endif
 
 		context->flags|=SNDINT_USING_TIMERB_SOUND;
+		context->timerBCallback.callback=NULL;
 	}
 	_POPFD
 }
@@ -208,6 +220,8 @@ void SNDINT_Internal_Start_Sound_TimerA(void)
 		}
 		#endif
 		context->flags|=SNDINT_USING_TIMERA;
+		context->timerAPreEOICallback.callback=NULL;
+		context->timerAPostEOICallback.callback=NULL;
 	}
 	_POPFD
 }
@@ -369,6 +383,7 @@ void SNDINT_03H_REGISTER_SOUND_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
+	SNDINT_Internal_Start_Sound_TimerA();
 	SNDINT_Internal_Start_Sound_TimerB();
 	SNDINT_Internal_Start_PCM();
 }
@@ -386,8 +401,9 @@ void SNDINT_04H_UNREGISTER_SOUND_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	SNDINT_Internal_Stop_Sound_TimerB();
 	SNDINT_Internal_Stop_PCM();
+	SNDINT_Internal_Stop_Sound_TimerB();
+	SNDINT_Internal_Stop_Sound_TimerA();
 }
 void SNDINT_05H_GET_MOUSE_INT_COUNT(
 	unsigned int EDI,
@@ -419,7 +435,55 @@ void SNDINT_06H_REGISTER_INT_PROC(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_STATE;
+	unsigned char AL=EAX;
+	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
+	_Far unsigned int *paramBlock;
+	_FP_SEG(paramBlock)=DS;
+	_FP_OFF(paramBlock)=ESI;
+
+	_Far void (*callback)(void);
+	_FP_SEG(callback)=paramBlock[0];
+	_FP_OFF(callback)=paramBlock[1];
+
+	switch(AL)
+	{
+	case 0:
+		context->timerAPreEOICallback.callback=callback;
+		context->timerAPreEOICallback.DS=paramBlock[2];
+		context->timerAPreEOICallback.ES=paramBlock[3];
+		context->timerAPreEOICallback.FS=paramBlock[4];
+		context->timerAPreEOICallback.GS=paramBlock[5];
+		break;
+	case 1:
+		context->timerBCallback.callback=callback;
+		context->timerBCallback.DS=paramBlock[2];
+		context->timerBCallback.ES=paramBlock[3];
+		context->timerBCallback.FS=paramBlock[4];
+		context->timerBCallback.GS=paramBlock[5];
+		break;
+	case 2:
+		context->timerAPostEOICallback.callback=callback;
+		context->timerAPostEOICallback.DS=paramBlock[2];
+		context->timerAPostEOICallback.ES=paramBlock[3];
+		context->timerAPostEOICallback.FS=paramBlock[4];
+		context->timerAPostEOICallback.GS=paramBlock[5];
+		break;
+	case 3:
+		context->mouseCallback1.callback=callback;
+		context->mouseCallback1.DS=paramBlock[2];
+		context->mouseCallback1.ES=paramBlock[3];
+		context->mouseCallback1.FS=paramBlock[4];
+		context->mouseCallback1.GS=paramBlock[5];
+		break;
+	case 4:
+		context->mouseCallback2.callback=callback;
+		context->mouseCallback2.DS=paramBlock[2];
+		context->mouseCallback2.ES=paramBlock[3];
+		context->mouseCallback2.FS=paramBlock[4];
+		context->mouseCallback2.GS=paramBlock[5];
+		break;
+	}
+
 }
 void SNDINT_07H_UNREGISTER_INT_PROC(
 	unsigned int EDI,
@@ -474,7 +538,7 @@ void SNDINT_09H_GET_INT_STATUS(
 
 // Do not use a static variable.  DS may be different.
 // static unsigned char firstTime=1;
-static struct SoundInterruptBIOSContext context={{0,0,0,0,0,0,0,0}};
+static struct SoundInterruptBIOSContext context={{0,0,0,0,0,0,0,0},0,0};
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void)
 {

@@ -5,7 +5,6 @@
 
 struct SNDINT_Callback
 {
-	unsigned int flags;
 	_Far void (*callback)(void);
 	unsigned int DS,ES,FS,GS;
 };
