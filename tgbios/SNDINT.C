@@ -96,6 +96,20 @@ _Handler Handle_INT4DH(void)
 		if(timerUP&2)
 		{
 			SND_FM_Timer_B_Restart();
+			if(context->flags & SNDINT_USING_TIMERB_SOUND)
+			{
+				SND_PCM_Envelope_Handler();
+				if(NULL!=context->timerBCallback.callback)
+				{
+					CALL_SNDINT_HANDLER(
+						context->soundINTStack,
+						context->timerBCallback.callback,
+						context->timerBCallback.DS,
+						context->timerBCallback.ES,
+						context->timerBCallback.FS,
+						context->timerBCallback.GS);
+				}
+			}
 		}
 	}
 	if(INTReason&8)
@@ -205,7 +219,7 @@ void SNDINT_Internal_Start_Mouse(unsigned int DS,unsigned int EDX)
 		}
 		#endif
 
-		void *stk;
+		_Far void *stk;
 		_FP_SEG(stk)=DS;
 		_FP_OFF(stk)=EDX;
 
@@ -233,7 +247,7 @@ void SNDINT_Internal_Start_Sound_TimerB(unsigned int DS,unsigned int EDX)
 		Start_TimerB(context);
 		#endif
 
-		void *stk;
+		_Far void *stk;
 		_FP_SEG(stk)=DS;
 		_FP_OFF(stk)=EDX;
 
