@@ -71,6 +71,41 @@ SCSI_READ_SECTOR_CMD	DB	28H,0,0,0,0,0,0,0,0,0
 
 
 ; Input
+;   CL    SCSI ID
+;   EDX   Starting Sector
+;   BX    Number of Sectors
+;   EDI   Data Buffer Physical Address
+;   DS=CS
+; Output
+;   CF    Set if error
+SCSI_WRITE_SECTOR:
+						MOV		SI,SCSI_WRITE_SECTOR_CMD
+
+						AND		CL,7
+						MOV		BYTE [SI+1],0 ; Looks like Logical Unit ID needs to be zero.
+
+						MOV		[SI+4],DH
+						MOV		[SI+5],DL
+						ROR		EDX,16
+						MOV		[SI+2],DH
+						MOV		[SI+3],DL
+
+						MOV		[SI+7],BH
+						MOV		[SI+8],BL
+
+						CALL	SCSI_COMMAND
+
+						RET
+
+SCSI_WRITE_SECTOR_CMD	DB	2AH,0,0,0,0,0,0,0,0,0
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+; Input
 ;   CL SCSI ID
 ; Output
 ;   AH      0 Unit is ready

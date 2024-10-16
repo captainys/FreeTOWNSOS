@@ -560,6 +560,10 @@ BLKDEV_WRITE:
 						CMP		AH,2
 						JB		BLKDEV_WRITE_INTERNAL_FD ; Unit 0 or 1 Internal FD
 
+						SUB		AH,FIRST_HDD_UNIT_NUMBER
+						CMP		AH,CS:[NUM_HD_BPB]
+						JB		BLKDEV_WRITE_HDD
+
 						TSUGARU_DEBUG
 
 						JMP		BLKDEV_RETURN
@@ -624,6 +628,42 @@ BLKDEV_WRITE_INTERNAL_FD:
 						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
 
 						JMP		BLKDEV_RETURN
+
+
+
+
+BLKDEV_WRITE_HDD:
+						CALL	BLKDEV_HDD_PREP_FSDI_CSSI
+
+						CMP		WORD FS:[DI+BPB_BYTES_PER_SECTOR],0
+						JE		BLKDEV_BIOS_DRIVE_NOT_READY
+
+						CALL	BLKDEV_HDD_LBA_IN_EAX
+
+						SHLD	ECX,EAX,16
+						MOV		DX,AX		; CX|DX is LBA
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
+
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+
+						; EAX is the number of physical sectors to read.
+
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]	; Last information needed from request header.  Now safe to destroy BX.
+
+						MOV		EBX,EAX	;   Do it in the end.  ES:BX is needed for other things until this point.
+						MOV		AL,CS:[SI+DSKDRV_BIOSCODE]
+						MOV		AH,DISKBIOS_CMD_06H_WRITE_SECTOR
+
+						INT		93H
+
+						CMP		AH,80h
+						JE		BLKDEV_BIOS_HD_HARDERROR
+						CMP		AH,02h
+						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
+
+						JMP		BLKDEV_RETURN
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

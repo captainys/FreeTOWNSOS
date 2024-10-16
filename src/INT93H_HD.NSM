@@ -7,6 +7,8 @@ INT93H_HD:
 						JE		INT93H_HD_03H_RESTORE
 						CMP		AH,5
 						JE		INT93H_HD_05H_READ
+						CMP		AH,6
+						JE		INT93H_HD_06H_WRITE
 
 						JMP		INT93H_EXIT
 
@@ -42,6 +44,39 @@ INT93H_HD_05H_READ:
 						POP		DS
 
 						CALL	SCSI_READ_SECTOR
+						JC		INT93H_EXIT
+
+						MOV		BYTE CS:[ERROR_CODE],0
+						JMP		INT93H_EXIT
+
+
+INT93H_HD_06H_WRITE:
+						; Input
+						;   CL    SCSI ID
+						;   EDX   Starting Sector
+						;   BX    Number of Sectors
+						;   EDI   Data Buffer Physical Address
+						;   DS=CS
+						; Output
+						;   CF    Set if error
+						MOV		CL,[BP+SAVED_EAX]
+						AND		CL,7
+
+						MOV		DX,[BP+SAVED_ECX]
+						SHL		EDX,16
+						MOV		DX,[BP+SAVED_EDX]
+
+						MOV		BX,[BP+SAVED_EBX]
+
+						MOVZX	EAX,WORD [BP+SAVED_DS]
+						SHL		EAX,4
+						MOVZX	EDI,WORD [BP+SAVED_EDI]
+						ADD		EDI,EAX
+
+						PUSH	CS
+						POP		DS
+
+						CALL	SCSI_WRITE_SECTOR
 						JC		INT93H_EXIT
 
 						MOV		BYTE CS:[ERROR_CODE],0
