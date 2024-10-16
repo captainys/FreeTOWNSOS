@@ -204,6 +204,7 @@ void SND_INIT(
 
 
 	// PCM Channels
+	_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,0xFF);
 	status->voiceModeINTMask=0;
 	status->numVoiceModeChannels=0;
 	for(i=0; i<SND_NUM_PCM_CHANNELS; ++i)
@@ -229,7 +230,6 @@ void SND_INIT(
 
 	// Disable RF5C68 INT
 	_outb(TOWNSIO_SOUND_PCM_INT_MASK,0);
-
 
 	SND_SetError(EAX,SND_NO_ERROR);
 
