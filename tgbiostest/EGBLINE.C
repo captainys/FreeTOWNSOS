@@ -91,6 +91,26 @@ void TestLINE(
 		line[4]=scrnHei-16*i;
 		EGB_connect(EGB_work,line);
 	}
+
+	for(i=-10; i<=10; ++i)
+	{
+		line[0]=2;
+		line[1]=0+16*i;
+		line[2]=scrnHei-16*i;
+		line[3]=scrnWid+16*i;
+		line[4]=0-16*i;
+		EGB_connect(EGB_work,line);
+	}
+
+	for(i=-10; i<=10; ++i)
+	{
+		line[0]=2;
+		line[1]=scrnWid/2-10*i;
+		line[2]=-10;
+		line[3]=scrnWid/3;
+		line[4]=scrnHei+10;
+		EGB_connect(EGB_work,line);
+	}
 }
 
 void Test4Bit(void)

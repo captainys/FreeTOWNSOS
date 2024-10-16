@@ -2666,15 +2666,142 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 	{
 		int balance=hei/2;
 		short x=p0.x,y=p0.y;
-		while(x!=p1.x || y!=p1.y)
+		unsigned int vramAddr;
+		_Far unsigned char *VRAM=ptrSet->vram;
+		EGB_CalcVRAMAddr(&vramAddr,x,y,ptrSet->mode);
+
+		switch(ptrSet->mode->bitsPerPixel)
 		{
-			y+=vy;
-			balance-=wid;
-			if(balance<0)
+		case 1:
+			TSUGARU_BREAK;
+			break;
+		case 4:
 			{
-				x+=vx;
-				balance+=hei;
+				unsigned char ANDPtn,ORPtn;
+
+				if(0==(x&1))
+				{
+					ANDPtn=0xF0;
+					ORPtn=(work->color[EGB_FOREGROUND_COLOR]&0x0F);
+				}
+				else
+				{
+					ANDPtn=0x0F;
+					ORPtn=(work->color[EGB_FOREGROUND_COLOR]&0x0F)<<4;
+				}
+
+				for(;;)
+				{
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_MATTE:
+						VRAM[vramAddr]&=ANDPtn;
+						VRAM[vramAddr]|=ORPtn;
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+
+					if(x==p1.x && y==p1.y)
+					{
+						break;
+					}
+
+					y+=vy;
+					balance-=wid;
+					vramAddr+=VRAMStep;
+					if(balance<0)
+					{
+						if(0xF0==ANDPtn)
+						{
+							ANDPtn=0x0F;
+							ORPtn<<=4;
+						}
+						else
+						{
+							++vramAddr;
+							ANDPtn=0xF0;
+							ORPtn>>=4;
+						}
+						x+=vx;
+						balance+=hei;
+					}
+				}
 			}
+			break;
+		case 8:
+			{
+				unsigned char col=work->color[EGB_FOREGROUND_COLOR];
+
+				for(;;)
+				{
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_MATTE:
+						VRAM[vramAddr]=col;
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+
+					if(x==p1.x && y==p1.y)
+					{
+						break;
+					}
+
+					y+=vy;
+					vramAddr+=VRAMStep;
+					balance-=wid;
+					if(balance<0)
+					{
+						x+=vx;
+						vramAddr++;
+						balance+=hei;
+					}
+				}
+			}
+			break;
+		case 16:
+			{
+				unsigned short col=work->color[EGB_FOREGROUND_COLOR];
+
+				for(;;)
+				{
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_MATTE:
+						*((_Far unsigned short *)(VRAM+vramAddr))=col;
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+
+					if(x==p1.x && y==p1.y)
+					{
+						break;
+					}
+
+					y+=vy;
+					vramAddr+=VRAMStep;
+					balance-=wid;
+					if(balance<0)
+					{
+						vramAddr+=2;
+						x+=vx;
+						balance+=hei;
+					}
+				}
+			}
+			break;
 		}
 	}
 }
