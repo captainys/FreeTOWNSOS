@@ -305,8 +305,9 @@ void SND_KEY_ON(
 				YM2612_Write(regSet,0xA0+chMOD3,BLK_FNUM);
 			}
 
-			YM2612_Write(0,0x28,0x00|ch);
-			YM2612_Write(0,0x28,0xF0|ch);
+			// Channel number to YM2612 Reg 28H is 0,1,2,4,5, or 6.
+			YM2612_Write(0,0x28,0x00|(ch+regSet));
+			YM2612_Write(0,0x28,0xF0|(ch+regSet));
 		}
 	}
 	else if(SND_Is_PCM_Channel(ch))
