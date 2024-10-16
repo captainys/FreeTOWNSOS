@@ -1918,6 +1918,7 @@ void SND_JOY_IN_2(
 	_FP_OFF(work)=EDI;
 
 	_outb(TOWNSIO_GAMEPORT_OUTPUT,PAD_OUT_CONST);
+	_outb(TOWNSIO_TIMER_1US_WAIT,0);
 	if(0==port)
 	{
 		pad=_inb(TOWNSIO_GAMEPORT_A_INPUT);
@@ -1927,25 +1928,33 @@ void SND_JOY_IN_2(
 		pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
 	}
 
-	_outb(TOWNSIO_TIMER_1US_WAIT,0);
-
 	pad|=0xC0;
 	// if(0==(pad&(PAD_LEFT|PAD_RIGHT)) && (PAD_UP|PAD_DOWN)==(pad&(PAD_UP|PAD_DOWN)))
 	// The second condition is based on the observation of the original TBIOS.
 	if((PAD_UP|PAD_DOWN)==(pad&0x0F)) //The above condition is same as this.
 	{
 		pad&=(~PAD_RUN);
-		pad|=(PAD_LEFT|PAD_RIGHT);
 	}
 	// if(0==(pad&(PAD_UP|PAD_DOWN)) && (PAD_LEFT|PAD_RIGHT)==(pad&(PAD_LEFT|PAD_RIGHT)))
 	// The second condition is based on the observation of the original TBIOS.
 	if((PAD_LEFT|PAD_RIGHT)==(pad&0x0F)) // The above condition is same as this.
 	{ 
 		pad&=(~PAD_SELECT);
-		pad|=(PAD_UP|PAD_DOWN);
 	}
 	// Looks like if both UP&DOWN (or LEFT&RIGHT) are both pressed, if LEFT&RIGHT (or UP&DOWN) are both released,
 	// it won't take Run/Select button.
+
+	// The following must be done independently.
+	// If I/O read is 030H (possible from mouse), the return should be FFh.
+	if(0==((PAD_UP|PAD_DOWN)&pad))
+	{
+		pad|=(PAD_UP|PAD_DOWN);
+	}
+	if(0==((PAD_LEFT|PAD_RIGHT)&pad))
+	{
+		pad|=(PAD_LEFT|PAD_RIGHT);
+	}
+
 
 	SET_LOW_BYTE(&EDX,pad);
 
