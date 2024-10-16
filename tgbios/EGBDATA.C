@@ -83,7 +83,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 	{ // Mode 5
 		31, // KHz
 		{256,256}, //struct POINTW visiSize;
-		{640,512}, //struct POINTW crtcSize
+		{640,480}, //struct POINTW crtcSize
 		{256,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
 		9,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
@@ -98,7 +98,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 	{ // Mode 6
 		31, // KHz
 		{256,256}, //struct POINTW visiSize;
-		{640,512}, //struct POINTW crtcSize
+		{640,480}, //struct POINTW crtcSize
 		{256,512}, //struct POINTW size;
 		512,//unsigned short bytesPerLine;
 		9,//unsigned short bytesPerLineShift;  // 0:Can not shift  Non-Zero:Can shift (bytesPerLine is 2^n)
