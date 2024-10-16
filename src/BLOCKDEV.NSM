@@ -466,37 +466,12 @@ BLKDEV_READ_INTERNAL_FD:
 
 
 BLKDEV_READ_HDD:
-						PUSH	CS
-						POP		FS
-
-						MOV		AL,ES:[BX+REQ_UNIT]
-						SUB		AL,FIRST_HDD_UNIT_NUMBER
-						MOV		AH,BIOS_PARAMETER_BLOCK_size
-						MUL		AH
-						ADD		AX,HD_BPB
-						MOV		DI,AX		; FS:DI is BPB for this drive.
+						CALL	BLKDEV_HDD_PREP_FSDI_CSSI
 
 						CMP		WORD FS:[DI+BPB_BYTES_PER_SECTOR],0
 						JE		BLKDEV_BIOS_DRIVE_NOT_READY
 
-						MOV		AL,ES:[BX+REQ_UNIT]
-						SUB		AL,FIRST_HDD_UNIT_NUMBER
-						MOV		AH,DSKDRV_size
-						MUL		AH
-						ADD		AX,HD_TABLE
-						MOV		SI,AX		; CS:SI is 
-
-						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
-
-						; EAX is the number of logical sectors from the beginning of the partition.
-
-						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
-
-						; EAX is the number of physical sectors from the beginning of the partition.
-
-						ADD		EAX,CS:[SI+DSKDRV_FIRST_SECTOR_LBA]
-
-						; EAX is the LBA.
+						CALL	BLKDEV_HDD_LBA_IN_EAX
 
 						SHLD	ECX,EAX,16
 						MOV		DX,AX		; CX|DX is LBA
@@ -522,6 +497,56 @@ BLKDEV_READ_HDD:
 						JE		BLKDEV_BIOS_DEVICE_CODE_ERROR
 
 						JMP		BLKDEV_RETURN
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input
+;   ES:BX   Device Request Header
+; Output
+;   FS:DI   BPB for the HDD drive
+;   CS:SI   Disk-Drive structure
+BLKDEV_HDD_PREP_FSDI_CSSI:
+						PUSH	CS
+						POP		FS
+
+						MOV		AL,ES:[BX+REQ_UNIT]
+						SUB		AL,FIRST_HDD_UNIT_NUMBER
+						MOV		AH,BIOS_PARAMETER_BLOCK_size
+						MUL		AH
+						ADD		AX,HD_BPB
+						MOV		DI,AX		; FS:DI is BPB for this drive.
+
+						MOV		AL,ES:[BX+REQ_UNIT]
+						SUB		AL,FIRST_HDD_UNIT_NUMBER
+						MOV		AH,DSKDRV_size
+						MUL		AH
+						ADD		AX,HD_TABLE
+						MOV		SI,AX		; CS:SI is 
+
+						RET
+
+
+; Input
+;   ES:BX   Device Request Header
+;   FS:DI   BPB for the HDD drive
+;   CS:SI   Disk-Drive structure
+; Output
+;   EAX     LBA
+BLKDEV_HDD_LBA_IN_EAX:
+						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
+
+						; EAX is the number of logical sectors from the beginning of the partition.
+
+						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
+
+						; EAX is the number of physical sectors from the beginning of the partition.
+
+						ADD		EAX,CS:[SI+DSKDRV_FIRST_SECTOR_LBA]
+
+						; EAX is the LBA.
+
+						RET
 
 
 
