@@ -37,11 +37,11 @@ INT93H_EXIT:
 						AND		BYTE [BP+RETURN_FLAGS],0FEh	; CF clear tentative
 
 						MOV		AH,CS:[ERROR_CODE]
+						MOV		[BP+SAVED_EAX+1],AH
 						AND		AH,AH
 						JE		INT93H_IRET
 
 						OR		BYTE [BP+RETURN_FLAGS],1	; CF
-						MOV		[BP+SAVED_EAX+1],AH
 
 						CMP		AH,80H
 						JNE		INT93H_IRET
