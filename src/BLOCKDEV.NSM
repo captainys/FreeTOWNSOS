@@ -476,16 +476,15 @@ BLKDEV_READ_HDD:
 						SHLD	ECX,EAX,16
 						MOV		DX,AX		; CX|DX is LBA
 
-						MOV		AX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]	; Do BX last.  Need ES:BX for other parameters.
+						MOV		AX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
 
 						CALL	BPB_LOGICAL_SECTOR_TO_HD_LBA
-						MOV		DI,BX			; Now ES:DI is the request header.
-						MOV		EBX,EAX
 
-						; EAX is the number of physical sectors to read.  Do it in the end.  ES:BX is needed for other things until this point.
+						; EAX is the number of physical sectors to read.
 
-						LDS		DI,ES:[DI+REQ_READ_WRITE_BUFFER_PTR]
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]	; Last information needed from request header.  Now safe to destroy BX.
 
+						MOV		EBX,EAX	;   Do it in the end.  ES:BX is needed for other things until this point.
 						MOV		AL,CS:[SI+DSKDRV_BIOSCODE]
 						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
 
