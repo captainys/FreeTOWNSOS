@@ -550,7 +550,7 @@ void EGB_02H_DISPLAYSTART(
 
 	if(0==(mode&0x40))
 	{
-		_CLI;
+		// _CLI;  <- Must not CLI.  It will halt all interrupts for 16ms and break BGM play back.
 		EGB_WaitVSYNC();
 		mode&=0x3F;
 	}

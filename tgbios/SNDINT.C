@@ -79,6 +79,7 @@ _Handler Handle_INT4DH(void)
 
 		if(timerUP&1)
 		{
+			SND_FM_Timer_A_Restart();
 			if((context->flags & SNDINT_USING_TIMERA) &&
 			   NULL!=context->timerAPreEOICallback.callback)
 			{
@@ -90,7 +91,6 @@ _Handler Handle_INT4DH(void)
 					context->timerAPreEOICallback.FS,
 					context->timerAPreEOICallback.GS);
 			}
-			SND_FM_Timer_A_Restart();
 			callTimerAPost=1;
 		}
 		if(timerUP&2)
