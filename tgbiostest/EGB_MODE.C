@@ -112,10 +112,6 @@ void Test4Bit(void)
 void Test8Bit(void)
 {
 	EGB_resolution(EGB_work,0,10);
-	EGB_resolution(EGB_work,1,10);
-
-	EGB_writePage(EGB_work,1);
-	EGB_clearScreen(EGB_work);
 
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
@@ -127,6 +123,18 @@ void Test8Bit(void)
 
 void Test16Bit(void)
 {
+	EGB_resolution(EGB_work,0,10);
+	EGB_resolution(EGB_work,1,10);
+
+	EGB_writePage(EGB_work,1);
+	EGB_clearScreen(EGB_work);
+
+	EGB_writePage(EGB_work,0);
+	EGB_clearScreen(EGB_work);
+
+	TestMATTE(255,0,0);
+
+	Wait3Sec();
 }
 
 int main(void)
