@@ -368,7 +368,11 @@ void SND_KEY_ON(
 				stat->PCMCh[ch].playing=1;
 				stat->PCMCh[ch].env=env;
 				stat->PCMCh[ch].playVol=playVol;
-				if(0==env.AR)
+				if(0==env.enabled)
+				{
+					stat->PCMCh[ch].envL=127;
+				}
+				else if(0==env.AR)
 				{
 					stat->PCMCh[ch].phase=1;
 					stat->PCMCh[ch].envL=env.TL;
@@ -859,6 +863,7 @@ void SND_VOLUME_CHANGE(
 			unsigned short vol;
 			vol=playVol*status->PCMCh[ch].envL/127;
 			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+			_outb(TOWNSIO_TIMER_1US_WAIT,0);
 			_outb(TOWNSIO_SOUND_PCM_ENV,vol);
 		}
 
@@ -2262,7 +2267,7 @@ void SND_PCM_Envelope_Handler(void)
 	_Far struct SND_Status *stat=SND_GetStatus();
 	for(int ch=0; ch+stat->numVoiceModeChannels<SND_NUM_PCM_CHANNELS; ++ch)
 	{
-		if(stat->PCMCh[ch].playing)
+		if(stat->PCMCh[ch].playing && stat->PCMCh[ch].env.enabled)
 		{
 			switch(stat->PCMCh[ch].phase)
 			{
@@ -2285,6 +2290,15 @@ void SND_PCM_Envelope_Handler(void)
 				--stat->PCMCh[ch].phaseStepLeft;
 				break;
 			case 1: // Decay
+				// Based on the observation by BCC.
+				// If SR==127, the volume does not change.
+				// VSGP first key-on PCM Ch 3 and use change volume to play or stop the sound effect.
+				// Without this condition, envL will become zero when change volume is called, and nothing is audible.
+				if(127==stat->PCMCh[ch].env.SR)
+				{
+					break;
+				}
+
 				if(0==stat->PCMCh[ch].phaseStepLeft)
 				{
 					++stat->PCMCh[ch].phase;
