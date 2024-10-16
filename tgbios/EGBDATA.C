@@ -90,7 +90,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{5,3,10,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{1,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -105,7 +105,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{4,6,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{1,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -120,7 +120,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{7,9,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{4,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -135,7 +135,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{8,11,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{4,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -165,7 +165,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{3,5,10,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_STARTPOS|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{1,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -240,7 +240,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{2,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -255,7 +255,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{4,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -270,7 +270,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{1,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;
@@ -285,7 +285,7 @@ struct EGB_ScreenMode EGB_SCREENMODES[19]=
 		16,//unsigned char bitsPerPixel;
 		{EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE,EGB_INVALID_SCRNMODE},//unsigned char combination[4];
 
-		SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL,//unsigned int flags;
+		SCRNMODE_FLAG_HSCROLL|SCRNMODE_FLAG_VSCROLL|SCRNMODE_FLAG_DISPSIZE,//unsigned int flags;
 		{2,1},//struct POINTW defZoom;
 
 		NULL,//_Far unsigned char *vram;

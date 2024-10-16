@@ -766,11 +766,23 @@ void EGB_02H_DISPLAYSTART(
 		//    wid=(HDEx-HDSx)/2  ->  (HDEx-HDSx)=wid*2
 		//    hei=(VDEx-VDSx)*2  ->  (VDEx-VDSx)=hei/2
 		// Also this wid and hei are in 1x scale (640x480 pixels resolution)
+
+		// FM TOWNS Technical Databook p.306 tells, the display size cannot be smaller than
+		// the default display size.
+		// Alltynex tries to make it 480x480 for screen mode 3.  But, TBIOS returns AH=FFh and fails.
+		// Also says the display size can be changed only if the display size is smaller than the monitor size.
+		// Probably screen modes 3 and 4 cannot change the display size.
 		{
 			_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
 			if(NULL!=scrnModeProp)
 			{
 				unsigned int wid1X,hei1X,zoomX,zoomY,HDS,VDS,HDE,VDE,FO,LO;
+
+				if(0==(scrnModeProp->flags&SCRNMODE_FLAG_DISPSIZE))
+				{
+					EGB_SetError(EAX,EGB_GENERAL_ERROR);
+					break;
+				}
 
 				if(0==writePage)
 				{
