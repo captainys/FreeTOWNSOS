@@ -1949,89 +1949,107 @@ void EGB_25H_PUTBLOCK(
 				}
 				break;
 			case EGB_FUNC_MATTE:
-				for(y=p0.y; y<=p1.y; ++y)
 				{
-					unsigned short srcColor;
+					unsigned short transparentColor=work->color[EGB_TRANSPARENT_COLOR];
 					switch(pointerSet.mode->bitsPerPixel)
 					{
 					case 1:
-						TSUGARU_BREAK;
+						transparentColor&=1;
 						break;
 					case 4:
+						transparentColor&=1;
+						break;
+					case 8:
+						transparentColor&=255;
+						break;
+					case 16:
+						transparentColor&=0x7FFF;
+						break;
+					}
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned short srcColor;
+						switch(pointerSet.mode->bitsPerPixel)
 						{
-							_Far unsigned char *srcPtr,*dstPtr;
-							unsigned char srcShift,dstAndPtn,dstShift;
-							srcPtr=src;
-							srcShift=4;
-							dstPtr=vram;
-							if(p0.x&1)
+						case 1:
+							TSUGARU_BREAK;
+							break;
+						case 4:
 							{
-								dstAndPtn=0xF0;
-								dstShift=0;
-							}
-							else
-							{
-								dstAndPtn=0x0F;
-								dstShift=4;
-							}
-							for(x=p0.x; x<=p1.x; ++x)
-							{
-								unsigned short srcColor;
-								srcColor=((*srcPtr)>>srcShift)&0x0F;
-								if(srcColor!=work->color[EGB_TRANSPARENT_COLOR])
+								_Far unsigned char *srcPtr,*dstPtr;
+								unsigned char srcShift,dstAndPtn,dstShift;
+								srcPtr=src;
+								srcShift=4;
+								dstPtr=vram;
+								if(p0.x&1)
 								{
-									*dstPtr&=dstAndPtn;
-									*dstPtr|=(srcColor<<dstShift);
+									dstAndPtn=0xF0;
+									dstShift=0;
 								}
-								dstAndPtn=~dstAndPtn;
-								dstShift=4-dstShift;
-								if(4==dstShift)
+								else
 								{
+									dstAndPtn=0x0F;
+									dstShift=4;
+								}
+								for(x=p0.x; x<=p1.x; ++x)
+								{
+									unsigned short srcColor;
+									srcColor=((*srcPtr)>>srcShift)&0x0F;
+									if(srcColor!=transparentColor)
+									{
+										*dstPtr&=dstAndPtn;
+										*dstPtr|=(srcColor<<dstShift);
+									}
+									dstAndPtn=~dstAndPtn;
+									dstShift=4-dstShift;
+									if(4==dstShift)
+									{
+										++dstPtr;
+									}
+									srcShift=4-srcShift;
+									if(4==srcShift)
+									{
+										++srcPtr;
+									}
+								}
+							}
+							break;
+						case 8:
+							{
+								_Far unsigned char *srcPtr,*dstPtr;
+								srcPtr=src;
+								dstPtr=vram;
+								for(x=p0.x; x<=p1.x; ++x)
+								{
+									if(*srcPtr!=transparentColor)
+									{
+										*dstPtr=*srcPtr;
+									}
 									++dstPtr;
-								}
-								srcShift=4-srcShift;
-								if(4==srcShift)
-								{
 									++srcPtr;
 								}
 							}
-						}
-						break;
-					case 8:
-						{
-							_Far unsigned char *srcPtr,*dstPtr;
-							srcPtr=src;
-							dstPtr=vram;
-							for(x=p0.x; x<=p1.x; ++x)
+							break;
+						case 16:
 							{
-								if(*srcPtr!=work->color[EGB_TRANSPARENT_COLOR])
+								_Far unsigned short *srcPtr,*dstPtr;
+								srcPtr=(_Far unsigned short *)src;
+								dstPtr=(_Far unsigned short *)vram;
+								for(x=p0.x; x<=p1.x; ++x)
 								{
-									*dstPtr=*srcPtr;
+									if(*srcPtr!=transparentColor)
+									{
+										*dstPtr=*srcPtr;
+									}
+									++dstPtr;
+									++srcPtr;
 								}
-								++dstPtr;
-								++srcPtr;
 							}
+							break;
 						}
-						break;
-					case 16:
-						{
-							_Far unsigned short *srcPtr,*dstPtr;
-							srcPtr=(_Far unsigned short *)src;
-							dstPtr=(_Far unsigned short *)vram;
-							for(x=p0.x; x<=p1.x; ++x)
-							{
-								if(*srcPtr!=work->color[EGB_TRANSPARENT_COLOR])
-								{
-									*dstPtr=*srcPtr;
-								}
-								++dstPtr;
-								++srcPtr;
-							}
-						}
-						break;
+						src+=srcBytesPerLine;
+						vram+=pointerSet.mode->bytesPerLine;
 					}
-					src+=srcBytesPerLine;
-					vram+=pointerSet.mode->bytesPerLine;
 				}
 				break;
 			default:
