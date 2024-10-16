@@ -2283,6 +2283,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 	int dx=p1.x-p0.x;
 	int dy=p1.y-p0.y;
 	unsigned int wid,hei;
+	int vx,vy,VRAMStep;
 
 	// The following expression here will step on High-C's bug.  The result from the above computation is stored in EDX and ECX,
 	// but it destroys EDX in the subsequent CDQ.
@@ -2360,6 +2361,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_MATTE:
 				for(y=yMin; y<=yMax; ++y)
 				{
 					ptrSet->vram[vramAddr]&=andPtn;
@@ -2377,6 +2379,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_MATTE:
 				for(y=yMin; y<=yMax; ++y)
 				{
 					ptrSet->vram[vramAddr]=color;
@@ -2393,6 +2396,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_MATTE:
 				for(y=yMin; y<=yMax; ++y)
 				{
 					*(_Far unsigned short*)(ptrSet->vram+vramAddr)=color;
@@ -2435,6 +2439,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_MATTE:
 				if(xMin&1)
 				{
 					ptrSet->vram[vramAddr]&=0xF0;
@@ -2463,6 +2468,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_MATTE:
 				MEMSETB_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
 				break;
 			default:
@@ -2475,6 +2481,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			{
 			case EGB_FUNC_PSET:
 			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_MATTE:
 				MEMSETW_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
 				break;
 			default:
@@ -2487,15 +2494,188 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 	}
 
 	// Note to myself.  High-C's inline _abs is dangerous.
-	wid=(0<dx ? dx : -dx);
-	hei=(0<dy ? dy : -dy);
+	if(dx<0)
+	{
+		struct POINTW p;
+		p=p0;
+		p0=p1;
+		p1=p;
+		dx=-dx;
+		dy=-dy;
+	}
+
+	// Always left to right
+	wid=dx;
+	vx=1;
+	if(0<dy)
+	{
+		hei=dy;
+		vy=1;
+		VRAMStep=ptrSet->mode->bytesPerLine;
+	}
+	else
+	{
+		hei=-dy;
+		vy=-1;
+		VRAMStep=-ptrSet->mode->bytesPerLine;
+	}
+
 	if(hei<wid)
 	{
-		TSUGARU_BREAK;
+		int balance=wid/2;
+		short x=p0.x,y=p0.y;
+		unsigned int vramAddr;
+		_Far unsigned char *VRAM=ptrSet->vram;
+		EGB_CalcVRAMAddr(&vramAddr,x,y,ptrSet->mode);
+
+		switch(ptrSet->mode->bitsPerPixel)
+		{
+		case 1:
+			TSUGARU_BREAK;
+			break;
+		case 4:
+			{
+				unsigned char ANDPtn,ORPtn;
+
+				if(0==(x&1))
+				{
+					ANDPtn=0xF0;
+					ORPtn=(work->color[EGB_FOREGROUND_COLOR]&0x0F);
+				}
+				else
+				{
+					ANDPtn=0x0F;
+					ORPtn=(work->color[EGB_FOREGROUND_COLOR]&0x0F)<<4;
+				}
+
+				for(;;)
+				{
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_MATTE:
+						VRAM[vramAddr]&=ANDPtn;
+						VRAM[vramAddr]|=ORPtn;
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+
+					if(x==p1.x && y==p1.y)
+					{
+						break;
+					}
+
+					if(0xF0==ANDPtn)
+					{
+						ANDPtn=0x0F;
+						ORPtn<<=4;
+					}
+					else
+					{
+						++vramAddr;
+						ANDPtn=0xF0;
+						ORPtn>>=4;
+					}
+					x+=vx;
+					balance-=hei;
+					if(balance<0)
+					{
+						y+=vy;
+						vramAddr+=VRAMStep;
+						balance+=wid;
+					}
+				}
+			}
+			break;
+		case 8:
+			{
+				unsigned char col=work->color[EGB_FOREGROUND_COLOR];
+
+				for(;;)
+				{
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_MATTE:
+						VRAM[vramAddr]=col;
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+
+					if(x==p1.x && y==p1.y)
+					{
+						break;
+					}
+
+					++vramAddr;
+					x+=vx;
+					balance-=hei;
+					if(balance<0)
+					{
+						y+=vy;
+						vramAddr+=VRAMStep;
+						balance+=wid;
+					}
+				}
+			}
+			break;
+		case 16:
+			{
+				unsigned short col=work->color[EGB_FOREGROUND_COLOR];
+
+				for(;;)
+				{
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_MATTE:
+						*((_Far unsigned short *)(VRAM+vramAddr))=col;
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+
+					if(x==p1.x && y==p1.y)
+					{
+						break;
+					}
+
+					vramAddr+=2;
+					x+=vx;
+					balance-=hei;
+					if(balance<0)
+					{
+						y+=vy;
+						vramAddr+=VRAMStep;
+						balance+=wid;
+					}
+				}
+			}
+			break;
+		}
 	}
 	else // if(wid<hei)
 	{
-		TSUGARU_BREAK;
+		int balance=hei/2;
+		short x=p0.x,y=p0.y;
+		while(x!=p1.x || y!=p1.y)
+		{
+			y+=vy;
+			balance-=wid;
+			if(balance<0)
+			{
+				x+=vx;
+				balance+=hei;
+			}
+		}
 	}
 }
 

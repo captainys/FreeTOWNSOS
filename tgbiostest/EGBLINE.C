@@ -14,6 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 << LICENSE */
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "egb.h"
 #include "snd.h"
 #include "io.h"
@@ -55,91 +56,94 @@ void WaitForPad(void)
 	}
 }
 
-int main(void)
+
+
+void Wait3Sec(void)
 {
-	short x,y;
-	short line[5]={2,0,0,0,0};
-	short viewport[4]={19,19,191,191};
+	unsigned int accum=0;
+	clock_t t0=clock();
+	while(accum<CLOCKS_PER_SEC*3)
+	{
+		clock_t t1=clock();
+		accum+=t1-t0;
+		t0=t1;
+	}
+}
 
-	EGB_init(EGB_work,EgbWorkSize);
+void TestLINE(
+	unsigned int lineColor,
+	unsigned int scrnWid,
+	unsigned int scrnHei,
+	int mode)
+{
+	int i;
+	short line[5];
 
+	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,lineColor);
+	EGB_writeMode(EGB_work,mode);
+	EGB_paintMode(EGB_work,0x02);
+	for(i=-10; i<=10; ++i)
+	{
+		line[0]=2;
+		line[1]=0+16*i;
+		line[2]=0-16*i;
+		line[3]=scrnWid+16*i;
+		line[4]=scrnHei-16*i;
+		EGB_connect(EGB_work,line);
+	}
+}
+
+void Test4Bit(void)
+{
 	EGB_resolution(EGB_work,0,3);
-	EGB_resolution(EGB_work,1,10);
+	EGB_resolution(EGB_work,1,3);
 
 	EGB_writePage(EGB_work,1);
-	EGB_displayStart(EGB_work,2,2,2);
-	EGB_displayStart(EGB_work,3,320,240);
 	EGB_clearScreen(EGB_work);
-
-	EGB_writeMode(EGB_work,EGB_PSET);
 
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
 
-	EGB_viewport(EGB_work,viewport);
+	TestLINE(15,640,480,EGB_PSET);
 
-	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,15);
+	Wait3Sec();
+}
 
-	for(y=0; y<=480; y+=20)
-	{
-		line[3]=639;
-		line[4]=y;
-		EGB_connect(EGB_work,line);
-	}
-	for(x=0; x<640; x+=20)
-	{
-		line[3]=x;
-		line[4]=479;
-		EGB_connect(EGB_work,line);
-	}
-
-
-
-	EGB_writePage(EGB_work,1);
-	EGB_color(EGB_work,0,0x1F);
-
-	line[1]=319;
-	line[2]=0;
-	for(y=0; y<=240; y+=10)
-	{
-		line[3]=0;
-		line[4]=y;
-		EGB_connect(EGB_work,line);
-	}
-	for(x=0; x<320; x+=10)
-	{
-		line[3]=x;
-		line[4]=239;
-		EGB_connect(EGB_work,line);
-	}
-
-	WaitForPad();
-
-
+void Test8Bit(void)
+{
 	EGB_resolution(EGB_work,0,12);
 
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
-	EGB_color(EGB_work,0,0xE0);
 
+	TestLINE(255,640,480,EGB_PSET);
 
-	line[1]=0;
-	line[2]=479;
-	for(y=0; y<=480; y+=20)
-	{
-		line[3]=639;
-		line[4]=y;
-		EGB_connect(EGB_work,line);
-	}
-	for(x=0; x<640; x+=20)
-	{
-		line[3]=x;
-		line[4]=0;
-		EGB_connect(EGB_work,line);
-	}
+	Wait3Sec();
+}
 
-	WaitForPad();
+void Test16Bit(void)
+{
+	EGB_resolution(EGB_work,0,10);
+	EGB_resolution(EGB_work,1,10);
 
+	EGB_writePage(EGB_work,1);
+	EGB_clearScreen(EGB_work);
+
+	EGB_writePage(EGB_work,0);
+	EGB_clearScreen(EGB_work);
+
+	TestLINE(32767,640,480,EGB_PSET);
+
+	Wait3Sec();
+}
+
+int main(void)
+{
+	EGB_init(EGB_work,EgbWorkSize);
+
+	Test4Bit();
+	Test8Bit();
+	Test16Bit();
 
 	return 0;
 }

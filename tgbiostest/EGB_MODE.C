@@ -20,6 +20,8 @@ static char EGB_work[EgbWorkSize];
 
 void SetScreenMode(int m1,int m2);
 
+// Confirmed that line-drawing with MATTE is no different from PSET.
+
 // Test 16-color mode
 
 #define EGB_FOREGROUND_COLOR 0
@@ -75,19 +77,22 @@ void Wait3Sec(void)
 void TestMATTE(
 	unsigned int rectColor,
 	unsigned int lineColor,
-	unsigned int trspColor)
+	unsigned int trspColor,
+	int mode)
 {
-	short rect[4]={0,0,320,240};
+	short rect[4]={0,0,319,239};
 
 	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,rectColor);
+	EGB_color(EGB_work,EGB_FILL_COLOR,rectColor);
 	EGB_writeMode(EGB_work,EGB_PSET);
 
+	EGB_paintMode(EGB_work,0x22);
 	EGB_rectangle(EGB_work,(char *)rect);
 
 	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,lineColor);
 	EGB_color(EGB_work,EGB_TRANSPARENT_COLOR,trspColor);
 
-	EGB_writeMode(EGB_work,EGB_MATTE);
+	EGB_writeMode(EGB_work,mode);
 
 	EGB_connect(EGB_work,hishigata);
 	EGB_unConnect(EGB_work,seihou);
@@ -104,7 +109,8 @@ void Test4Bit(void)
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
 
-	TestMATTE(15,0,0);
+	TestMATTE(15,0,0,EGB_PSET);
+	TestMATTE(15,0,0,EGB_MATTE);
 
 	Wait3Sec();
 }
@@ -116,7 +122,8 @@ void Test8Bit(void)
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
 
-	TestMATTE(255,0,0);
+	TestMATTE(255,0,0,EGB_PSET);
+	TestMATTE(255,0,0,EGB_MATTE);
 
 	Wait3Sec();
 }
@@ -132,7 +139,8 @@ void Test16Bit(void)
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
 
-	TestMATTE(255,0,0);
+	TestMATTE(32767,0,0,EGB_PSET);
+	TestMATTE(32767,0,0,EGB_MATTE);
 
 	Wait3Sec();
 }
