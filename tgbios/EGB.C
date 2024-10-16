@@ -588,6 +588,7 @@ void EGB_02H_DISPLAYSTART(
 
 			if(15==mode->KHz)
 			{
+				x0>>=1; // For Alltynex.  I have zero confidence.
 				y0>>=1;
 			}
 			switch(CLKSEL)
