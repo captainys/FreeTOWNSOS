@@ -1798,23 +1798,27 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		info->PCMCh[ch].curPos=0;
 
 		{
+			unsigned int realTotalBytes=sndData->totalBytes;
 			unsigned int bank=info->voiceChannelBank[ch];
 			unsigned int transferSize=_min(PCM_BANK_SIZE*2-256,sndData->totalBytes);
+			unsigned int trailingLoopStopSize=32;
 			_Far unsigned char *waveRAM;
 			_FP_SEG(waveRAM)=SEG_WAVE_RAM;
 			_FP_OFF(waveRAM)=0;
 
-			while(0<transferSize)
+			while(0<transferSize+trailingLoopStopSize)
 			{
+				int i;
 				unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
-				for(int i=0;i<oneTransferSize;i++)
+				for(i=0;i<oneTransferSize;i++)
 				{
 					waveRAM[i]=_min(info->PCMCh[ch].playPtr[i],PCM_LOOP_STOP_CODE-1);
 				}
-				if(oneTransferSize<PCM_BANK_SIZE)
+				for(i=i; i<PCM_BANK_SIZE && 0<trailingLoopStopSize; ++i)
 				{
-					waveRAM[oneTransferSize]=PCM_LOOP_STOP_CODE;
+					waveRAM[i]=PCM_LOOP_STOP_CODE;
+					--trailingLoopStopSize;
 				}
 				transferSize-=oneTransferSize;
 				info->PCMCh[ch].curPos+=oneTransferSize;
@@ -1861,8 +1865,20 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
 
 			_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
-			_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
-			_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
+
+			if(sndData->totalBytes<=PCM_BANK_SIZE*2-256)
+			{
+				unsigned short endAddr=ST;
+				endAddr<<=8;
+				endAddr+=sndData->totalBytes;
+				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
+				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
+			}
+			else
+			{
+				_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
+				_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
+			}
 
 			_outb(TOWNSIO_SOUND_PCM_INT_MASK,info->voiceModeINTMask);
 
