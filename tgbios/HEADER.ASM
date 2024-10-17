@@ -85,6 +85,11 @@ BIOSERR_INVALID_REQUEST	EQU		0FFh
 						EXTRN EGB_ANYCHAR:NEAR
 						EXTRN EGB_UNSUPPORTED:NEAR
 
+						EXTRN FNT_00H_GETANK:NEAR
+						EXTRN FNT_01H_GETKANJI:NEAR
+						EXTRN FNT_02H_SJIS_TO_JIS:NEAR
+						EXTRN FNT_03H_JIS_TO_SJIS:NEAR
+
 						EXTRN SPR_INIT:NEAR
 						EXTRN SPR_DISPLAY:NEAR
 						EXTRN SPR_DEFINE:NEAR
@@ -516,18 +521,38 @@ SND_JUMPTABLE_40H_TO_4AH:
 						DD		SND_49H_ELEVOL_ALL_MUTE
 						DD		SND_4AH_UNPUBLISHED_FUNCTION
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 FNT						PROC	FAR
-						TSUGARU_BREAK;
+						SAVE_WORLD
+
+						CMP		AH,4
+						JAE		FNT_ERROR
+
+						MOVZX	EBP,AH
+						CALL	DWORD PTR CS:[FNT_JUMPTABLE+EBP*4]
+
+						RESTORE_WORLD
+						RET
+
+FNT_ERROR:
+						RESTORE_WORLD
+						MOV		AH,0FFh
 						RET
 FNT						ENDP
+
+FNT_JUMPTABLE:
+						DD		FNT_00H_GETANK,FNT_01H_GETKANJI,FNT_02H_SJIS_TO_JIS,FNT_03H_JIS_TO_SJIS
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 MIDI					PROC	FAR
 						TSUGARU_BREAK;
 						RET
 MIDI					ENDP
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 SNDINT_JUMPTABLE:
 						DD		SNDINT_01H_REGISTER_MOUSE_INT

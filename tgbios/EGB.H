@@ -244,4 +244,8 @@ void EGB_MakeP0SmallerThanP1(struct POINTW *p0,struct POINTW *p1);
 
 void SwapShort(short *a,short *b);
 
+unsigned short EGB_SJIS2JIS(unsigned short sjis);
+unsigned short EGB_JIS2SJIS(unsigned short jis);
+unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis);
+
 #endif

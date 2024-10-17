@@ -111,7 +111,7 @@ void EGB_FONTSTYLE(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-static unsigned short EGB_SJIS2JIS(unsigned short sjis)
+unsigned short EGB_SJIS2JIS(unsigned short sjis)
 {
 	unsigned s1=sjis>>8;
 	unsigned s2=sjis&0xff;
@@ -144,7 +144,7 @@ static unsigned short EGB_SJIS2JIS(unsigned short sjis)
 	return ((k+0x20)<<8)|(t+0x20);
 }
 
-static unsigned short EGB_JIS2SJIS(unsigned short jis)
+unsigned short EGB_JIS2SJIS(unsigned short jis)
 {
 	unsigned k=(jis>>8)-0x20;
 	unsigned t=(jis&0xFF)-0x20;
