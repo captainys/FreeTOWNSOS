@@ -93,6 +93,23 @@ unsigned short RF5C68_CalculateVolume(unsigned short vol1,unsigned short vol2)
 	return _min(255,(vol1>>6));
 }
 
+unsigned int RF5C68_CalculatePlaybackFrequency(
+		unsigned int baseFreq,
+		unsigned int note,
+		unsigned int baseNote)
+{
+	// This base Freq is KHz*0x62.  Why 0x62?  Why not 0x64 (100)?
+	// I don't know, but this number seems to be correct.
+	baseFreq*=1000;
+	baseFreq/=0x62;
+	// Now baseFreq is in Hz.
+
+	// If I play it back at baseFreq, I'll get note of baseNote.
+	unsigned int freqScale=GetFreqScale(note,baseNote);
+
+	return MUL_SHR(baseFreq,freqScale,20);
+}
+
 unsigned int YM2612_AlgorithmToCarrierSlot(unsigned int algo)
 {
 	switch(algo)
@@ -395,16 +412,10 @@ void SND_KEY_ON(
 				// What to do with the frequency?
 				unsigned int baseFreq=sound->snd.sampleFreq+sound->snd.sampleFreqCorrection;
 
-				// This base Freq is KHz*0x62.  Why 0x62?  Why not 0x64 (100)?
-				// I don't know, but this number seems to be correct.
-				baseFreq*=1000;
-				baseFreq/=0x62;
-				// Now baseFreq is in Hz.
-
-				// If I play it back at baseFreq, I'll get note of baseNote.
-				unsigned int freqScale=GetFreqScale(note,sound->snd.baseNote);
-
-				unsigned int playFreq=MUL_SHR(baseFreq,freqScale,20);
+				unsigned int playFreq=RF5C68_CalculatePlaybackFrequency(
+					baseFreq,
+					note,
+					sound->snd.baseNote);
 
 				stat->PCMCh[ch].playFreq=playFreq;
 				if(0!=stat->PCMCh[ch].pitchBend)
@@ -1793,8 +1804,31 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 		}
 
 		{
-			unsigned short FD=0x1000;  // Address Step.  1x times=4096
+			// What to do with the frequency?
+			unsigned int baseFreq=sndData->sampleFreq+sndData->sampleFreqCorrection;
+
+			unsigned int playFreq=RF5C68_CalculatePlaybackFrequency(
+				baseFreq,
+				note,
+				sndData->baseNote);
+
+			info->PCMCh[ch].playFreq=playFreq;
+			if(0!=info->PCMCh[ch].pitchBend)
+			{
+				playFreq=RF5C68_ApplyPitchBend(playFreq,info->PCMCh[ch].pitchBend);
+			}
+
+			// PCM Frequency is 20725Hz according to the analysis done during Tsugaru development.
+			// I am still not sure where this 20725Hz is coming from.
+			// PCM Stride 1X is (1<<11)=0x0800
+
+			// But, there is a possibility that from VM point of view, it may be 20000Hz.
+
+			unsigned int stride=MULDIV(0x800,playFreq,PCM_NATIVE_FREQUENCY);
+
 			unsigned short ST=info->voiceChannelBank[ch];
+
+			// 
 
 			// ST is the high-byte of the starting address, therefore, ST<<=12 to make it full address,
 			// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
@@ -1804,8 +1838,8 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			_outb(TOWNSIO_SOUND_PCM_ENV,info->PCMCh[ch].playVol);  // 0-255?
 			_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
 
-			_outb(TOWNSIO_SOUND_PCM_FDL,FD);
-			_outb(TOWNSIO_SOUND_PCM_FDH,FD>>8);
+			_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
+			_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
 
 			_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
 			_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
