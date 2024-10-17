@@ -213,7 +213,7 @@ void SND_INIT(
 		status->PCMCh[i].playing=0;
 		status->PCMCh[i].instrument=0;
 		status->PCMCh[i].vol=127; // FM TOWNS Technical Databook p.415 tells the default volume is 127.
-		status->FMCh[i].vol_key=0;
+		status->PCMCh[i].vol_key=0;
 		status->PCMCh[i].pan=0x77;
 	}
 	status->PCMKey=0xFF;
@@ -476,7 +476,8 @@ void SND_KEY_OFF(
 	unsigned char ch=EBX;
 	if(SND_Is_FM_Channel(ch))
 	{
-		YM2612_Write(0,0x28,0x00|ch);
+		unsigned int regSet=ch/3;
+		YM2612_Write(0,0x28,0x00|(ch+regSet));
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
