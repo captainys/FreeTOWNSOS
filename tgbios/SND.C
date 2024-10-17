@@ -1517,14 +1517,33 @@ void SND_27H_PCM_PCM_VOICE_STOP(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
-
 	// Memo: Make sure to CLI while updating channel info and PCM registers.
+	_Far struct SND_Status *stat=SND_GetStatus();
 
+	unsigned char ch=EBX;
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+
+	if(0==SND_Is_PCM_Channel(ch))
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+		return;
+	}
+	ch-=SND_PCM_CHANNEL_START;
+	unsigned char keyFlag=(1<<ch);
+
+	if(ch<SND_NUM_PCM_CHANNELS-stat->numVoiceModeChannels)
+	{
+		SND_SetError(EAX,SND_ERROR_PARAMETER);
+		return;
+	}
+
+	_PUSHFD
+	_CLI
+
+	stat->PCMKey|=keyFlag;
+	_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+
+	_POPFD
 }
 
 void SND_28H_PCM_PCM_VOICE_STATUS(
