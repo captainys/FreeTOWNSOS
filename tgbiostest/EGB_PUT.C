@@ -132,6 +132,35 @@ void TestPUTBLOCK_1BIT(
 	EGB_putBlockColor(EGB_work,0,(char *)&bmp);
 }
 
+void TestPUTBLOCK_1BIT_VIEWPORT(
+	unsigned int fgColor,
+	unsigned int bgColor,
+	int mode)
+{
+	short viewport[4]={10,10,300,220};
+	int x,y;
+
+	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,fgColor);
+	EGB_color(EGB_work,EGB_BACKGROUND_COLOR,bgColor);
+	EGB_writeMode(EGB_work,mode);
+	EGB_paintMode(EGB_work,0x02);
+	EGB_viewport(EGB_work,viewport);
+
+	for(y=0; y<240; y+=64)
+	{
+		for(x=0; x<320; x+=64)
+		{
+			struct BitmapHeader bmp;
+			bmp.ptn=AOMORI;
+			bmp.x0=x;
+			bmp.y0=y;
+			bmp.x1=x+63;
+			bmp.y1=y+63;
+			EGB_putBlockColor(EGB_work,1,(char *)&bmp);
+		}
+	}
+}
+
 void Test4Bit(void)
 {
 	EGB_resolution(EGB_work,0,3);
@@ -146,6 +175,10 @@ void Test4Bit(void)
 	TestPUTBLOCK_1BIT(15,0,EGB_PSET);
 
 	Wait3Sec();
+
+	TestPUTBLOCK_1BIT_VIEWPORT(12,0,EGB_PSET);
+
+	Wait3Sec();
 }
 
 void Test8Bit(void)
@@ -156,6 +189,10 @@ void Test8Bit(void)
 	EGB_clearScreen(EGB_work);
 
 	TestPUTBLOCK_1BIT(255,0,EGB_PSET);
+
+	Wait3Sec();
+
+	TestPUTBLOCK_1BIT_VIEWPORT(63,0,EGB_PSET);
 
 	Wait3Sec();
 }
@@ -172,6 +209,10 @@ void Test16Bit(void)
 	EGB_clearScreen(EGB_work);
 
 	TestPUTBLOCK_1BIT(32767,0x8000,EGB_PSET);
+
+	Wait3Sec();
+
+	TestPUTBLOCK_1BIT_VIEWPORT(0x7C00,0x8000,EGB_PSET);
 
 	Wait3Sec();
 }

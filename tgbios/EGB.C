@@ -887,7 +887,34 @@ void EGB_VIEWPORT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work;
+	_FP_SEG(work)=GS;
+	_FP_OFF(work)=EDI;
+
+	_Far const short *rect;
+	_FP_SEG(rect)=DS;
+	_FP_OFF(rect)=ESI;
+
+	struct POINTW p0,p1;
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+
+	if(ptrSet.page)
+	{
+		p0.x=rect[0];
+		p0.y=rect[1];
+		p1.x=rect[2];
+		p1.y=rect[3];
+
+		EGB_MakeP0SmallerThanP1(&p0,&p1);
+
+		p0.x=_max(0,p0.x);
+		p0.y=_max(0,p0.y);
+		p1.x=_min(ptrSet.mode->size.x-1,p1.x);
+		p1.y=_min(ptrSet.mode->size.y-1,p1.y);
+
+		ptrSet.page->viewport[0]=p0;
+		ptrSet.page->viewport[1]=p1;
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1803,6 +1830,11 @@ void EGB_23H_PUTBLOCK1BIT(
 	else
 	{
 		unsigned int xSkip=0,ySkip=0;
+		unsigned int srcWid;
+		unsigned int srcBytesPerLine;
+		srcWid=p1.x-p0.x+1;
+		srcBytesPerLine=(srcWid+7)/8;
+
 		if(p0.x<viewport[0].x)
 		{
 			xSkip=viewport[0].x-p0.x;
@@ -1815,14 +1847,231 @@ void EGB_23H_PUTBLOCK1BIT(
 		}
 
 		p1.x=_min(viewport[1].x,p1.x);
-		p1.y=_min(viewport[1].y,p1.y)
+		p1.y=_min(viewport[1].y,p1.y);
+		if(viewport[1].x<p1.x)
 		{
 			p1.x=viewport[1].x;
 		}
 
-		// To be completed.
+		unsigned int vramOffset=EGB_CoordToVRAMOffset(pointerSet.mode,p0.x,p0.y);
+		if(1==pointerSet.mode->bitsPerPixel)
+		{
+			// I'll come back when someone do it.
+			TSUGARU_BREAK;
+		}
+		else
+		{
+			int x,y;
+			_Far unsigned char *src=blkInfo->data+ySkip*srcBytesPerLine;
+			_Far unsigned char *vram=pointerSet.vram+vramOffset,*nextVram;
 
-		TSUGARU_BREAK;
+			switch(pointerSet.mode->bitsPerPixel)
+			{
+			case 1:
+				TSUGARU_BREAK;
+				break;
+			case 4:
+				{
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned char fgCol=work->color[EGB_FOREGROUND_COLOR]&0x0F;
+						unsigned char bgCol=work->color[EGB_BACKGROUND_COLOR]&0x0F;
+						unsigned char ANDPtn;
+						unsigned char bitCount=0,bits;
+						_Far unsigned char *nextSrc=src+srcBytesPerLine;
+						if(0==(p0.x&1))
+						{
+							ANDPtn=0xF0;
+						}
+						else
+						{
+							ANDPtn=0x0F;
+							fgCol<<=4;
+							bgCol<<=4;
+						}
+
+						nextVram=vram+pointerSet.mode->bytesPerLine;
+						src+=(xSkip/8);
+						bits=*src;
+						bitCount=xSkip%8;
+						bits<<=bitCount;
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							switch(work->drawingMode)
+							{
+							case EGB_FUNC_OPAQUE:
+								*vram&=ANDPtn;
+								if(bits&0x80)
+								{
+									*vram|=fgCol;
+								}
+								else
+								{
+									*vram|=bgCol;
+								}
+								break;
+							case EGB_FUNC_PSET:
+							case EGB_FUNC_MATTE:
+								if(bits&0x80)
+								{
+									*vram&=ANDPtn;
+									*vram|=fgCol;
+								}
+								break;
+							default:
+								TSUGARU_BREAK;
+								break;
+							}
+
+							if(0xF0==ANDPtn)
+							{
+								ANDPtn=0x0F;
+								fgCol<<=4;
+								bgCol<<=4;
+							}
+							else
+							{
+								ANDPtn=0xF0;
+								fgCol>>=4;
+								bgCol>>=4;
+								++vram;
+							}
+
+							bits<<=1;
+							++bitCount;
+							if(8==bitCount)
+							{
+								bitCount=0;
+								bits=*(++src);
+							}
+						}
+						if(0!=bitCount)
+						{
+							++src;
+						}
+						vram=nextVram;
+						src=nextSrc;
+					}
+				}
+				break;
+			case 8:
+				{
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned char fgCol=work->color[EGB_FOREGROUND_COLOR];
+						unsigned char bgCol=work->color[EGB_BACKGROUND_COLOR];
+						unsigned char bitCount=0,bits;
+						_Far unsigned char *nextSrc=src+srcBytesPerLine;
+
+						nextVram=vram+pointerSet.mode->bytesPerLine;
+						src+=(xSkip/8);
+						bits=*src;
+						bitCount=xSkip%8;
+						bits<<=bitCount;
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							switch(work->drawingMode)
+							{
+							case EGB_FUNC_OPAQUE:
+								if(bits&0x80)
+								{
+									*vram=fgCol;
+								}
+								else
+								{
+									*vram=bgCol;
+								}
+								break;
+							case EGB_FUNC_PSET:
+							case EGB_FUNC_MATTE:
+								if(bits&0x80)
+								{
+									*vram=fgCol;
+								}
+								break;
+							default:
+								TSUGARU_BREAK;
+								break;
+							}
+							++vram;
+
+							bits<<=1;
+							++bitCount;
+							if(8==bitCount)
+							{
+								bitCount=0;
+								bits=*(++src);
+							}
+						}
+						if(0!=bitCount)
+						{
+							++src;
+						}
+						vram=nextVram;
+						src=nextSrc;
+					}
+				}
+				break;
+			case 16:
+				{
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned short fgCol=work->color[EGB_FOREGROUND_COLOR];
+						unsigned short bgCol=work->color[EGB_BACKGROUND_COLOR];
+						unsigned char bitCount=0,bits;
+						_Far unsigned char *nextSrc=src+srcBytesPerLine;
+
+						nextVram=vram+pointerSet.mode->bytesPerLine;
+						src+=(xSkip/8);
+						bits=*src;
+						bitCount=xSkip%8;
+						bits<<=bitCount;
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							switch(work->drawingMode)
+							{
+							case EGB_FUNC_OPAQUE:
+								if(bits&0x80)
+								{
+									*((_Far unsigned short *)vram)=fgCol;
+								}
+								else
+								{
+									*((_Far unsigned short *)vram)=bgCol;
+								}
+								break;
+							case EGB_FUNC_PSET:
+							case EGB_FUNC_MATTE:
+								if(bits&0x80)
+								{
+									*((_Far unsigned short *)vram)=fgCol;
+								}
+								break;
+							default:
+								TSUGARU_BREAK;
+								break;
+							}
+							vram+=2;
+
+							bits<<=1;
+							++bitCount;
+							if(8==bitCount)
+							{
+								bitCount=0;
+								bits=*(++src);
+							}
+						}
+						if(0!=bitCount)
+						{
+							++src;
+						}
+						vram=nextVram;
+						src=nextSrc;
+					}
+				}
+				break;
+			}
+		}
 	}
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
