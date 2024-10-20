@@ -128,6 +128,9 @@ unsigned int EGB_CoordToVRAMOffset(_Far struct EGB_ScreenMode *mode,int x,int y)
 	case 4:
 		addr+=(x>>1);
 		break;
+	case 8:
+		addr+=x;
+		break;
 	case 16:
 		addr+=(x<<1);
 		break;
