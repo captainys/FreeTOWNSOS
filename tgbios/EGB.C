@@ -1527,7 +1527,7 @@ void EGB_23H_PUTBLOCK1BIT(
 	_FP_OFF(work)=EDI;
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	struct POINTW p0,p1;
+	struct POINTW p0,p1,viewport[2];
 
 	if(NULL==pointerSet.page)
 	{
@@ -1562,6 +1562,11 @@ void EGB_23H_PUTBLOCK1BIT(
 			EGB_SetError(EAX,EGB_GENERAL_ERROR);
 			return;
 		}
+
+		viewport[0].x=0;
+		viewport[0].y=0;
+		viewport[1].x=pointerSet.mode->size.x-1;
+		viewport[1].y=pointerSet.mode->size.y-1;
 	}
 	else
 	{
@@ -1578,6 +1583,9 @@ void EGB_23H_PUTBLOCK1BIT(
 		{
 			flags&=0xFE; // Entirely inide the viewport.  Don't have to be worried about the viewport.
 		}
+
+		viewport[0]=pointerSet.page->viewport[0];
+		viewport[1]=pointerSet.page->viewport[1];
 	}
 
 
@@ -1794,7 +1802,26 @@ void EGB_23H_PUTBLOCK1BIT(
 	}
 	else
 	{
-		// I'll come back when someone do it.
+		unsigned int xSkip=0,ySkip=0;
+		if(p0.x<viewport[0].x)
+		{
+			xSkip=viewport[0].x-p0.x;
+			p0.x=viewport[0].x;
+		}
+		if(p0.y<viewport[0].y)
+		{
+			ySkip=viewport[0].y-p0.y;
+			p0.y=viewport[0].y;
+		}
+
+		p1.x=_min(viewport[1].x,p1.x);
+		p1.y=_min(viewport[1].y,p1.y)
+		{
+			p1.x=viewport[1].x;
+		}
+
+		// To be completed.
+
 		TSUGARU_BREAK;
 	}
 
