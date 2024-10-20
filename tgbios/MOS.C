@@ -18,10 +18,11 @@
 struct MOS_Status
 {
 	unsigned char activeFlag; // b0:Mouse BIOS started  b1:Handling Interrupt  b2:Drawing
-	unsigned char show;
+	unsigned short showLevel;
 	unsigned char swapLR;
 	unsigned char port;
 	unsigned short color;
+	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
 	unsigned char PSETPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
 	unsigned char ANDPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
@@ -69,9 +70,110 @@ const unsigned char defCursorANDPtn[]=
 0xFF,0xFF, // 11111111 11111111
 };
 
+void MOS_ReadRaw(unsigned char data[4],int port)
+{
+	// Sequence:
+	//   (1) Write COM=1
+	//   (2) Read X-High
+	//   (3) Write COM=0
+	//   (4) Read X-Low
+	//   (5) Write COM=1
+	//   (6) Read Y-High
+	//   (7) Write COM=0
+	//   (8) Read Y-Low
+	// Question:
+	//   How much I should wait between each read?
+	//   Prob 10us?
+
+	unsigned short IOinput;
+	unsigned char COMOn;
+	const unsigned char COMOff=0x0F;
+
+	if(0==port)
+	{
+		IOinput=TOWNSIO_GAMEPORT_A_INPUT;
+		COMOn=0x1F;
+	}
+	else
+	{
+		IOinput=TOWNSIO_GAMEPORT_B_INPUT;
+		COMOn=0x2F;
+	}
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOn);
+
+	_WAITxUS(80);	// min TCS1=80us FM TOWNS Technical Databook p.241
+
+	data[0]=_inb(IOinput);
+
+	_WAITxUS(20);	// Another 20us before clearing COM
+
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOff);
+
+	_WAITxUS(40);	// min TCS2 is 40us.
+
+	data[1]=_inb(IOinput);
+
+	_WAITxUS(10);	// Another 10us before setting COM
+
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOn);
+
+	_WAITxUS(40);	// min TCS3 is 40us.
+
+	data[2]=_inb(IOinput);
+
+	_WAITxUS(10);	// Another 10us before clearing COM
+
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOff);
+
+	_WAITxUS(40);	// min TCS3 is 40us.
+
+	data[3]=_inb(IOinput);
+}
+
+int MOS_ReadBtnDXDY(char *btn,char *dx,char *dy,int port)
+{
+	unsigned char data[4];
+	MOS_ReadRaw(data,port);
+
+	*dx=(data[0]<<4)|(data[1]&0x0F);
+	*dy=(data[2]<<4)|(data[3]&0x0F);
+	*btn=(data[0]>>4)&3;
+
+	return 0;
+}
+
 int MOS_TestGamePort(int port)
 {
-	return 0;
+	int i;
+	for(i=0; i<3; ++i)
+	{
+		unsigned char data[4];
+		MOS_ReadRaw(data,port);
+
+		data[0]&=0x0F;
+		data[1]&=0x0F;
+		data[2]&=0x0F;
+		data[3]&=0x0F;
+
+		if(0==(data[0]|data[1]|data[2]|data[3]))
+		{
+			// Unless RUN & Select are both held down, all zero must mean mouse.
+			return 1;
+		}
+		else if(data[0]==data[1] && data[1]==data[2] && data[2]==data[3])
+		{
+			// Unless the user is precisely moving mouse 45 degrees with respect to the mouse axes to make dx=dy=-1, the value should change.
+			// If non-zero and equal, it must be game pad.
+			return 0;
+		}
+	}
+	// If the user was constantly moving the mouse, neither of the above condition will become true.
+	// So, if the above loop exits, most likely it was mouse, but the user was constantly moving it.
+	return 1;
 }
 
 void MOS_00H_START(
@@ -94,6 +196,9 @@ void MOS_00H_START(
 	stat->activeFlag=MOS_ACTIVEFLAG_BIOS_STARTED;
 	stat->port=PORT_NOT_FOUND;
 
+	stat->pulsePerPixel.x=8;	// FM TOWNS Technical Databook p.389
+	stat->pulsePerPixel.y=8;
+
 	_Far unsigned char *ptnSrc;
 	_FP_SEG(ptnSrc)=SEG_TGBIOS_CODE;
 	_FP_OFF(ptnSrc)=(unsigned int)defCursorPtn;
@@ -109,8 +214,6 @@ void MOS_00H_START(
 	{
 		stat->port=0;
 	}
-
-	TSUGARU_BREAK
 }
 
 void MOS_01H_END(
@@ -317,7 +420,14 @@ void MOS_0CH_PULSE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	unsigned char DH=EDX>>8;
+	unsigned char DL=EDX;
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+
+	stat->pulsePerPixel.x=_max(1,DH);
+	stat->pulsePerPixel.y=_max(1,DL);
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_0DH_RESOLUTION(
@@ -436,7 +546,9 @@ void MOS_13H_BTNXCHG(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	stat->swapLR=EAX;
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_14H_ACCELERATION(

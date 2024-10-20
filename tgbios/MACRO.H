@@ -14,4 +14,7 @@
 #define _POP_FS  _inline(0x0F,0xA1);
 #define _POP_GS  _inline(0x0F,0xA9);
 
+#define _WAIT1US _inline(0xE6,0x6C);
+#define _WAITxUS(x) {int i;for(i=0; i<(x); ++i){_inline(0xE6,0x6C);}}
+
 #endif
