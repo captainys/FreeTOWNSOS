@@ -1244,7 +1244,7 @@ void SND_FM_LFO_SET(
 
 	val=EDX&0xff;
 
-	if(val<=9)
+	if(val>=9)
 	{
 		val=SND_ERROR_PARAMETER;
 	}
