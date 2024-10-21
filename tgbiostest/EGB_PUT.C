@@ -18,6 +18,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "egb.h"
 #include "snd.h"
 #include "io.h"
+#include "DUCK.H"
 
 static char EGB_work[EgbWorkSize];
 
@@ -161,6 +162,52 @@ void TestPUTBLOCK_1BIT_VIEWPORT(
 	}
 }
 
+void TestPUTBLOCK_COLOR(
+	int mode,
+	int wid,int hei,
+	const unsigned char ptn[])
+{
+	struct BitmapHeader bmp;
+	bmp.ptn=ptn;
+	bmp.x0=0;
+	bmp.y0=0;
+	bmp.x1=wid-1;
+	bmp.y1=hei-1;
+
+	EGB_writeMode(EGB_work,mode);
+	EGB_paintMode(EGB_work,0x02);
+	EGB_putBlock(EGB_work,0,(char *)&bmp);
+}
+
+void TestPUTBLOCK_COLOR_VIEWPORT(
+	int mode,
+	int wid,int hei,
+	const unsigned char ptn[])
+{
+	short viewport[4]={10,10,300,200};
+	int x,y;
+
+	EGB_writeMode(EGB_work,mode);
+	EGB_paintMode(EGB_work,0x02);
+	EGB_viewport(EGB_work,viewport);
+
+	for(y=0; y<240; y+=wid)
+	{
+		for(x=0; x<320; x+=wid)
+		{
+			struct BitmapHeader bmp;
+			bmp.ptn=ptn;
+			bmp.x0=x;
+			bmp.y0=y;
+			bmp.x1=x+wid-1;
+			bmp.y1=y+hei-1;
+			EGB_putBlock(EGB_work,1,(char *)&bmp);
+		}
+	}
+}
+
+
+
 void Test4Bit(void)
 {
 	EGB_resolution(EGB_work,0,3);
@@ -215,6 +262,14 @@ void Test16Bit(void)
 	TestPUTBLOCK_1BIT_VIEWPORT(0x7C00,0x8000,EGB_PSET);
 
 	Wait3Sec();
+
+	TestPUTBLOCK_COLOR(EGB_PSET,duckywid,duckyhei,(unsigned char *)duck16);
+
+	Wait3Sec();
+
+	TestPUTBLOCK_COLOR_VIEWPORT(EGB_PSET,duckywid,duckyhei,(unsigned char *)duck16);
+
+	Wait3Sec();
 }
 
 void Swap(char *a,char *b)
@@ -240,8 +295,8 @@ int main(void)
 		Swap(&AOMORI[y*8+7],&AOMORI[(63-y)*8+7]);
 	}
 
-	Test4Bit();
-	Test8Bit();
+	//Test4Bit();
+	//Test8Bit();
 	Test16Bit();
 
 	return 0;

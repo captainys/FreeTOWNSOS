@@ -2374,7 +2374,7 @@ void EGB_25H_PUTBLOCK(
 	_FP_OFF(work)=EDI;
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
-	struct POINTW p0,p1;
+	struct POINTW p0,p1,viewport[2];
 
 	if(NULL==pointerSet.page)
 	{
@@ -2409,6 +2409,11 @@ void EGB_25H_PUTBLOCK(
 			EGB_SetError(EAX,EGB_GENERAL_ERROR);
 			return;
 		}
+
+		viewport[0].x=0;
+		viewport[0].y=0;
+		viewport[1].x=pointerSet.mode->size.x-1;
+		viewport[1].y=pointerSet.mode->size.y-1;
 	}
 	else
 	{
@@ -2425,6 +2430,9 @@ void EGB_25H_PUTBLOCK(
 		{
 			flags&=0xFE; // Entirely inide the viewport.  Don't have to be worried about the viewport.
 		}
+
+		viewport[0]=pointerSet.page->viewport[0];
+		viewport[1]=pointerSet.page->viewport[1];
 	}
 
 
@@ -2450,7 +2458,7 @@ void EGB_25H_PUTBLOCK(
 		break;
 	}
 
-	if(0==(flags&1))
+	if(0==(flags&1)) // Fully inside the viewport or screen
 	{
 		unsigned int vramOffset=EGB_CoordToVRAMOffset(pointerSet.mode,p0.x,p0.y);
 		if(1==pointerSet.mode->bitsPerPixel)
@@ -2629,10 +2637,216 @@ void EGB_25H_PUTBLOCK(
 			}
 		}
 	}
-	else
+	else // Partially visible.
 	{
-		// I'll come back when someone do it.
-		TSUGARU_BREAK;
+		unsigned int xSkip=0,ySkip=0;
+
+		if(p0.x<viewport[0].x)
+		{
+			xSkip=viewport[0].x-p0.x;
+			p0.x=viewport[0].x;
+		}
+		if(p0.y<viewport[0].y)
+		{
+			ySkip=viewport[0].y-p0.y;
+			p0.y=viewport[0].y;
+		}
+
+		p1.x=_min(viewport[1].x,p1.x);
+		p1.y=_min(viewport[1].y,p1.y);
+		if(viewport[1].x<p1.x)
+		{
+			p1.x=viewport[1].x;
+		}
+
+		unsigned int vramOffset=EGB_CoordToVRAMOffset(pointerSet.mode,p0.x,p0.y);
+		if(1==pointerSet.mode->bitsPerPixel)
+		{
+			// I'll come back when someone do it.
+			TSUGARU_BREAK;
+		}
+		else
+		{
+			int x,y;
+			_Far unsigned char *src=blkInfo->data+srcBytesPerLine*ySkip;
+			_Far unsigned char *vram=pointerSet.vram+vramOffset;
+			switch(work->drawingMode)
+			{
+			case EGB_FUNC_OPAQUE:
+			case EGB_FUNC_PSET:
+				switch(pointerSet.mode->bitsPerPixel)
+				{
+				case 1:
+					TSUGARU_BREAK
+					break;
+				case 4:
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						_Far unsigned char *srcPtr,*dstPtr;
+						unsigned char srcShift=0,dstAndPtn=0x0F,dstShift=4;
+						srcPtr=src+xSkip/2;
+						dstPtr=vram;
+						if(p0.x&1)
+						{
+							dstAndPtn=0xF0;
+							dstShift=0;
+						}
+						if(xSkip&1)
+						{
+							srcShift=4;
+						}
+
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							unsigned short srcColor;
+							srcColor=((*srcPtr)>>srcShift)&0x0F;
+
+							*dstPtr&=dstAndPtn;
+							*dstPtr|=(srcColor<<dstShift);
+
+							dstAndPtn=~dstAndPtn;
+							dstShift=4-dstShift;
+							if(4==dstShift)
+							{
+								++dstPtr;
+							}
+							srcShift=4-srcShift;
+							if(4==srcShift)
+							{
+								++srcPtr;
+							}
+						}
+					}
+				case 8:
+					transferBytesPerLine=p1.x-p0.x+1;
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						src+=xSkip;
+						MEMCPY_FAR(vram,src,transferBytesPerLine);
+						src+=(srcBytesPerLine-xSkip);
+						vram+=pointerSet.mode->bytesPerLine;
+					}
+					break;
+				case 16:
+					transferBytesPerLine=p1.x-p0.x+1;
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						src+=xSkip*2;
+						MEMCPY_FAR(vram,src,transferBytesPerLine*2);
+						src+=(srcBytesPerLine-xSkip*2);
+						vram+=pointerSet.mode->bytesPerLine;
+					}
+					break;
+				}
+				break;
+			case EGB_FUNC_MATTE:
+				{
+					unsigned short transparentColor=work->color[EGB_TRANSPARENT_COLOR];
+					switch(pointerSet.mode->bitsPerPixel)
+					{
+					case 1:
+						transparentColor&=1;
+						break;
+					case 4:
+						transparentColor&=1;
+						break;
+					case 8:
+						transparentColor&=255;
+						break;
+					case 16:
+						transparentColor&=0x7FFF;
+						break;
+					}
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						switch(pointerSet.mode->bitsPerPixel)
+						{
+						case 1:
+							TSUGARU_BREAK;
+							break;
+						case 4:
+							{
+								_Far unsigned char *srcPtr,*dstPtr;
+								unsigned char srcShift=0,dstAndPtn=0x0F,dstShift=4;
+								srcPtr=src+xSkip/2;
+								dstPtr=vram;
+								if(p0.x&1)
+								{
+									dstAndPtn=0xF0;
+									dstShift=0;
+								}
+								if(xSkip&1)
+								{
+									srcShift=4;
+								}
+
+								for(x=p0.x; x<=p1.x; ++x)
+								{
+									unsigned short srcColor;
+									srcColor=((*srcPtr)>>srcShift)&0x0F;
+									if(srcColor!=transparentColor)
+									{
+										*dstPtr&=dstAndPtn;
+										*dstPtr|=(srcColor<<dstShift);
+									}
+									dstAndPtn=~dstAndPtn;
+									dstShift=4-dstShift;
+									if(4==dstShift)
+									{
+										++dstPtr;
+									}
+									srcShift=4-srcShift;
+									if(4==srcShift)
+									{
+										++srcPtr;
+									}
+								}
+							}
+							break;
+						case 8:
+							{
+								_Far unsigned char *srcPtr,*dstPtr;
+								srcPtr=src+xSkip;
+								dstPtr=vram;
+								for(x=p0.x; x<=p1.x; ++x)
+								{
+									if(*srcPtr!=transparentColor)
+									{
+										*dstPtr=*srcPtr;
+									}
+									++dstPtr;
+									++srcPtr;
+								}
+							}
+							break;
+						case 16:
+							{
+								_Far unsigned short *srcPtr,*dstPtr;
+								srcPtr=(_Far unsigned short *)src;
+								srcPtr+=xSkip;
+								dstPtr=(_Far unsigned short *)vram;
+								for(x=p0.x; x<=p1.x; ++x)
+								{
+									if(*srcPtr!=transparentColor)
+									{
+										*dstPtr=*srcPtr;
+									}
+									++dstPtr;
+									++srcPtr;
+								}
+							}
+							break;
+						}
+						src+=srcBytesPerLine;
+						vram+=pointerSet.mode->bytesPerLine;
+					}
+				}
+				break;
+			default:
+				TSUGARU_BREAK;
+				break;
+			}
+		}
 	}
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
