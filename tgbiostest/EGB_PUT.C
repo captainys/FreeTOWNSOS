@@ -230,6 +230,9 @@ void Test4Bit(void)
 
 void Test8Bit(void)
 {
+	unsigned int palette[513];
+	unsigned char ptn[32*32];
+
 	EGB_resolution(EGB_work,0,12);
 
 	EGB_writePage(EGB_work,0);
@@ -240,6 +243,17 @@ void Test8Bit(void)
 	Wait3Sec();
 
 	TestPUTBLOCK_1BIT_VIEWPORT(63,0,EGB_PSET);
+
+	Wait3Sec();
+
+	MakeDuck256(palette,ptn);
+
+	EGB_palette(EGB_work,0,palette);
+	TestPUTBLOCK_COLOR(EGB_PSET,duckywid,duckyhei,(unsigned char *)ptn);
+
+	Wait3Sec();
+
+	TestPUTBLOCK_COLOR_VIEWPORT(EGB_PSET,duckywid,duckyhei,(unsigned char *)ptn);
 
 	Wait3Sec();
 }
@@ -296,7 +310,7 @@ int main(void)
 	}
 
 	//Test4Bit();
-	//Test8Bit();
+	Test8Bit();
 	Test16Bit();
 
 	return 0;

@@ -69,3 +69,48 @@ unsigned short duck16[32*32]={
      0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
 };
+
+void MakeDuck256(unsigned int palette[513],unsigned char ptn[32*32])
+{
+	unsigned int i,used=0;
+	palette[0]=256;
+	for(i=0; i<duckywid*duckyhei; ++i)
+	{
+		unsigned int r,g,b,j,rgb;
+		g=(duck16[i]>>10);
+		r=(duck16[i]>>5)&0x1F;
+		b= duck16[i]&0x1F;
+
+		g=(g<<3)|(g>>2);
+		r=(r<<3)|(r>>2);
+		b=(b<<3)|(b>>2);
+
+		rgb=b|(r<<8)|(g<<16);
+
+		for(j=0; j<used; ++j)
+		{
+			if(palette[1+j*2+1]==rgb)
+			{
+				ptn[i]=palette[1+j*2];
+				goto NEXTI;
+			}
+		}
+
+		if(used<256)
+		{
+			palette[1+used*2]=used;
+			palette[2+used*2]=rgb;
+			ptn[i]=used;
+			++used;
+		}
+		else
+		{
+			ptn[i]=0;
+		}
+
+	NEXTI:
+		;
+	}
+
+	palette[0]=used;
+}
