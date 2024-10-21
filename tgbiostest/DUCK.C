@@ -70,6 +70,11 @@ unsigned short duck16[32*32]={
      0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
 };
 
+static unsigned int MakeRGB(unsigned char r,unsigned char g,unsigned char b)
+{
+	return b|(r<<8)|(g<<16);
+}
+
 void MakeDuck256(unsigned int palette[513],unsigned char ptn[32*32])
 {
 	unsigned int i,used=0;
@@ -85,7 +90,7 @@ void MakeDuck256(unsigned int palette[513],unsigned char ptn[32*32])
 		r=(r<<3)|(r>>2);
 		b=(b<<3)|(b>>2);
 
-		rgb=b|(r<<8)|(g<<16);
+		rgb=MakeRGB(r,g,b);
 
 		for(j=0; j<used; ++j)
 		{
@@ -113,4 +118,68 @@ void MakeDuck256(unsigned int palette[513],unsigned char ptn[32*32])
 	}
 
 	palette[0]=used;
+}
+
+void MakeDuck4(unsigned int palette[513],unsigned char ptn[16*32])
+{
+	unsigned int i,used=0;
+	palette[0x00]=16;
+	palette[0x01]= 0;   palette[0x02]=MakeRGB(0,0,0);
+	palette[0x03]= 1;   palette[0x04]=MakeRGB(0,0,128);
+	palette[0x05]= 2;   palette[0x06]=MakeRGB(0,128,0);
+	palette[0x07]= 3;   palette[0x08]=MakeRGB(0,128,128);
+	palette[0x09]= 4;   palette[0x0A]=MakeRGB(128,0,0);
+	palette[0x0B]= 5;   palette[0x0C]=MakeRGB(128,0,128);
+	palette[0x0D]= 6;   palette[0x0E]=MakeRGB(128,128,0);
+	palette[0x0F]= 7;   palette[0x10]=MakeRGB(128,128,128);
+	palette[0x11]= 8;   palette[0x12]=MakeRGB(160,160,160);
+	palette[0x13]= 9;   palette[0x14]=MakeRGB(0,0,255);
+	palette[0x15]=10;   palette[0x16]=MakeRGB(0,255,0);
+	palette[0x17]=11;   palette[0x18]=MakeRGB(0,255,255);
+	palette[0x19]=12;   palette[0x1A]=MakeRGB(255,0,0);
+	palette[0x1B]=13;   palette[0x1C]=MakeRGB(255,0,255);
+	palette[0x1D]=14;   palette[0x1E]=MakeRGB(255,255,0);
+	palette[0x1F]=15;   palette[0x20]=MakeRGB(255,255,255);
+
+	for(i=0; i<duckywid*duckyhei; ++i)
+	{
+		int r,g,b,j,minDist,minColor;
+		g=(duck16[i]>>10);
+		r=(duck16[i]>>5)&0x1F;
+		b= duck16[i]&0x1F;
+
+		g=(g<<3)|(g>>2);
+		r=(r<<3)|(r>>2);
+		b=(b<<3)|(b>>2);
+
+		minDist=0x7FFFFFFF;
+		minColor=0;
+		for(j=0; j<16; ++j)
+		{
+			int R,G,B,dr,dg,db,dist;
+			G=(palette[1+j*2+1]>>16)&255;
+			R=(palette[1+j*2+1]>>8)&255;
+			B= palette[1+j*2+1]&255;
+
+			dg=G-g;
+			dr=R-r;
+			db=B-b;
+			dist=dg*dg+dr*dr+db*db;
+
+			if(dist<minDist)
+			{
+				minColor=j;
+				minDist=dist;
+			}
+		}
+
+		if(0==(i&1))
+		{
+			ptn[i/2]=minColor;
+		}
+		else
+		{
+			ptn[i/2]|=(minColor<<4);
+		}
+	}
 }

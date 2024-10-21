@@ -210,6 +210,9 @@ void TestPUTBLOCK_COLOR_VIEWPORT(
 
 void Test4Bit(void)
 {
+	unsigned int palette[513];
+	unsigned char ptn[32*32];
+
 	EGB_resolution(EGB_work,0,3);
 	EGB_resolution(EGB_work,1,3);
 
@@ -224,6 +227,22 @@ void Test4Bit(void)
 	Wait3Sec();
 
 	TestPUTBLOCK_1BIT_VIEWPORT(12,0,EGB_PSET);
+
+	Wait3Sec();
+
+	MakeDuck4(palette,ptn);
+
+	EGB_palette(EGB_work,0,palette);
+	TestPUTBLOCK_COLOR(EGB_PSET,duckywid,duckyhei,(unsigned char *)ptn);
+
+	Wait3Sec();
+
+	TestPUTBLOCK_COLOR_VIEWPORT(EGB_PSET,duckywid,duckyhei,(unsigned char *)ptn);
+
+	Wait3Sec();
+
+	EGB_clearScreen(EGB_work);
+	TestPUTBLOCK_COLOR_VIEWPORT(EGB_MATTE,duckywid,duckyhei,(unsigned char *)ptn);
 
 	Wait3Sec();
 }
@@ -256,6 +275,11 @@ void Test8Bit(void)
 	TestPUTBLOCK_COLOR_VIEWPORT(EGB_PSET,duckywid,duckyhei,(unsigned char *)ptn);
 
 	Wait3Sec();
+
+	EGB_clearScreen(EGB_work);
+	TestPUTBLOCK_COLOR_VIEWPORT(EGB_MATTE,duckywid,duckyhei,(unsigned char *)ptn);
+
+	Wait3Sec();
 }
 
 void Test16Bit(void)
@@ -284,6 +308,11 @@ void Test16Bit(void)
 	TestPUTBLOCK_COLOR_VIEWPORT(EGB_PSET,duckywid,duckyhei,(unsigned char *)duck16);
 
 	Wait3Sec();
+
+	EGB_clearScreen(EGB_work);
+	TestPUTBLOCK_COLOR_VIEWPORT(EGB_MATTE,duckywid,duckyhei,(unsigned char *)duck16);
+
+	Wait3Sec();
 }
 
 void Swap(char *a,char *b)
@@ -309,7 +338,7 @@ int main(void)
 		Swap(&AOMORI[y*8+7],&AOMORI[(63-y)*8+7]);
 	}
 
-	//Test4Bit();
+	Test4Bit();
 	Test8Bit();
 	Test16Bit();
 
