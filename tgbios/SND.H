@@ -87,7 +87,7 @@ struct PCM_ENVELOPE
 	unsigned char SL;
 	unsigned char SR;
 	unsigned char RR;
-	unsigned char rootKey;
+	signed char rootKey;
 	unsigned char enabled;
 };
 
