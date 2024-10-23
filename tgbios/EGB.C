@@ -1655,6 +1655,12 @@ void EGB_23H_PUTBLOCK1BIT(
 									*vram|=fgCol;
 								}
 								break;
+							case EGB_FUNC_AND:
+								if(!(bits&0x80))
+								{
+									*vram&=ANDPtn;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -1722,6 +1728,12 @@ void EGB_23H_PUTBLOCK1BIT(
 									*vram=fgCol;
 								}
 								break;
+							case EGB_FUNC_AND:
+								if(!(bits&0x80))
+								{
+									*vram=0;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -1774,6 +1786,12 @@ void EGB_23H_PUTBLOCK1BIT(
 								if(bits&0x80)
 								{
 									*((_Far unsigned short *)vram)=fgCol;
+								}
+								break;
+							case EGB_FUNC_AND:
+								if(!(bits&0x80))
+								{
+									*((_Far unsigned short *)vram)=0;
 								}
 								break;
 							default:
@@ -1892,6 +1910,12 @@ void EGB_23H_PUTBLOCK1BIT(
 									*vram|=fgCol;
 								}
 								break;
+							case EGB_FUNC_AND:
+								if(!(bits&0x80))
+								{
+									*vram&=ANDPtn;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -1963,6 +1987,12 @@ void EGB_23H_PUTBLOCK1BIT(
 									*vram=fgCol;
 								}
 								break;
+							case EGB_FUNC_AND:
+								if(!(bits&0x80))
+								{
+									*vram=0;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -2019,6 +2049,12 @@ void EGB_23H_PUTBLOCK1BIT(
 								if(bits&0x80)
 								{
 									*((_Far unsigned short *)vram)=fgCol;
+								}
+								break;
+							case EGB_FUNC_AND:
+								if(!(bits&0x80))
+								{
+									*((_Far unsigned short *)vram)=0;
 								}
 								break;
 							default:
