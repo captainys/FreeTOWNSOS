@@ -310,9 +310,7 @@ void EGB_INIT(
 {
 	int i;
 
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	work->writePage=0;
 	for(i=0; i<2; ++i)
@@ -426,9 +424,7 @@ void EGB_RESOLUTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	unsigned char AL=EAX&0xFF;
 	if(EGB_INVALID_SCRNMODE==AL)
@@ -533,9 +529,7 @@ void EGB_02H_DISPLAYSTART(
 	unsigned char mode=(unsigned char)EAX;
 	unsigned short horizontal=(unsigned short)EDX;
 	unsigned short vertical=(unsigned short)EBX;
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
@@ -890,9 +884,7 @@ void EGB_VIEWPORT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	_Far const short *rect;
 	_FP_SEG(rect)=DS;
@@ -949,16 +941,13 @@ void EGB_PALETTE(
 	unsigned char writePage;
 	unsigned char waitVSYNC=(unsigned char)EAX;
 	_Far struct EGB_PaletteSet *paletteSet;
-	_Far struct EGB_Work *work;
+	_Far struct EGB_Work *work=EGB_GetWork();
 	_Far struct EGB_ScreenMode *scrnModeProp;
 
 	_PUSHFD;
 
 	_FP_SEG(paletteSet)=DS;
 	_FP_OFF(paletteSet)=ESI;
-
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
 
 	writePage=work->writePage;
 	if(1<writePage ||
@@ -1023,9 +1012,7 @@ void EGB_WRITEPAGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	unsigned char AL=EAX&0xFF;
 	if((0==AL || 1==AL) && work->perPage[AL].screenMode!=EGB_INVALID_SCRNMODE)
@@ -1062,9 +1049,7 @@ void EGB_06H_DISPLAYPAGE(
 	unsigned char priority=EAX&1;
 	unsigned char showPage=0;
 
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	work->sifter[1]&=0xFE;
 	work->sifter[1]|=priority;
@@ -1099,9 +1084,7 @@ void EGB_COLOR(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 	work->color[EAX&3]=EDX;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -1120,9 +1103,7 @@ void EGB_COLORIGRB(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
 
@@ -1188,9 +1169,7 @@ void EGB_WRITEMODE(
 	unsigned int FS)
 {
 	// One big question is, is write-mode per page?  Or common?
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 	work->drawingMode=EAX&0xFF;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -1227,9 +1206,7 @@ void EGB_PAINTMODE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	work->paintMode=EDX;
 
@@ -1448,9 +1425,7 @@ void EGB_CLEARSCREEN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 
@@ -1495,9 +1470,7 @@ void EGB_PARTCLEARSCREEN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 
@@ -1552,9 +1525,7 @@ void EGB_23H_PUTBLOCK1BIT(
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
 
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
 	struct POINTW p0,p1,viewport[2];
@@ -2098,9 +2069,7 @@ void EGB_24H_GETBLOCK(
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
 
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
 	struct POINTW p0,p1;
@@ -2369,9 +2338,7 @@ void EGB_25H_PUTBLOCK(
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
 
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
 	struct POINTW p0,p1,viewport[2];
@@ -3605,9 +3572,7 @@ void EGB_41H_CONNECT(
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
 
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
 
@@ -3720,9 +3685,7 @@ void EGB_RECTANGLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
 
@@ -4050,4 +4013,16 @@ void EGB_UNSUPPORTED(
 
 {
 	TSUGARU_BREAK;
+}
+
+
+
+static struct EGB_Work EGB_work;
+
+_Far struct EGB_Work *EGB_GetWork(void)
+{
+	_Far struct EGB_Work *ptr;
+	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
+	_FP_OFF(ptr)=(unsigned int)&EGB_work;
+	return ptr;
 }

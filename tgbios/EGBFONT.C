@@ -74,9 +74,7 @@ void EGB_TEXTZOOM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 	if(0==(EAX&0xFF))
 	{
 		work->ankZoom.x=(unsigned short)EDX;
@@ -104,9 +102,7 @@ void EGB_FONTSTYLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct EGB_Work *work=EGB_GetWork();
 	work->fontStyle=EDX;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -873,14 +869,11 @@ void EGB_SJISSTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct EGB_Work *work;
+	_Far struct EGB_Work *work=EGB_GetWork();
 	_Far struct EGB_String *strInfo;
 
 	_FP_SEG(strInfo)=DS;
 	_FP_OFF(strInfo)=ESI;
-
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
 

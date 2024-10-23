@@ -248,4 +248,8 @@ unsigned short EGB_SJIS2JIS(unsigned short sjis);
 unsigned short EGB_JIS2SJIS(unsigned short jis);
 unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis);
 
+
+_Far struct EGB_Work *EGB_GetWork(void);
+
+
 #endif
