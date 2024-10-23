@@ -423,7 +423,7 @@ void SND_KEY_ON(
 				unsigned int playFreq=RF5C68_CalculatePlaybackFrequency(
 					baseFreq,
 					note,
-					sound->snd.baseNote);
+					sound->snd.baseNote-env.rootKey);
 
 				stat->PCMCh[ch].playFreq=playFreq;
 				if(0!=stat->PCMCh[ch].pitchBend)
