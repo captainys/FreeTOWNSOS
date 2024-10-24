@@ -4,6 +4,7 @@
 #include "TGBIOS.H"
 #include "SNDINT.H"
 #include "SND.H"
+#include "MOS.H"
 #include "MACRO.H"
 #include "IODEF.H"
 #include "UTIL.H"
@@ -46,6 +47,8 @@ struct SoundInterruptBIOSContext
 	_Far void (*save_INT4DProt)(void);
 	unsigned long save_INT4DReal;
 #endif
+
+	unsigned int timerACounter,timerBCounter;
 
 	_Far void *mouseINTStack;
 	_Far void *soundINTStack;
@@ -92,6 +95,7 @@ _Handler Handle_INT4DH(void)
 					context->timerAPreEOICallback.GS);
 			}
 			callTimerAPost=1;
+			++context->timerACounter;
 		}
 		if(timerUP&2)
 		{
@@ -109,7 +113,15 @@ _Handler Handle_INT4DH(void)
 						context->timerBCallback.FS,
 						context->timerBCallback.GS);
 				}
+
 			}
+
+			if(0==(context->timerBCounter&1) && // FM TOWNS TECHNICAL DATABOOK p.379.  Call this function every 20ms.
+			   (context->flags&SNDINT_USING_TIMERB_MOUSE))
+			{
+				MOS_INTERVAL();
+			}
+			++context->timerBCounter;
 		}
 	}
 	if(INTReason&8)
@@ -227,6 +239,7 @@ void SNDINT_Internal_Start_Mouse(unsigned int DS,unsigned int EDX)
 		context->mouseINTStack=stk;
 		context->mouseCallback1.callback=NULL;
 		context->mouseCallback2.callback=NULL;
+		context->timerBCounter=0;
 	}
 	_POPFD
 }
@@ -254,6 +267,7 @@ void SNDINT_Internal_Start_Sound_TimerB(unsigned int DS,unsigned int EDX)
 		context->flags|=SNDINT_USING_TIMERB_SOUND;
 		context->soundINTStack=stk;
 		context->timerBCallback.callback=NULL;
+		context->timerBCounter=0;
 	}
 	_POPFD
 }
@@ -276,6 +290,7 @@ void SNDINT_Internal_Start_Sound_TimerA(void)
 		context->flags|=SNDINT_USING_TIMERA;
 		context->timerAPreEOICallback.callback=NULL;
 		context->timerAPostEOICallback.callback=NULL;
+		context->timerACounter=0;
 	}
 	_POPFD
 }

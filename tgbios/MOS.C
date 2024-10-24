@@ -23,7 +23,7 @@ struct MOS_Status
 	unsigned char swapLR;
 	unsigned char port;
 	unsigned short color;
-	struct POINTW pos;
+	struct POINTW pos,pulseLeftOver;
 	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
 	unsigned char PSETPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
@@ -719,7 +719,51 @@ void MOS_14H_ACCELERATION(
 
 void MOS_INTERVAL(void)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	char btn,bx,by;
+	short dx,dy,DX,DY;
+
+	MOS_ReadBtnDXDY(&btn,&bx,&by,stat->port);
+	dx=bx;
+	dy=by;
+	// High-C doesn't sign-extend if I copy char to short.  WTF?
+	if(128<=dx)
+	{
+		dx-=256;
+	}
+	if(128<=dy)
+	{
+		dy-=256;
+	}
+	stat->pulseLeftOver.x-=dx;
+	stat->pulseLeftOver.y-=dy;
+
+	if(0!=stat->pulsePerPixel.x)
+	{
+		DX=stat->pulseLeftOver.x/stat->pulsePerPixel.x;
+		stat->pulseLeftOver.x-=DX*stat->pulsePerPixel.x;
+	}
+	if(0!=stat->pulsePerPixel.y)
+	{
+		DY=stat->pulseLeftOver.y/stat->pulsePerPixel.y;
+		stat->pulseLeftOver.y-=DY*stat->pulsePerPixel.y;
+	}
+
+	if(DX || DY)
+	{
+		_Far struct EGB_Work *egb=EGB_GetWork();
+		if(0!=stat->showLevel)
+		{
+			MOS_RestoreVRAM(stat,egb);
+		}
+		stat->pos.x+=DX;
+		stat->pos.y+=DY;
+		if(0!=stat->showLevel)
+		{
+			MOS_SaveVRAM(stat,egb);
+			MOS_DrawCursor(stat,egb);
+		}
+	}
 }
 
 
@@ -730,6 +774,17 @@ unsigned int MOS_GetActive(void)
 	return stat->activeFlag;
 }
 
+unsigned int MOS_GetDisp(void)
+{
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	unsigned int disp;
+	disp=stat->showLevel<<16;
+	if(0!=disp)
+	{
+		disp|=1;
+	}
+	return disp;
+}
 
 
 static struct MOS_Status status={0};

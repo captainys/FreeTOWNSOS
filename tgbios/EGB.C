@@ -2276,6 +2276,7 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 							hangingByte=((*vram)>>4);
 							hangingPixel=1;
 						}
+						++x;
 					}
 
 					if(hangingPixel)
