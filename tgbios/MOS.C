@@ -795,6 +795,13 @@ void MOS_INTERVAL(void)
 			MOS_DrawCursor(stat,egb);
 		}
 	}
+
+	// Notify mouse to Tsugaru.
+	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.x);
+	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.x>>8);
+	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.y);
+	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.y>>8);
+	_outb(TOWNSIO_VM_HOST_IF_CMD_STATUS,TOWNS_VMIF_CMD_NOTIFY_MOUSE);
 }
 
 

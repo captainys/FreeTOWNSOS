@@ -342,4 +342,27 @@ enum
 	TOWNS_QUICK_DEBUG_STATE=      0xEB,  // Writing to this I/O port will show the VM state, not break.
 };
 
+enum	// Commands written to I/O TOWNSIO_VM_HOST_IF_CMD_STATUS=0x2386
+{
+	TOWNS_VMIF_CMD_NOP=           0x00, 
+	TOWNS_VMIF_CMD_CAPTURE_CRTC=  0x01, // Capture CRTC. Followed by two bytes mode0, and mode1.
+	TOWNS_VMIF_CMD_PAUSE=         0x02, // Pause VM
+	TOWNS_VMIF_CMD_EXIT_VM=       0x03, // Exit the VM.  Return code taken from the data queu.
+
+	TOWNS_VMIF_CMD_FILE_RXRDY=    0x04, // File Transfer Ready to Read (Ready to receive data in Sprite RAM)
+	TOWNS_VMIF_CMD_FILE_ACK=      0x05, // File Transfer 
+	TOWNS_VMIF_CMD_FILE_TXRDY=    0x06, // File Transfer Ready to Send (Data is in Sprite RAM)
+
+	TOWNS_VMIF_CMD_NOTIFY_DOSSEG= 0x07, // Capture CS as DOSSEG
+	TOWNS_VMIF_CMD_NOTIFY_DOSVER= 0x08, // Capture DOS Version.  Use it after MOV AH,30H  ->  INT 21H  ->  MOV BX,AX
+	TOWNS_VMIF_CMD_NOTIFY_DOSLOL= 0x09, // Capture DOS List of Lists, not DOS Laugh Out Loud.  Also updates DOSSEG (supposed to be the same)
+
+	TOWNS_VMIF_CMD_NOTIFY_MOUSE = 0x0A, // Notify Mouse Position
+
+	TOWNS_VMIF_CMD_BYTE_VM_TO_HOST=0x0B,// Send byte to the host.  Write to data register then write this command.
+
+	TOWNS_VMIF_CMD_CAPTURE_FM_FNUM=0x0C, // Capture F-Number of YM2612 Ch0.
+	TOWNS_VMIF_CMD_CAPTURE_FM_TL  =0x0D, // Capture TL of YM2612 Ch0 Slot 4
+};
+
 #endif
