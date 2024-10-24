@@ -1511,7 +1511,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	_Far struct EGB_BlockInfo *blkInfo,
 	_Far unsigned char *vramIn,
 	_Far unsigned short color[4],
-	const struct POINTW viewportIn[2],
+	_Far const struct POINTW viewportIn[2],
 	unsigned int flags,
 	unsigned int drawingMode)
 {
@@ -2104,7 +2104,7 @@ void EGB_23H_PUTBLOCK1BIT(
 			blkInfo,
 			pointerSet.vram,
 			work->color,
-			viewport,
+			pointerSet.page->viewport,
 			flags,
 			work->drawingMode));
 }
@@ -2377,41 +2377,16 @@ void EGB_24H_GETBLOCK(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_25H_PUTBLOCK(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
+unsigned char EGB_PUTBLOCK_INTERNAL(
+	_Far struct EGB_ScreenMode *scrnMode,
+	_Far struct EGB_BlockInfo *blkInfo,
+	_Far unsigned char *vramIn,
+	_Far unsigned short color[4],
+	_Far const struct POINTW viewportIn[2],
+	unsigned int flags,
+	unsigned int drawingMode)
 {
-	unsigned char flags=EAX;
-	_Far struct EGB_BlockInfo *blkInfo;
-	_FP_SEG(blkInfo)=DS;
-	_FP_OFF(blkInfo)=ESI;
-
-	_Far struct EGB_Work *work=EGB_GetWork();
-
-	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
 	struct POINTW p0,p1,viewport[2];
-
-	if(NULL==pointerSet.page)
-	{
-		EGB_SetError(EAX,EGB_GENERAL_ERROR);
-		return;
-	}
-
-	if(flags&2)
-	{
-		// I don't think mask is of very high priority.
-		TSUGARU_BREAK;
-	}
 
 	p0=blkInfo->p0;
 	p1=blkInfo->p1;
@@ -2420,50 +2395,47 @@ void EGB_25H_PUTBLOCK(
 	if(!(flags&1)) // View-port flag
 	{
 		// Out of the screen?
-		if(p1.x<0 || pointerSet.mode->size.x<=p0.x ||
-		   p1.y<0 || pointerSet.mode->size.y<=p0.y)
+		if(p1.x<0 || scrnMode->size.x<=p0.x ||
+		   p1.y<0 || scrnMode->size.y<=p0.y)
 		{
-			EGB_SetError(EAX,EGB_NO_ERROR);
-			return;
+			return EGB_NO_ERROR;
 		}
 
 		// If not using viewport, coordinates must fit inside the screen.
-		if(p0.x<0 || pointerSet.mode->size.x<=p1.x ||
-		   p0.y<0 || pointerSet.mode->size.y<=p1.y)
+		if(p0.x<0 || scrnMode->size.x<=p1.x ||
+		   p0.y<0 || scrnMode->size.y<=p1.y)
 		{
-			EGB_SetError(EAX,EGB_GENERAL_ERROR);
-			return;
+			return EGB_GENERAL_ERROR;
 		}
 
 		viewport[0].x=0;
 		viewport[0].y=0;
-		viewport[1].x=pointerSet.mode->size.x-1;
-		viewport[1].y=pointerSet.mode->size.y-1;
+		viewport[1].x=scrnMode->size.x-1;
+		viewport[1].y=scrnMode->size.y-1;
 	}
 	else
 	{
+		viewport[0]=viewportIn[0];
+		viewport[1]=viewportIn[1];
+
 		// Out of the viewport?
-		if(p1.x<pointerSet.page->viewport[0].x || pointerSet.page->viewport[1].x<p0.x ||
-		   p1.y<pointerSet.page->viewport[0].y || pointerSet.page->viewport[1].y<p0.y)
+		if(p1.x<viewport[0].x || viewport[1].x<p0.x ||
+		   p1.y<viewport[0].y || viewport[1].y<p0.y)
 		{
-			EGB_SetError(EAX,EGB_NO_ERROR);
-			return;
+			return EGB_NO_ERROR;
 		}
 
-		if(pointerSet.page->viewport[0].x<=p0.x && p1.x<=pointerSet.page->viewport[1].x &&
-		   pointerSet.page->viewport[0].y<=p0.y && p1.y<=pointerSet.page->viewport[1].y)
+		if(viewport[0].x<=p0.x && p1.x<=viewport[1].x &&
+		   viewport[0].y<=p0.y && p1.y<=viewport[1].y)
 		{
 			flags&=0xFE; // Entirely inide the viewport.  Don't have to be worried about the viewport.
 		}
-
-		viewport[0]=pointerSet.page->viewport[0];
-		viewport[1]=pointerSet.page->viewport[1];
 	}
 
 
 	unsigned int dx=(p1.x-p0.x+1);
 	unsigned int srcBytesPerLine=0,transferBytesPerLine=0;
-	switch(pointerSet.mode->bitsPerPixel)
+	switch(scrnMode->bitsPerPixel)
 	{
 	case 1:
 		srcBytesPerLine=(dx+7)/8;
@@ -2485,8 +2457,8 @@ void EGB_25H_PUTBLOCK(
 
 	if(0==(flags&1)) // Fully inside the viewport or screen
 	{
-		unsigned int vramOffset=EGB_CoordToVRAMOffset(pointerSet.mode,p0.x,p0.y);
-		if(1==pointerSet.mode->bitsPerPixel)
+		unsigned int vramOffset=EGB_CoordToVRAMOffset(scrnMode,p0.x,p0.y);
+		if(1==scrnMode->bitsPerPixel)
 		{
 			// I'll come back when someone do it.
 			TSUGARU_BREAK;
@@ -2495,17 +2467,17 @@ void EGB_25H_PUTBLOCK(
 		{
 			int x,y;
 			_Far unsigned char *src=blkInfo->data;
-			_Far unsigned char *vram=pointerSet.vram+vramOffset;
-			switch(work->drawingMode)
+			_Far unsigned char *vram=vramIn+vramOffset;
+			switch(drawingMode)
 			{
 			case EGB_FUNC_OPAQUE:
 			case EGB_FUNC_PSET:
-				if(4==pointerSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
+				if(4==scrnMode->bitsPerPixel && ((p0.x&1) || (dx&1)))
 				{
 					for(y=p0.y; y<=p1.y; ++y)
 					{
 						_Far unsigned char *nextSrc=src+srcBytesPerLine;
-						_Far unsigned char *nextVram=vram+pointerSet.mode->bytesPerLine;
+						_Far unsigned char *nextVram=vram+scrnMode->bytesPerLine;
 						if(p0.x&1)
 						{
 							unsigned char srcMask=0x0F,srcShift=0,dstAndPtn=0x0F,dstShift=4;
@@ -2549,14 +2521,14 @@ void EGB_25H_PUTBLOCK(
 					{
 						MEMCPY_FAR(vram,src,transferBytesPerLine);
 						src+=srcBytesPerLine;
-						vram+=pointerSet.mode->bytesPerLine;
+						vram+=scrnMode->bytesPerLine;
 					}
 				}
 				break;
 			case EGB_FUNC_MATTE:
 				{
-					unsigned short transparentColor=work->color[EGB_TRANSPARENT_COLOR];
-					switch(pointerSet.mode->bitsPerPixel)
+					unsigned short transparentColor=color[EGB_TRANSPARENT_COLOR];
+					switch(scrnMode->bitsPerPixel)
 					{
 					case 1:
 						transparentColor&=1;
@@ -2573,7 +2545,7 @@ void EGB_25H_PUTBLOCK(
 					}
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						switch(pointerSet.mode->bitsPerPixel)
+						switch(scrnMode->bitsPerPixel)
 						{
 						case 1:
 							TSUGARU_BREAK;
@@ -2652,7 +2624,7 @@ void EGB_25H_PUTBLOCK(
 							break;
 						}
 						src+=srcBytesPerLine;
-						vram+=pointerSet.mode->bytesPerLine;
+						vram+=scrnMode->bytesPerLine;
 					}
 				}
 				break;
@@ -2684,8 +2656,8 @@ void EGB_25H_PUTBLOCK(
 			p1.x=viewport[1].x;
 		}
 
-		unsigned int vramOffset=EGB_CoordToVRAMOffset(pointerSet.mode,p0.x,p0.y);
-		if(1==pointerSet.mode->bitsPerPixel)
+		unsigned int vramOffset=EGB_CoordToVRAMOffset(scrnMode,p0.x,p0.y);
+		if(1==scrnMode->bitsPerPixel)
 		{
 			// I'll come back when someone do it.
 			TSUGARU_BREAK;
@@ -2694,12 +2666,12 @@ void EGB_25H_PUTBLOCK(
 		{
 			int x,y;
 			_Far unsigned char *src=blkInfo->data+srcBytesPerLine*ySkip;
-			_Far unsigned char *vram=pointerSet.vram+vramOffset;
-			switch(work->drawingMode)
+			_Far unsigned char *vram=vramIn+vramOffset;
+			switch(drawingMode)
 			{
 			case EGB_FUNC_OPAQUE:
 			case EGB_FUNC_PSET:
-				switch(pointerSet.mode->bitsPerPixel)
+				switch(scrnMode->bitsPerPixel)
 				{
 				case 1:
 					TSUGARU_BREAK
@@ -2743,7 +2715,7 @@ void EGB_25H_PUTBLOCK(
 							}
 						}
 						src+=srcBytesPerLine;
-						vram+=pointerSet.mode->bytesPerLine;
+						vram+=scrnMode->bytesPerLine;
 					}
 					break;
 				case 8:
@@ -2753,7 +2725,7 @@ void EGB_25H_PUTBLOCK(
 						src+=xSkip;
 						MEMCPY_FAR(vram,src,transferBytesPerLine);
 						src+=(srcBytesPerLine-xSkip);
-						vram+=pointerSet.mode->bytesPerLine;
+						vram+=scrnMode->bytesPerLine;
 					}
 					break;
 				case 16:
@@ -2763,15 +2735,15 @@ void EGB_25H_PUTBLOCK(
 						src+=xSkip*2;
 						MEMCPY_FAR(vram,src,transferBytesPerLine*2);
 						src+=(srcBytesPerLine-xSkip*2);
-						vram+=pointerSet.mode->bytesPerLine;
+						vram+=scrnMode->bytesPerLine;
 					}
 					break;
 				}
 				break;
 			case EGB_FUNC_MATTE:
 				{
-					unsigned short transparentColor=work->color[EGB_TRANSPARENT_COLOR];
-					switch(pointerSet.mode->bitsPerPixel)
+					unsigned short transparentColor=color[EGB_TRANSPARENT_COLOR];
+					switch(scrnMode->bitsPerPixel)
 					{
 					case 1:
 						transparentColor&=1;
@@ -2786,7 +2758,7 @@ void EGB_25H_PUTBLOCK(
 						transparentColor&=0x7FFF;
 						break;
 					}
-					switch(pointerSet.mode->bitsPerPixel)
+					switch(scrnMode->bitsPerPixel)
 					{
 					case 1:
 						TSUGARU_BREAK;
@@ -2830,7 +2802,7 @@ void EGB_25H_PUTBLOCK(
 								}
 							}
 							src+=srcBytesPerLine;
-							vram+=pointerSet.mode->bytesPerLine;
+							vram+=scrnMode->bytesPerLine;
 						}
 						break;
 					case 8:
@@ -2849,7 +2821,7 @@ void EGB_25H_PUTBLOCK(
 								++srcPtr;
 							}
 							src+=srcBytesPerLine;
-							vram+=pointerSet.mode->bytesPerLine;
+							vram+=scrnMode->bytesPerLine;
 						}
 						break;
 					case 16:
@@ -2869,7 +2841,7 @@ void EGB_25H_PUTBLOCK(
 								++srcPtr;
 							}
 							src+=srcBytesPerLine;
-							vram+=pointerSet.mode->bytesPerLine;
+							vram+=scrnMode->bytesPerLine;
 						}
 						break;
 					}
@@ -2882,7 +2854,53 @@ void EGB_25H_PUTBLOCK(
 		}
 	}
 
-	EGB_SetError(EAX,EGB_NO_ERROR);
+	return EGB_NO_ERROR;
+}
+
+void EGB_25H_PUTBLOCK(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	unsigned char flags=EAX;
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+
+	if(NULL==pointerSet.page)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+	if(flags&2)
+	{
+		// I don't think mask is of very high priority.
+		TSUGARU_BREAK;
+	}
+
+	EGB_SetError(EAX,
+		EGB_PUTBLOCK_INTERNAL(
+			pointerSet.mode,
+			blkInfo,
+			pointerSet.vram,
+			work->color,
+			pointerSet.page->viewport,
+			flags,
+			work->drawingMode));
 }
 
 void EGB_26H_GETBLOCKZOOM(
