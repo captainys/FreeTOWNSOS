@@ -17,7 +17,7 @@
 
 struct MOS_Status
 {
-	unsigned char dispPage;
+	unsigned char dispPage,screenMode;
 	unsigned char activeFlag; // b0:Mouse BIOS started  b1:Handling Interrupt  b2:Drawing
 	unsigned short showLevel;
 	unsigned char swapLR;
@@ -150,7 +150,7 @@ void MOS_RestoreVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 	}
 }
 
-void MOS_ReadRaw(unsigned char data[4],int port)
+unsigned int MOS_ReadRaw(int port)
 {
 	// Sequence:
 	//   (1) Write COM=1
@@ -168,6 +168,7 @@ void MOS_ReadRaw(unsigned char data[4],int port)
 	unsigned short IOinput;
 	unsigned char COMOn;
 	const unsigned char COMOff=0x0F;
+	unsigned int rawRead=0;
 
 	if(0==port)
 	{
@@ -180,11 +181,18 @@ void MOS_ReadRaw(unsigned char data[4],int port)
 		COMOn=0x2F;
 	}
 
+	_PUSHFD
+	_CLI
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOff);
+
+	_WAIT1US;
+
 	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOn);
 
 	_WAITxUS(80);	// min TCS1=80us FM TOWNS Technical Databook p.241
 
-	data[0]=_inb(IOinput);
+	rawRead=_inb(IOinput);
 
 	_WAITxUS(20);	// Another 20us before clearing COM
 
@@ -193,7 +201,8 @@ void MOS_ReadRaw(unsigned char data[4],int port)
 
 	_WAITxUS(40);	// min TCS2 is 40us.
 
-	data[1]=_inb(IOinput);
+	rawRead<<=8;
+	rawRead|=_inb(IOinput);
 
 	_WAITxUS(10);	// Another 10us before setting COM
 
@@ -202,7 +211,8 @@ void MOS_ReadRaw(unsigned char data[4],int port)
 
 	_WAITxUS(40);	// min TCS3 is 40us.
 
-	data[2]=_inb(IOinput);
+	rawRead<<=8;
+	rawRead|=_inb(IOinput);
 
 	_WAITxUS(10);	// Another 10us before clearing COM
 
@@ -211,19 +221,30 @@ void MOS_ReadRaw(unsigned char data[4],int port)
 
 	_WAITxUS(40);	// min TCS3 is 40us.
 
-	data[3]=_inb(IOinput);
+	rawRead<<=8;
+	rawRead|=_inb(IOinput);
+
+	_POPFD
+
+	return rawRead;
 }
 
-int MOS_ReadBtnDXDY(char *btn,char *dx,char *dy,int port)
+unsigned int MOS_ReadBtnDXDY(int port)
 {
+	unsigned int raw=MOS_ReadRaw(port);
 	unsigned char data[4];
-	MOS_ReadRaw(data,port);
 
-	*dx=(data[0]<<4)|(data[1]&0x0F);
-	*dy=(data[2]<<4)|(data[3]&0x0F);
-	*btn=(data[0]>>4)&3;
+	data[3]=( raw&0x3F );
+	data[2]=((raw>>8)&0x3F);
+	data[1]=((raw>>16)&0x3F);
+	data[0]=((raw>>24)&0x3F);
 
-	return 0;
+	unsigned int dx,dy,btn;
+	dx=(data[0]<<4)|(data[1]&0x0F);
+	dy=(data[2]<<4)|(data[3]&0x0F);
+	btn=(data[0]>>4)&3;
+
+	return (btn<<16)|(dy<<8)|dx;
 }
 
 int MOS_TestGamePort(int port)
@@ -232,12 +253,12 @@ int MOS_TestGamePort(int port)
 	for(i=0; i<3; ++i)
 	{
 		unsigned char data[4];
-		MOS_ReadRaw(data,port);
+		unsigned int raw=MOS_ReadRaw(port);
 
-		data[0]&=0x0F;
-		data[1]&=0x0F;
-		data[2]&=0x0F;
-		data[3]&=0x0F;
+		data[3]=( raw&0x0F );
+		data[2]=((raw>>8)&0x0F);
+		data[1]=((raw>>16)&0x0F);
+		data[0]=((raw>>24)&0x0F);
 
 		if(0==(data[0]|data[1]|data[2]|data[3]))
 		{
@@ -272,6 +293,8 @@ void MOS_00H_START(
 {
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	MEMSETB_FAR(stat,0,sizeof(struct MOS_Status));
+
+	stat->screenMode=3;
 
 	stat->activeFlag=MOS_ACTIVEFLAG_BIOS_STARTED;
 	stat->port=PORT_NOT_FOUND;
@@ -720,12 +743,14 @@ void MOS_14H_ACCELERATION(
 void MOS_INTERVAL(void)
 {
 	_Far struct MOS_Status *stat=MOS_GetStatus();
-	char btn,bx,by;
-	short dx,dy,DX,DY;
+	char btn;
+	short dx,dy,DX=0,DY=0;
 
-	MOS_ReadBtnDXDY(&btn,&bx,&by,stat->port);
-	dx=bx;
-	dy=by;
+	unsigned int dxdybtn=MOS_ReadBtnDXDY(stat->port);
+	dx=dxdybtn&255;
+	dy=(dxdybtn>>8)&255;
+	btn=(dxdybtn>>16)&255;
+
 	// High-C doesn't sign-extend if I copy char to short.  WTF?
 	if(128<=dx)
 	{
@@ -758,6 +783,17 @@ void MOS_INTERVAL(void)
 		}
 		stat->pos.x+=DX;
 		stat->pos.y+=DY;
+
+		stat->pos.x=_max(0,stat->pos.x);
+		stat->pos.y=_max(0,stat->pos.y);
+
+		if(EGB_INVALID_SCRNMODE!=stat->screenMode)
+		{
+			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(stat->screenMode);
+			stat->pos.x=_min(stat->pos.x,mode->size.x-1);
+			stat->pos.y=_min(stat->pos.y,mode->size.y-1);
+		}
+
 		if(0!=stat->showLevel)
 		{
 			MOS_SaveVRAM(stat,egb);
