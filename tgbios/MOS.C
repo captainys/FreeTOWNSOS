@@ -23,6 +23,7 @@ struct MOS_Status
 	unsigned char swapLR;
 	unsigned char port;
 	unsigned short color;
+	unsigned char btn; // Last known button state.
 	struct POINTW pos,pulseLeftOver;
 	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
@@ -242,7 +243,10 @@ unsigned int MOS_ReadBtnDXDY(int port)
 	unsigned int dx,dy,btn;
 	dx=(data[0]<<4)|(data[1]&0x0F);
 	dy=(data[2]<<4)|(data[3]&0x0F);
-	btn=(data[0]>>4)&3;
+	btn=(~data[0]>>4)&3;
+
+	dx&=0xFF;
+	dy&=0xFF;
 
 	return (btn<<16)|(dy<<8)|dx;
 }
@@ -427,15 +431,7 @@ void MOS_03H_RDPOS(
 		IOinput=TOWNSIO_GAMEPORT_B_INPUT;
 	}
 
-	_outb(TOWNSIO_GAMEPORT_OUTPUT,0x0F); // COM Off, Trigger On
-	_WAITxUS(40);	// min TCS3 is 40us.
-	btnState=_inb(IOinput);
-
-	btnState>>=4;
-	btnState=~btnState;
-	btnState&=3;
-
-	SET_SECOND_BYTE(&ECX,btnState);
+	SET_SECOND_BYTE(&ECX,stat->btn);
 	SET_LOW_WORD(&EDX,stat->pos.x);
 	SET_LOW_WORD(&EBX,stat->pos.y);
 
@@ -743,13 +739,12 @@ void MOS_14H_ACCELERATION(
 void MOS_INTERVAL(void)
 {
 	_Far struct MOS_Status *stat=MOS_GetStatus();
-	char btn;
 	short dx,dy,DX=0,DY=0;
 
 	unsigned int dxdybtn=MOS_ReadBtnDXDY(stat->port);
 	dx=dxdybtn&255;
 	dy=(dxdybtn>>8)&255;
-	btn=(dxdybtn>>16)&255;
+	stat->btn=(dxdybtn>>16)&255;
 
 	// High-C doesn't sign-extend if I copy char to short.  WTF?
 	if(128<=dx)
