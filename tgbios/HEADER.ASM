@@ -449,6 +449,8 @@ MOS_JUMPTABLE:
 
 MOS_UPDATE				PROC	FAR
 						SAVE_WORLD
+						PUSH	SS	; High-C Assumes SS=DS.  This process MIGHT be called from an interrupt handler.
+						POP		DS
 						CALL	MOS_INTERVAL
 						RESTORE_WORLD
 						RET

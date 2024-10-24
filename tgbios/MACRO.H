@@ -9,8 +9,11 @@
 #define _CLI _inline(0xfa);
 #define _STI _inline(0xfb);
 
+#define _PUSH_SS _inline(0x16);
+#define _PUSH_DS _inline(0x1E);
 #define _PUSH_FS _inline(0x0F,0xA0);
 #define _PUSH_GS _inline(0x0F,0xA8);
+#define _POP_DS  _inline(0x1F);
 #define _POP_FS  _inline(0x0F,0xA1);
 #define _POP_GS  _inline(0x0F,0xA9);
 

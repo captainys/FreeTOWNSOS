@@ -73,6 +73,10 @@ _Handler Handle_INT4DH(void)
 
 	_PUSH_FS;
 	_PUSH_GS;
+	_PUSH_DS;
+
+	_PUSH_SS; // High-C assumes DS=SS.
+	_POP_DS;
 
 	_Far struct SoundInterruptBIOSContext *context=SNDINT_GetContext();
 	if(INTReason&1)
@@ -155,6 +159,7 @@ _Handler Handle_INT4DH(void)
 		context->reentCount=0;
 	}
 
+	_POP_DS;
 	_POP_GS;
 	_POP_FS;
 	return 0;
