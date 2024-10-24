@@ -391,7 +391,32 @@ void MOS_03H_RDPOS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	unsigned short IOinput;
+	unsigned char btnState;
+
+	if(0==stat->port)
+	{
+		IOinput=TOWNSIO_GAMEPORT_A_INPUT;
+	}
+	else
+	{
+		IOinput=TOWNSIO_GAMEPORT_B_INPUT;
+	}
+
+	_outb(TOWNSIO_GAMEPORT_OUTPUT,0x0F); // COM Off, Trigger On
+	_WAITxUS(40);	// min TCS3 is 40us.
+	btnState=_inb(IOinput);
+
+	btnState>>=4;
+	btnState=~btnState;
+	btnState&=3;
+
+	SET_SECOND_BYTE(&ECX,btnState);
+	SET_LOW_WORD(&EDX,stat->pos.x);
+	SET_LOW_WORD(&EBX,stat->pos.y);
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_04H_SETPOS(
