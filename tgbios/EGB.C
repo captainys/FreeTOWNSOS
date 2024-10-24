@@ -2233,7 +2233,7 @@ void EGB_24H_GETBLOCK(
 			x1=ptrSet.mode->size.x-1;
 		}
 
-		if(4==ptrSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1)))
+		if(4==ptrSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1) || 0<xLeft))
 		{
 			for(y=p0.y; y<=p1.y; ++y)
 			{
