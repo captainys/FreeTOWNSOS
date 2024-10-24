@@ -66,3 +66,26 @@ struct EGB_PagePointerSet EGB_GetPagePointerSet(_Far struct EGB_Work *work)
 	pointerSet.vram=NULL;
 	return pointerSet;
 }
+
+_Far unsigned char *EGB_GetVRAMPointer(_Far struct EGB_Work *work,unsigned char page)
+{
+	if(page<2)
+	{
+		if(EGB_INVALID_SCRNMODE!=work->perPage[page].screenMode)
+		{
+			_Far unsigned char *vram;
+			if(EGB_INVALID_SCRNMODE==work->perPage[1].screenMode)
+			{
+				_FP_SEG(vram)=SEG_VRAM_1PG;
+				_FP_OFF(vram)=0;
+			}
+			else
+			{
+				_FP_SEG(vram)=SEG_VRAM_2PG;
+				_FP_OFF(vram)=(VRAM_SIZE/2)*page;
+			}
+			return vram;
+		}
+	}
+	return NULL;
+}

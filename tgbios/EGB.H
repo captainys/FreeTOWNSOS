@@ -249,6 +249,30 @@ unsigned short EGB_JIS2SJIS(unsigned short jis);
 unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis);
 
 
+unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
+	_Far struct EGB_ScreenMode *scrnMode,
+	_Far struct EGB_BlockInfo *blkInfo,
+	_Far unsigned char *vramIn,
+	_Far unsigned short color[4],
+	_Far const struct POINTW viewportIn[2],
+	unsigned int flags,
+	unsigned int drawingMode);
+unsigned char EGB_GETBLOCK_INTERNAL(
+	_Far struct EGB_ScreenMode *scrnMode,
+	_Far struct EGB_BlockInfo *blkInfo,
+	_Far unsigned char *vramIn);
+unsigned char EGB_PUTBLOCK_INTERNAL(
+	_Far struct EGB_ScreenMode *scrnMode,
+	_Far struct EGB_BlockInfo *blkInfo,
+	_Far unsigned char *vramIn,
+	_Far unsigned short color[4],
+	_Far const struct POINTW viewportIn[2],
+	unsigned int flags,
+	unsigned int drawingMode);
+
+_Far unsigned char *EGB_GetVRAMPointer(_Far struct EGB_Work *work,unsigned char page);
+
+
 _Far struct EGB_Work *EGB_GetWork(void);
 
 

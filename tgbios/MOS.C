@@ -17,11 +17,13 @@
 
 struct MOS_Status
 {
+	unsigned char dispPage;
 	unsigned char activeFlag; // b0:Mouse BIOS started  b1:Handling Interrupt  b2:Drawing
 	unsigned short showLevel;
 	unsigned char swapLR;
 	unsigned char port;
 	unsigned short color;
+	struct POINTW pos;
 	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
 	unsigned char PSETPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
@@ -69,6 +71,84 @@ const unsigned char defCursorANDPtn[]=
 0xFF,0x7F, // 11111111 01111111
 0xFF,0xFF, // 11111111 11111111
 };
+
+void MOS_SaveVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
+{
+	unsigned char screenMode=egb->perPage[mos->dispPage&1].screenMode;
+	if(EGB_INVALID_SCRNMODE!=screenMode)
+	{
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(screenMode);
+		_Far unsigned char *vram=EGB_GetVRAMPointer(egb,mos->dispPage&1);
+		struct EGB_BlockInfo blkInfo;
+		blkInfo.data=mos->VRAMBackup;
+		blkInfo.p0=mos->pos;
+		blkInfo.p1=mos->pos;
+		blkInfo.p1.x+=mos->cursorSize.x-1;
+		blkInfo.p1.y+=mos->cursorSize.y-1;
+
+		EGB_GETBLOCK_INTERNAL(scrnMode,&blkInfo,vram);
+	}
+}
+
+void MOS_DrawCursor(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
+{
+	unsigned char screenMode=egb->perPage[mos->dispPage&1].screenMode;
+	if(EGB_INVALID_SCRNMODE!=screenMode)
+	{
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(screenMode);
+		_Far unsigned char *vram=EGB_GetVRAMPointer(egb,mos->dispPage&1);
+
+		struct EGB_BlockInfo blkInfo;
+		blkInfo.data=mos->ANDPtn;
+		blkInfo.p0=mos->pos;
+		blkInfo.p1=mos->pos;
+		blkInfo.p1.x+=mos->cursorSize.x-1;
+		blkInfo.p1.y+=mos->cursorSize.y-1;
+
+		unsigned short color[4]=
+		{
+			mos->color,0,0,0
+		};
+		struct POINTW viewport[2];
+		viewport[0].x=0;
+		viewport[0].y=0;
+		viewport[1]=scrnMode->size;
+		viewport[1].x--;
+		viewport[1].y--;
+		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,0,EGB_FUNC_AND);
+
+		blkInfo.data=mos->PSETPtn;
+		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,0,EGB_FUNC_PSET);
+	}
+}
+
+void MOS_RestoreVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
+{
+	unsigned char screenMode=egb->perPage[mos->dispPage&1].screenMode;
+	if(EGB_INVALID_SCRNMODE!=screenMode)
+	{
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(screenMode);
+		_Far unsigned char *vram=EGB_GetVRAMPointer(egb,mos->dispPage&1);
+		struct EGB_BlockInfo blkInfo;
+		blkInfo.data=mos->VRAMBackup;
+		blkInfo.p0=mos->pos;
+		blkInfo.p1=mos->pos;
+		blkInfo.p1.x+=mos->cursorSize.x-1;
+		blkInfo.p1.y+=mos->cursorSize.y-1;
+
+		unsigned short color[4]=
+		{
+			mos->color,0,0,0
+		};
+		struct POINTW viewport[2];
+		viewport[0].x=0;
+		viewport[0].y=0;
+		viewport[1]=scrnMode->size;
+		viewport[1].x--;
+		viewport[1].y--;
+		EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,0,EGB_FUNC_PSET);
+	}
+}
 
 void MOS_ReadRaw(unsigned char data[4],int port)
 {
@@ -199,6 +279,11 @@ void MOS_00H_START(
 	stat->pulsePerPixel.x=8;	// FM TOWNS Technical Databook p.389
 	stat->pulsePerPixel.y=8;
 
+	stat->cursorSize.x=16;
+	stat->cursorSize.y=16;
+
+	stat->color=0x7FFF;
+
 	_Far unsigned char *ptnSrc;
 	_FP_SEG(ptnSrc)=SEG_TGBIOS_CODE;
 	_FP_OFF(ptnSrc)=(unsigned int)defCursorPtn;
@@ -250,7 +335,46 @@ void MOS_02H_DISP(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	_Far struct EGB_Work *egb=EGB_GetWork();
+
+	unsigned char AL=EAX;
+	unsigned short prevShowLevel=stat->showLevel;
+
+	if(0==AL)
+	{
+		stat->showLevel=0;
+		if(0!=prevShowLevel)
+		{
+			MOS_RestoreVRAM(stat,egb);
+		}
+	}
+	else if(1==AL)
+	{
+		stat->showLevel=1;
+		if(0==prevShowLevel)
+		{
+			MOS_SaveVRAM(stat,egb);
+			MOS_DrawCursor(stat,egb);
+		}
+	}
+	else if(2==AL)
+	{
+		--stat->showLevel;
+		if(0!=prevShowLevel)
+		{
+			MOS_RestoreVRAM(stat,egb);
+		}
+	}
+	else if(3==AL)
+	{
+		++stat->showLevel;
+		if(0==prevShowLevel)
+		{
+			MOS_SaveVRAM(stat,egb);
+			MOS_DrawCursor(stat,egb);
+		}
+	}
 }
 
 void MOS_03H_RDPOS(
