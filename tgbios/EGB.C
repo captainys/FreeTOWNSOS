@@ -2109,34 +2109,12 @@ void EGB_23H_PUTBLOCK1BIT(
 			work->drawingMode));
 }
 
-void EGB_24H_GETBLOCK(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
+unsigned char EGB_GETBLOCK_INTERNAL(
+	_Far struct EGB_ScreenMode *scrnMode,
+	_Far struct EGB_BlockInfo *blkInfo,
+	_Far unsigned char *vramIn)
 {
-	_Far struct EGB_BlockInfo *blkInfo;
-	_FP_SEG(blkInfo)=DS;
-	_FP_OFF(blkInfo)=ESI;
-
-	_Far struct EGB_Work *work=EGB_GetWork();
-
-	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
 	struct POINTW p0,p1;
-
-	if(NULL==ptrSet.page)
-	{
-		EGB_SetError(EAX,EGB_GENERAL_ERROR);
-		return;
-	}
 
 	p0=blkInfo->p0;
 	p1=blkInfo->p1;
@@ -2146,11 +2124,11 @@ void EGB_24H_GETBLOCK(
 	unsigned int dy=p1.y-p0.y+1;
 
 	// Out of the screen?
-	if(p1.x<0 || ptrSet.mode->size.x<=p0.x ||
-	   p1.y<0 || ptrSet.mode->size.y<=p0.y)
+	if(p1.x<0 || scrnMode->size.x<=p0.x ||
+	   p1.y<0 || scrnMode->size.y<=p0.y)
 	{
 		unsigned int bytesToFill=0;
-		switch(ptrSet.mode->bitsPerPixel)
+		switch(scrnMode->bitsPerPixel)
 		{
 		case 1:
 			bytesToFill=(dx+7)/8*dy;		// byte-aligned
@@ -2166,12 +2144,11 @@ void EGB_24H_GETBLOCK(
 			break;
 		}
 		MEMSETB_FAR(blkInfo->data,0,bytesToFill);
-		EGB_SetError(EAX,EGB_NO_ERROR);
-		return;
+		return EGB_NO_ERROR;
 	}
 
 	unsigned int dstBytesPerLine=0,transferBytesPerLine=0;
-	switch(ptrSet.mode->bitsPerPixel)
+	switch(scrnMode->bitsPerPixel)
 	{
 	case 1:
 		dstBytesPerLine=(dx+7)/8;
@@ -2201,8 +2178,8 @@ void EGB_24H_GETBLOCK(
 		dst+=toFill;
 	}
 
-	unsigned int vramOffset=EGB_CoordToVRAMOffset(ptrSet.mode,_max(p0.x,0),p0.y);
-	if(1==ptrSet.mode->bitsPerPixel)
+	unsigned int vramOffset=EGB_CoordToVRAMOffset(scrnMode,_max(p0.x,0),p0.y);
+	if(1==scrnMode->bitsPerPixel)
 	{
 		// I'll come back when someone do it.
 		TSUGARU_BREAK;
@@ -2211,12 +2188,12 @@ void EGB_24H_GETBLOCK(
 	{
 		int y;
 		unsigned int yBelowScreen=0;
-		_Far unsigned char *vram=ptrSet.vram+vramOffset;
+		_Far unsigned char *vram=vramIn+vramOffset;
 
-		if(ptrSet.mode->size.y<=p1.y)
+		if(scrnMode->size.y<=p1.y)
 		{
-			yBelowScreen=ptrSet.mode->size.y+1-p1.y;
-			p1.y=ptrSet.mode->size.y-1;
+			yBelowScreen=scrnMode->size.y+1-p1.y;
+			p1.y=scrnMode->size.y-1;
 		}
 
 		unsigned int xLeft=0,xRight=0;
@@ -2227,18 +2204,18 @@ void EGB_24H_GETBLOCK(
 			xLeft=-x0;
 			x0=0;
 		}
-		if(ptrSet.mode->size.x<=x1)
+		if(scrnMode->size.x<=x1)
 		{
-			xRight=x1+1-ptrSet.mode->size.x;
-			x1=ptrSet.mode->size.x-1;
+			xRight=x1+1-scrnMode->size.x;
+			x1=scrnMode->size.x-1;
 		}
 
-		if(4==ptrSet.mode->bitsPerPixel && ((p0.x&1) || (dx&1) || 0<xLeft))
+		if(4==scrnMode->bitsPerPixel && ((p0.x&1) || (dx&1) || 0<xLeft))
 		{
 			for(y=p0.y; y<=p1.y; ++y)
 			{
 				_Far unsigned char *nextDst=dst+dstBytesPerLine;
-				_Far unsigned char *nextVram=vram+ptrSet.mode->bytesPerLine;
+				_Far unsigned char *nextVram=vram+scrnMode->bytesPerLine;
 				unsigned char hangingByte=0,hangingPixel=0;
 				int x=x0;
 
@@ -2316,21 +2293,21 @@ void EGB_24H_GETBLOCK(
 				vram=nextVram;
 			}
 		}
-		else if(0<=p0.x && p1.x<ptrSet.mode->size.x)
+		else if(0<=p0.x && p1.x<scrnMode->size.x)
 		{
 			for(y=p0.y; y<=p1.y; ++y)
 			{
 				MEMCPY_FAR(dst,vram,transferBytesPerLine);
 				dst+=dstBytesPerLine;
-				vram+=ptrSet.mode->bytesPerLine;
+				vram+=scrnMode->bytesPerLine;
 			}
 		}
-		else if(8==ptrSet.mode->bitsPerPixel)
+		else if(8==scrnMode->bitsPerPixel)
 		{
 			for(y=p0.y; y<=p1.y; ++y)
 			{
 				_Far unsigned char *nextDst=dst+dstBytesPerLine;
-				_Far unsigned char *nextVram=vram+ptrSet.mode->bytesPerLine;
+				_Far unsigned char *nextVram=vram+scrnMode->bytesPerLine;
 
 				MEMSETB_FAR(dst,0,xLeft);
 				dst+=xLeft;
@@ -2346,12 +2323,12 @@ void EGB_24H_GETBLOCK(
 				vram=nextVram;
 			}
 		}
-		else if(16==ptrSet.mode->bitsPerPixel)
+		else if(16==scrnMode->bitsPerPixel)
 		{
 			for(y=p0.y; y<=p1.y; ++y)
 			{
 				_Far unsigned char *nextDst=dst+dstBytesPerLine;
-				_Far unsigned char *nextVram=vram+ptrSet.mode->bytesPerLine;
+				_Far unsigned char *nextVram=vram+scrnMode->bytesPerLine;
 
 				MEMSETB_FAR(dst,0,xLeft*2);
 				dst+=xLeft*2;
@@ -2374,7 +2351,42 @@ void EGB_24H_GETBLOCK(
 		}
 	}
 
-	EGB_SetError(EAX,EGB_NO_ERROR);
+	return EGB_NO_ERROR;
+}
+
+void EGB_24H_GETBLOCK(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+
+	if(NULL==ptrSet.page)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+	EGB_SetError(EAX,
+		EGB_GETBLOCK_INTERNAL(
+			ptrSet.mode,
+			blkInfo,
+			ptrSet.vram));
 }
 
 unsigned char EGB_PUTBLOCK_INTERNAL(
