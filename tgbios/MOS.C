@@ -19,6 +19,7 @@ struct MOS_Status
 {
 	unsigned char dispPage,screenMode;
 	unsigned char activeFlag; // b0:Mouse BIOS started  b1:Handling Interrupt  b2:Drawing
+	unsigned char acceleration;
 	unsigned short showLevel;
 	unsigned char swapLR;
 	unsigned char port;
@@ -301,6 +302,7 @@ void MOS_00H_START(
 	stat->screenMode=3;
 
 	stat->activeFlag=MOS_ACTIVEFLAG_BIOS_STARTED;
+	stat->acceleration=1;
 	stat->port=PORT_NOT_FOUND;
 
 	stat->pulsePerPixel.x=8;	// FM TOWNS Technical Databook p.389
@@ -755,6 +757,28 @@ void MOS_INTERVAL(void)
 	{
 		dy-=256;
 	}
+
+	if(stat->acceleration)
+	{
+		const int maxStep=2048;
+		if(dx<0)
+		{
+			dx=-_min(dx*dx,maxStep);
+		}
+		else
+		{
+			dx=_min(dx*dx,maxStep);
+		}
+		if(dy<0)
+		{
+			dy=-_min(dy*dy,maxStep);
+		}
+		else
+		{
+			dy=_min(dy*dy,maxStep);
+		}
+	}
+
 	stat->pulseLeftOver.x-=dx;
 	stat->pulseLeftOver.y-=dy;
 

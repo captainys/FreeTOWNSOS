@@ -2192,7 +2192,7 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 
 		if(scrnMode->size.y<=p1.y)
 		{
-			yBelowScreen=scrnMode->size.y+1-p1.y;
+			yBelowScreen=p1.y-scrnMode->size.y+1;
 			p1.y=scrnMode->size.y-1;
 		}
 
