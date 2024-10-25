@@ -17,7 +17,7 @@
 
 struct MOS_Status
 {
-	unsigned char dispPage,screenMode;
+	unsigned char dispPage,screenMode[2];
 	unsigned char activeFlag; // b0:Mouse BIOS started  b1:Handling Interrupt  b2:Drawing
 	unsigned char acceleration;
 	unsigned short showLevel;
@@ -306,7 +306,8 @@ void MOS_00H_START(
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	MEMSETB_FAR(stat,0,sizeof(struct MOS_Status));
 
-	stat->screenMode=3;
+	stat->screenMode[0]=3;
+	stat->screenMode[1]=3;
 
 	stat->activeFlag=MOS_ACTIVEFLAG_BIOS_STARTED;
 	stat->acceleration=1;
@@ -625,7 +626,13 @@ void MOS_0DH_RESOLUTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	unsigned char page=EAX&1;
+	unsigned short scrnMode=EDX;
+
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	stat->screenMode[page]=scrnMode;
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_0EH_WRITEPAGE(
@@ -817,9 +824,10 @@ void MOS_INTERVAL(void)
 		stat->pos.x=_max(0,stat->pos.x);
 		stat->pos.y=_max(0,stat->pos.y);
 
-		if(EGB_INVALID_SCRNMODE!=stat->screenMode)
+		unsigned char screenMode=stat->screenMode[stat->dispPage&1];
+		if(EGB_INVALID_SCRNMODE!=screenMode)
 		{
-			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(stat->screenMode);
+			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(screenMode);
 			stat->pos.x=_min(stat->pos.x,mode->size.x-1);
 			stat->pos.y=_min(stat->pos.y,mode->size.y-1);
 		}

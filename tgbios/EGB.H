@@ -231,6 +231,13 @@ struct EGB_BlockInfo
 	_Far unsigned char *data;
 	struct POINTW p0,p1;
 };
+struct EGB_BlockInfoAndColor
+{
+	_Far unsigned char *data;
+	struct POINTW p0,p1;
+	unsigned short numColors;
+	unsigned char colors[1];
+};
 
 _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode);
 _Far unsigned short *EGB_GetCRTCRegs(int modeComb);

@@ -42,7 +42,7 @@ void EGB_TEXTDISPLAYDIRECTION(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_TEXTSPACE(
+void EGB_17H_TEXTSPACE(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -56,7 +56,9 @@ void EGB_TEXTSPACE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	unsigned short DX=EDX;
+	work->fontSpacing=DX;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 

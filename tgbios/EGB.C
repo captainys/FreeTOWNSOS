@@ -1488,6 +1488,209 @@ void EGB_PARTCLEARSCREEN(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
+unsigned char EGB_GETBLOCK1BIT_INTERNAL(
+	_Far struct EGB_ScreenMode *scrnMode,
+	_Far struct EGB_BlockInfoAndColor *blkInfo,
+	_Far unsigned char *vramIn)
+{
+	struct POINTW p0,p1,viewport[2];
+	unsigned int dstWid,dstHei,dstBytesPerLine;
+
+	p0=blkInfo->p0;
+	p1=blkInfo->p1;
+	EGB_MakeP0SmallerThanP1(&p0,&p1);
+
+	dstWid=p1.x-p0.x+1;
+	dstHei=p1.y-p0.y+1;
+	dstBytesPerLine=(dstWid+7)/8;
+
+	viewport[0].x=0;
+	viewport[0].y=0;
+	viewport[1].x=scrnMode->size.x-1;
+	viewport[1].y=scrnMode->size.y-1;
+
+	MEMSETB_FAR(blkInfo->data,0,dstBytesPerLine*dstHei);
+
+	// Out of the viewport?
+	if(p1.x<viewport[0].x || viewport[1].x<p0.x ||
+	   p1.y<viewport[0].y || viewport[1].y<p0.y)
+	{
+		return EGB_NO_ERROR;
+	}
+
+	{
+		unsigned int xSkip=0,ySkip=0,ySkipBytes=0;
+		_Far unsigned char *dst=blkInfo->data;
+
+		if(p0.x<viewport[0].x)
+		{
+			xSkip=viewport[0].x-p0.x;
+			p0.x=viewport[0].x;
+		}
+		if(p0.y<viewport[0].y)
+		{
+			ySkip=viewport[0].y-p0.y;
+			ySkipBytes=ySkip*dstBytesPerLine;
+			p0.y=viewport[0].y;
+		}
+
+		MEMSETB_FAR(dst,0,ySkipBytes);
+		dst+=ySkipBytes;
+
+		p1.x=_min(viewport[1].x,p1.x);
+		p1.y=_min(viewport[1].y,p1.y);
+		if(viewport[1].x<p1.x)
+		{
+			p1.x=viewport[1].x;
+		}
+
+		unsigned int vramOffset=EGB_CoordToVRAMOffset(scrnMode,p0.x,p0.y);
+		if(1==scrnMode->bitsPerPixel)
+		{
+			// I'll come back when someone do it.
+			TSUGARU_BREAK;
+		}
+		else
+		{
+			int x,y;
+			_Far unsigned char *vram=vramIn+vramOffset,*nextVram;
+
+			switch(scrnMode->bitsPerPixel)
+			{
+			case 1:
+				TSUGARU_BREAK;
+				break;
+			case 4:
+				{
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned char bits,srcShift=0;
+						_Far unsigned char *nextDst=dst+dstBytesPerLine;
+
+						nextVram=vram+scrnMode->bytesPerLine;
+
+						dst+=(xSkip/8);
+						bits=0x80;
+						bits>>=(xSkip&7);
+
+						if(p0.x&1)
+						{
+							srcShift=4;
+						}
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							unsigned char color=(*vram);
+							unsigned int i;
+							color>>=4;
+							color&=0x0F;
+							for(i=0; i<blkInfo->numColors; ++i)
+							{
+								if(color==blkInfo->colors[i])
+								{
+									*dst|=bits;
+									break;
+								}
+							}
+							bits>>=1;
+							if(0==bits)
+							{
+								bits=0x80;
+								++dst;
+							}
+						}
+
+						vram=nextVram;
+						dst=nextDst;
+					}
+				}
+				break;
+			case 8:
+				{
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned char bits;
+						_Far unsigned char *nextDst=dst+dstBytesPerLine;
+
+						nextVram=vram+scrnMode->bytesPerLine;
+
+						dst+=(xSkip/8);
+						bits=0x80;
+						bits>>=(xSkip&7);
+
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							unsigned int i;
+							unsigned char color=*vram;
+							for(i=0; i<blkInfo->numColors; ++i)
+							{
+								if(color==blkInfo->colors[i])
+								{
+									*dst|=bits;
+									break;
+								}
+							}
+							bits>>=1;
+							if(0==bits)
+							{
+								bits=0x80;
+								++dst;
+							}
+							++vram;
+							++dst;
+						}
+						vram=nextVram;
+						dst=nextDst;
+					}
+				}
+				break;
+			case 16:
+				{
+					for(y=p0.y; y<=p1.y; ++y)
+					{
+						unsigned char bits;
+						_Far unsigned char *nextDst=dst+dstBytesPerLine;
+
+						nextVram=vram+scrnMode->bytesPerLine;
+
+						dst+=(xSkip/8);
+						bits=0x80;
+						bits>>=(xSkip&7);
+
+						for(x=p0.x; x<=p1.x; ++x)
+						{
+							int i;
+							unsigned short color=*((_Far unsigned short *)vram);
+							color&=0x7FFF;
+							for(i=0; i<blkInfo->numColors; ++i)
+							{
+								if(color==*((_Far unsigned short *)(blkInfo->colors+i*2)))
+								{
+									*dst|=bits;
+									break;
+								}
+							}
+							bits>>=1;
+							if(0==bits)
+							{
+								bits=0x80;
+								++dst;
+							}
+							vram+=2;
+							dst+=2;
+						}
+
+						vram=nextVram;
+						dst=nextDst;
+					}
+				}
+				break;
+			}
+		}
+	}
+
+	return EGB_NO_ERROR;
+}
+
 void EGB_22H_GETBLOCK1BIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -1502,7 +1705,33 @@ void EGB_22H_GETBLOCK1BIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	unsigned char flags=EAX;
+	_Far struct EGB_BlockInfoAndColor *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+
+	if(NULL==pointerSet.page)
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+		return;
+	}
+
+	if(flags&2)
+	{
+		// I don't think mask is of very high priority.
+		TSUGARU_BREAK;
+	}
+
+	EGB_SetError(EAX,
+		EGB_GETBLOCK1BIT_INTERNAL(
+			pointerSet.mode,
+			blkInfo,
+			pointerSet.vram));
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
