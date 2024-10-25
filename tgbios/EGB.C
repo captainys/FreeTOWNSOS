@@ -2216,7 +2216,7 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 			{
 				_Far unsigned char *nextDst=dst+dstBytesPerLine;
 				_Far unsigned char *nextVram=vram+scrnMode->bytesPerLine;
-				unsigned char hangingByte=0,hangingPixel=0;
+				unsigned char dstShift=0,srcShift=0;
 				int x=x0;
 
 				if(0!=xLeft)
@@ -2229,64 +2229,74 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 					dst+=xLeft/2;
 					if(xLeft&1)
 					{
-						hangingPixel=1;  // // Next low-4bits of *vram will be high-4bits of *dst.
+						dstShift=4;  // Next pixel will be high-bits of the destination.
 					}
-					// x0 is zero already.  Therefore x=zero.
-					// In this case, vram points to the x=0 of the line.
 				}
-				else if(x&1)
+				if(x&1)
 				{
-					// If x starts on or right of the screen and x is odd,
-					hangingByte=((*vram)>>4);  // Copy high-4bits of the *vram to the low-4bits of *dst.
-					hangingPixel=1;  // Next low-4bits of *vram will be high-4bits of *dst.
-					++vram;
-					++x;
+					srcShift=4;
 				}
 
 				// Either way, x is even at this point.
 
-				if(0==hangingPixel)
+				if(srcShift==dstShift)
 				{
-					unsigned int w=x1+1-x0;
+					if(4==dstShift && 4==srcShift)
+					{
+						(*dst)&=0x0F;
+						(*dst)|=(*vram)&0xF0;
+						++dst;
+						++vram;
+						++x;
+					}
+					unsigned int w=x1+1-x;
 					unsigned int bytes=w/2;
 					MEMCPY_FAR(dst,vram,bytes);
 					dst+=bytes;
 					vram+=bytes;
 					if(w&1)
 					{
-						(*dst)=(*vram);
-						(*dst++)&=0x0F;
+						(*dst)=(*vram)&0x0F;
+						++x;
+						--w;
 					}
 					if(xRight)
 					{
-						MEMSETB_FAR(dst,0,(xRight-(w&1))/2);
+						MEMSETB_FAR(dst,0,xRight/2);
 					}
 				}
 				else
 				{
 					while(x<=x1)
 					{
-						if(hangingPixel) // low-4bits of VRAM byte will be high-4bits of *dst.
+						if(dstShift)
 						{
-							*(dst++)=(hangingByte|((*vram)<<4));
-							hangingPixel=0;
+							(*dst)&=0x0F;
+							(*dst)|=((*vram)<<4);
+							++dst;
+							dstShift=0;
+							srcShift=4;
 						}
-						else // high-4bits of VRAM byte will be low-4bits of *dst.  High-4bits of *dst to be determined.
+						else
 						{
-							hangingByte=((*vram)>>4);
-							hangingPixel=1;
+							(*dst)&=0xF0;
+							(*dst)|=((*vram)>>4);
+							++vram;
+							dstShift=4;
+							srcShift=0;
 						}
 						++x;
 					}
 
-					if(hangingPixel)
+					if(dstShift)
 					{
-						(*dst)=hangingByte;
+						(*dst)&=0x0F;
+						++dst;
+						++x;
 					}
-
 					if(xRight)
 					{
-						MEMSETB_FAR(dst,0,(xRight-hangingPixel)/2);
+						MEMSETB_FAR(dst,0,xRight/2);
 					}
 				}
 

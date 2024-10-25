@@ -177,6 +177,12 @@ void TestPUTBLOCK_COLOR(
 	EGB_writeMode(EGB_work,mode);
 	EGB_paintMode(EGB_work,0x02);
 	EGB_putBlock(EGB_work,0,(char *)&bmp);
+
+	bmp.x0=1;
+	bmp.y0=hei*2;
+	bmp.x1=wid;
+	bmp.y1=hei*3-1;
+	EGB_putBlock(EGB_work,0,(char *)&bmp);
 }
 
 void TestPUTBLOCK_COLOR_VIEWPORT(
