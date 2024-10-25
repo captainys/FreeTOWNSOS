@@ -296,6 +296,13 @@ void MOS_00H_START(
 	unsigned int GS,
 	unsigned int FS)
 {
+	// Undocumented: TOWNS OS assumes Mouse-BIOS Work Area is stored in 110:0058H
+	_Far unsigned int *WorkPtr;
+	_FP_SEG(WorkPtr)=SEG_TGBIOS_DATA;
+	_FP_OFF(WorkPtr)=0x0058;
+	WorkPtr[0]=EDI;
+	WorkPtr[1]=GS;
+
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	MEMSETB_FAR(stat,0,sizeof(struct MOS_Status));
 
@@ -346,6 +353,12 @@ void MOS_01H_END(
 {
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	stat->activeFlag&=~MOS_ACTIVEFLAG_BIOS_STARTED;
+
+	_Far unsigned int *WorkPtr;
+	_FP_SEG(WorkPtr)=SEG_TGBIOS_DATA;
+	_FP_OFF(WorkPtr)=0x0058;
+	WorkPtr[0]=0;
+	WorkPtr[1]=0;
 
 	TSUGARU_BREAK
 }

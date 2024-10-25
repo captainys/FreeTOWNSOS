@@ -87,7 +87,7 @@ void SYSINFO_31H_RETRIEVE_INTVEC(
 
 
 // Unless some initial values are given, -RELEXE will place it at the end, and chops off.
-struct TBIOS_System_Info sysInfo=
+static struct TBIOS_System_Info sysInfo=
 {
 	// Mouse
 	0, // mouseINTCount

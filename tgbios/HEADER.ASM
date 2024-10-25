@@ -8,6 +8,7 @@
 						PUBLIC		MOS_UPDATE
 						PUBLIC		MOS
 						PUBLIC		EGB
+						PUBLIC		SYSINFO
 
 						ASSUME CS:CODE
 
