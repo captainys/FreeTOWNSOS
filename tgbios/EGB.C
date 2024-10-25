@@ -3199,6 +3199,10 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 				color=work->color[EGB_FOREGROUND_COLOR]<<4;
 			}
 		}
+		else
+		{
+			color=work->color[EGB_FOREGROUND_COLOR];
+		}
 
 		switch(ptrSet->mode->bitsPerPixel)
 		{

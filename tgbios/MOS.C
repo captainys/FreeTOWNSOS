@@ -359,8 +359,6 @@ void MOS_01H_END(
 	_FP_OFF(WorkPtr)=0x0058;
 	WorkPtr[0]=0;
 	WorkPtr[1]=0;
-
-	TSUGARU_BREAK
 }
 
 void MOS_02H_DISP(

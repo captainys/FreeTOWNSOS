@@ -107,20 +107,16 @@ void Test4Bit(void)
 	EGB_clearScreen(EGB_work);
 
 	TestMOUSE(640,480,9);
-
-	Wait3Sec();
 }
 
 void Test8Bit(void)
 {
-	EGB_resolution(EGB_work,0,10);
+	EGB_resolution(EGB_work,0,12);
 
 	EGB_writePage(EGB_work,0);
 	EGB_clearScreen(EGB_work);
 
 	TestMOUSE(640,480,255);
-
-	Wait3Sec();
 }
 
 void Test16Bit(void)
@@ -135,8 +131,6 @@ void Test16Bit(void)
 	EGB_clearScreen(EGB_work);
 
 	TestMOUSE(320,240,255);
-
-	Wait3Sec();
 }
 
 int main(void)
