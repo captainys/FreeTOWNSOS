@@ -1056,11 +1056,11 @@ void EGB_06H_DISPLAYPAGE(
 	_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,1);
 	_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,work->sifter[1]);
 
-	if(EDX&1)
+	if(EDX&2)
 	{
 		showPage=3;
 	}
-	if(EDX&2)
+	if(EDX&1)
 	{
 		showPage|=0x0C;
 	}
@@ -1249,7 +1249,7 @@ void EGB_TILEPATTERN(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_MASKREGION(
+void EGB_0FH_MASKREGION(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1267,7 +1267,7 @@ void EGB_MASKREGION(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_MASK(
+void EGB_10H_MASK(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -1281,7 +1281,28 @@ void EGB_MASK(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	if(EAX&2)
+	{
+		TSUGARU_BREAK;
+	}
+	if(0==(EAX&0x80))
+	{
+		work->maskMode=EGB_MASKMODE_DISABLE;
+	}
+	else
+	{
+		if(EAX&1)
+		{
+			work->maskMode=EGB_MASKMODE_OPEN;
+		}
+		else
+		{
+			work->maskMode=EGB_MASKMODE_CLOSED;
+		}
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1581,7 +1602,7 @@ unsigned char EGB_GETBLOCK1BIT_INTERNAL(
 						{
 							unsigned char color=(*vram);
 							unsigned int i;
-							color>>=4;
+							color>>=srcShift;
 							color&=0x0F;
 							for(i=0; i<blkInfo->numColors; ++i)
 							{
@@ -1591,6 +1612,7 @@ unsigned char EGB_GETBLOCK1BIT_INTERNAL(
 									break;
 								}
 							}
+							srcShift=4-srcShift;
 							bits>>=1;
 							if(0==bits)
 							{
@@ -1705,7 +1727,6 @@ void EGB_22H_GETBLOCK1BIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	unsigned char flags=EAX;
 	_Far struct EGB_BlockInfoAndColor *blkInfo;
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
@@ -1718,12 +1739,6 @@ void EGB_22H_GETBLOCK1BIT(
 	{
 		EGB_SetError(EAX,EGB_GENERAL_ERROR);
 		return;
-	}
-
-	if(flags&2)
-	{
-		// I don't think mask is of very high priority.
-		TSUGARU_BREAK;
 	}
 
 	EGB_SetError(EAX,
@@ -2318,7 +2333,7 @@ void EGB_23H_PUTBLOCK1BIT(
 		return;
 	}
 
-	if(flags&2)
+	if((flags&2) && EGB_MASKMODE_DISABLE!=work->maskMode)
 	{
 		// I don't think mask is of very high priority.
 		TSUGARU_BREAK;
@@ -3138,7 +3153,7 @@ void EGB_25H_PUTBLOCK(
 		return;
 	}
 
-	if(flags&2)
+	if((flags&2) && EGB_MASKMODE_DISABLE!=work->maskMode)
 	{
 		// I don't think mask is of very high priority.
 		TSUGARU_BREAK;

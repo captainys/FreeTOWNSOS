@@ -119,7 +119,6 @@ struct POINTUW
 		(*vramAddr)=(((y)*(mode)->bytesPerLine+(x))*(mode)->bitsPerPixel)>>3; \
 	}
 
-
 struct EGB_ScreenMode
 {
 	unsigned int KHz;
@@ -162,6 +161,13 @@ struct EGB_PerPage
 	_Far unsigned char *tilePtn;
 };
 
+// p. 320
+//   If closed, draw where mask bit is 0.
+//   If open, draw where mask bit is 1.
+#define EGB_MASKMODE_DISABLE  0
+#define EGB_MASKMODE_CLOSED   1
+#define EGB_MASKMODE_OPEN     2
+
 struct EGB_Work
 {
 	unsigned char writePage;
@@ -173,6 +179,7 @@ struct EGB_Work
 	// Drawing Mode is a system-wide setting.  Not per page.  Then, probably paint mode, too.
 	unsigned char drawingMode;
 	unsigned short paintMode;
+	unsigned char maskMode;
 
 	// Confirmed in Towns OS V2.1 L50
 	// Font spacing is a system-wide setting.  Not per page.
