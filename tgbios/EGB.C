@@ -4092,10 +4092,42 @@ void EGB_RECTANGLE(
 		hatchLine=work->hatch[EGB_FILL_COLOR].ptn;
 		for(int y=yMin; y<=yMax; ++y)
 		{
-			_Far unsigned char *hatchPtnPtr=hatchLine;
-			unsigned int hatchPtn=*((unsigned int *)hatchLine);
-			unsigned int hatchBitReset=(1<<(work->hatch[EGB_FILL_COLOR].size.x*8-1));
-			unsigned int hatchBit=hatchBitReset;
+			unsigned int hatchPtn,hatchX=0,hatchW=work->hatch[EGB_FILL_COLOR].size.x;
+			unsigned int hatchBit,hatchBitReset=0x80;
+
+			switch(hatchW)
+			{
+			case 1:
+				hatchPtn=hatchLine[0];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[1];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[2];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[3];
+				hatchBitReset=0x80000000;
+				break;
+			case 2:
+				hatchPtn=hatchLine[0];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[1];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[0];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[1];
+				hatchBitReset=0x80000000;
+				break;
+			case 3:
+				hatchPtn|=hatchLine[0];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[1];
+				hatchPtn<<=8;
+				hatchPtn|=hatchLine[2];
+				hatchBitReset=0x800000;
+				break;
+			}
+
+			hatchBit=hatchBitReset;
 
 			unsigned int nextVramAddr=vramAddr+ptrSet.mode->bytesPerLine;
 			switch(ptrSet.mode->bitsPerPixel)
@@ -4105,52 +4137,44 @@ void EGB_RECTANGLE(
 				{
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
-					if(xMin&1)
 					{
-						if(hatchPtn&hatchBit)
+						unsigned int shift=0;
+						if(xMin&1)
 						{
-							ptrSet.vram[vramAddr]&=0xF0;
-							ptrSet.vram[vramAddr]|=(color&0x0F);
+							if(hatchPtn&hatchBit)
+							{
+								ptrSet.vram[vramAddr]&=0xF0;
+								ptrSet.vram[vramAddr]|=(color&0x0F);
+							}
+							hatchBit>>=1; // Will never fall below bit 0 for the first pixel
+							++vramAddr;
+							++xMin;
+							shift=4;
 						}
-						hatchBit>>=1; // Will never fall below bit 0 for the first pixel
-						++vramAddr;
-						++xMin;
-					}
-					{
-						unsigned int count=(xMax+1-xMin)/2;
+						unsigned int count=(xMax+1-xMin);
 						for(int i=0; i<count; ++i)
 						{
-							unsigned int first,second;
-							first=hatchPtn&hatchBit;
-							second=hatchPtn&(hatchBit>>1);
-							if(first && second)
+							if(hatchPtn&hatchBit)
 							{
-								*(ptrSet.vram+vramAddr)=color;
+								*(ptrSet.vram+vramAddr)&=(0xF0>>shift);
+								*(ptrSet.vram+vramAddr)|=(color&(0x0F<<shift));
 							}
-							else if(first)
+							if(4==shift)
 							{
-								*(ptrSet.vram+vramAddr)&=0xF0;
-								*(ptrSet.vram+vramAddr)|=(color&0x0F);
+								++vramAddr;
 							}
-							else if(second)
-							{
-								*(ptrSet.vram+vramAddr)&=0x0F;
-								*(ptrSet.vram+vramAddr)|=(color&0xF0);
-							}
-							++vramAddr;
-							hatchBit>>=2;
+							shift=4-shift;
+							hatchBit>>=1;
 							if(0==hatchBit)
 							{
 								hatchBit=hatchBitReset;
-								++hatchPtnPtr;
-								hatchPtn=*hatchPtnPtr;
 							}
 						}
-					}
-					if(!(xMax&1) && (hatchPtn&hatchBit))
-					{
-						ptrSet.vram[vramAddr]&=0x0F;
-						ptrSet.vram[vramAddr]|=(color&0xF0);
+						if(!(xMax&1) && (hatchPtn&hatchBit))
+						{
+							ptrSet.vram[vramAddr]&=0x0F;
+							ptrSet.vram[vramAddr]|=(color&0xF0);
+						}
 					}
 					break;
 				default:
@@ -4195,6 +4219,7 @@ void EGB_RECTANGLE(
 			else
 			{
 				hatchLine=work->hatch[EGB_FILL_COLOR].ptn;
+				hatchY=0;
 			}
 		}
 	}
