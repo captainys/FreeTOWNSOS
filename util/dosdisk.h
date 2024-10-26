@@ -192,7 +192,7 @@ inline uint16_t ReadWord(const unsigned char *ptr)
 	return *(uint16_t *)ptr;
 }
 
-inline void WriteDword(unsigned char *ptr,unsigned short data)
+inline void WriteDword(unsigned char *ptr,unsigned int data)
 {
 	*(uint32_t *)ptr=data;
 }
