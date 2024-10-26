@@ -1227,8 +1227,32 @@ void EGB_HATCHINGPATTERN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
+	unsigned char AL=EAX;
+	if(EGB_FOREGROUND_COLOR==AL ||
+	   EGB_BACKGROUND_COLOR==AL ||
+	   EGB_FILL_COLOR==AL)
+	{
+		unsigned char BH=EBX>>8;
+		unsigned char BL=EBX;
+		if(0<BH && BH<=4 && 0<BL && BL<=32)
+		{
+			_Far struct EGB_Work *work=EGB_GetWork();
+			unsigned int len=BH*BL;  // BH*8*BL/8
+			_Far unsigned char *src;
+			_FP_SEG(src)=DS;
+			_FP_OFF(src)=ESI;
+
+			work->hatch[AL].size.x=BH;
+			work->hatch[AL].size.y=BL;
+			MEMCPY_FAR(&work->hatch[AL].ptn,src,len);
+
+			EGB_SetError(EAX,EGB_NO_ERROR);
+		}
+	}
+	else
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+	}
 }
 
 void EGB_TILEPATTERN(
@@ -4051,6 +4075,128 @@ void EGB_RECTANGLE(
 	{
 		EGB_SetError(EAX,EGB_NO_ERROR);
 		return;
+	}
+
+	if(work->paintMode&EGB_PAINTFLAG_FILL_HATCH)
+	{
+		unsigned int vramAddr;
+		unsigned int color=GetExpandedColor(work->color[EGB_FILL_COLOR],ptrSet.mode->bitsPerPixel);
+		unsigned int xMin=_max(p0.x,ptrSet.page->viewport[0].x);
+		unsigned int xMax=_min(p1.x,ptrSet.page->viewport[1].x);
+		unsigned int yMin=_max(p0.y,ptrSet.page->viewport[0].y);
+		unsigned int yMax=_min(p1.y,ptrSet.page->viewport[1].y);
+		_Far unsigned char *hatchLine;
+		unsigned int hatchY=0;
+
+		EGB_CalcVRAMAddr(&vramAddr,p0.x,p0.y,ptrSet.mode);
+		hatchLine=work->hatch[EGB_FILL_COLOR].ptn;
+		for(int y=yMin; y<=yMax; ++y)
+		{
+			_Far unsigned char *hatchPtnPtr=hatchLine;
+			unsigned int hatchPtn=*((unsigned int *)hatchLine);
+			unsigned int hatchBitReset=(1<<(work->hatch[EGB_FILL_COLOR].size.x*8-1));
+			unsigned int hatchBit=hatchBitReset;
+
+			unsigned int nextVramAddr=vramAddr+ptrSet.mode->bytesPerLine;
+			switch(ptrSet.mode->bitsPerPixel)
+			{
+			case 4:
+				switch(work->drawingMode)
+				{
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_OPAQUE:
+					if(xMin&1)
+					{
+						if(hatchPtn&hatchBit)
+						{
+							ptrSet.vram[vramAddr]&=0xF0;
+							ptrSet.vram[vramAddr]|=(color&0x0F);
+						}
+						hatchBit>>=1; // Will never fall below bit 0 for the first pixel
+						++vramAddr;
+						++xMin;
+					}
+					{
+						unsigned int count=(xMax+1-xMin)/2;
+						for(int i=0; i<count; ++i)
+						{
+							unsigned int first,second;
+							first=hatchPtn&hatchBit;
+							second=hatchPtn&(hatchBit>>1);
+							if(first && second)
+							{
+								*(ptrSet.vram+vramAddr)=color;
+							}
+							else if(first)
+							{
+								*(ptrSet.vram+vramAddr)&=0xF0;
+								*(ptrSet.vram+vramAddr)|=(color&0x0F);
+							}
+							else if(second)
+							{
+								*(ptrSet.vram+vramAddr)&=0x0F;
+								*(ptrSet.vram+vramAddr)|=(color&0xF0);
+							}
+							++vramAddr;
+							hatchBit>>=2;
+							if(0==hatchBit)
+							{
+								hatchBit=hatchBitReset;
+								++hatchPtnPtr;
+								hatchPtn=*hatchPtnPtr;
+							}
+						}
+					}
+					if(!(xMax&1) && (hatchPtn&hatchBit))
+					{
+						ptrSet.vram[vramAddr]&=0x0F;
+						ptrSet.vram[vramAddr]|=(color&0xF0);
+					}
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
+				}
+				break;
+			case 8:
+				switch(work->drawingMode)
+				{
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_OPAQUE:
+					TSUGARU_BREAK;
+					MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
+				}
+				break;
+			case 16:
+				switch(work->drawingMode)
+				{
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_OPAQUE:
+					TSUGARU_BREAK;
+					MEMSETW_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
+				}
+				break;
+			}
+			vramAddr=nextVramAddr;
+
+			++hatchY;
+			if(hatchY<work->hatch[EGB_FILL_COLOR].size.y)
+			{
+				hatchLine+=work->hatch[EGB_FILL_COLOR].size.x;
+			}
+			else
+			{
+				hatchLine=work->hatch[EGB_FILL_COLOR].ptn;
+			}
+		}
 	}
 
 	if(work->paintMode&EGB_PAINTFLAG_FILL_NORMAL)

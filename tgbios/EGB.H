@@ -168,6 +168,15 @@ struct EGB_PerPage
 #define EGB_MASKMODE_CLOSED   1
 #define EGB_MASKMODE_OPEN     2
 
+#define EGB_HATCH_MAXWID 32
+#define EGB_HATCH_MAXHEI 32
+
+struct EGB_HatchingPattern
+{
+	struct POINTUW size;  // size.x is as specified in AH=0D. i.e., bytes per line.
+	unsigned char ptn[EGB_HATCH_MAXHEI*EGB_HATCH_MAXWID/8];
+};
+
 struct EGB_Work
 {
 	unsigned char writePage;
@@ -201,6 +210,7 @@ struct EGB_Work
 	// Confirmed in Towns OS V2.1 L50
 	// Color is a system-wide setting.  Not per page.
 	unsigned short color[4];
+	struct EGB_HatchingPattern hatch[3];
 
 	struct EGB_ScreenMode virtualPage[4];
 	struct EGB_PerPage perVirtualPage[4];
@@ -261,7 +271,6 @@ void SwapShort(short *a,short *b);
 unsigned short EGB_SJIS2JIS(unsigned short sjis);
 unsigned short EGB_JIS2SJIS(unsigned short jis);
 unsigned int EGB_JIS_TO_FONTROMINDEX(unsigned short jis);
-
 
 unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	_Far struct EGB_ScreenMode *scrnMode,
