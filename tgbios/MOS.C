@@ -29,7 +29,9 @@ struct MOS_Status
 	struct POINTW minPos,maxPos;
 	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
-	unsigned char PSETPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
+	struct POINTW cursorOrigin;
+	unsigned char cursorType; // 0:System  1:Black&White  2:Color
+	unsigned char PSETPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT*2]; // Can be a color cursor
 	unsigned char ANDPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
 	unsigned char VRAMBackup[MAX_CURSOR_HEIGHT*MAX_CURSOR_WIDTH*2];
 };
@@ -38,41 +40,41 @@ static _Far struct MOS_Status *MOS_GetStatus(void);
 
 const unsigned char defCursorPtn[]=
 {
-0x00,0x00, // 00000000 00000000
-0x7F,0xE0, // 01111111 11100000
+0x00,0x00, // 00000000 00000000   FM TOWNS Technical Databook p.385
 0x7F,0xC0, // 01111111 11000000
 0x7F,0x80, // 01111111 10000000
-0x7F,0xC0, // 01111111 11000000
-0x7F,0xE0, // 01111111 11100000
-0x7F,0xF0, // 01111111 11110000
-0x7F,0xF8, // 01111111 11111000
-0x7F,0xFC, // 01111111 11111100
-0x6F,0xF8, // 01101111 11111000
-0x4F,0xF0, // 01000111 11110000
-0x03,0xE0, // 00000011 11100000
-0x01,0xC0, // 00000001 11000000
-0x00,0x80, // 00000000 10000000
-0x00,0x00, // 00000000 00000000
+0x7F,0x00, // 01111111 00000000
+0x7E,0x00, // 01111110 00000000
+0x7F,0x00, // 01111111 00000000
+0x7F,0x80, // 01111111 10000000
+0x77,0xC0, // 01110111 11000000
+0x63,0xE0, // 01100011 11100000
+0x41,0xF0, // 01000001 11110000
+0x00,0xF8, // 00000000 11111000
+0x00,0x7C, // 00000000 01111100
+0x00,0x3E, // 00000000 00111110
+0x00,0x1c, // 00000000 00011100
+0x00,0x08, // 00000000 00001000
 0x00,0x00, // 00000000 00000000
 };
 const unsigned char defCursorANDPtn[]=
 {
-0x00,0x0F, // 00000000 00001111
-0x00,0x0F, // 00000000 00001111
+0x00,0x1F, // 00000000 00011111
 0x00,0x1F, // 00000000 00011111
 0x00,0x3F, // 00000000 00111111
+0x00,0x7F, // 00000000 01111111
+0x00,0xFF, // 00000000 11111111
+0x00,0x7F, // 00000000 01111111
+0x00,0x3F, // 00000000 00111111
 0x00,0x1F, // 00000000 00011111
-0x00,0x0F, // 00000000 00001111
-0x00,0x07, // 00000000 00000111
-0x00,0x03, // 00000000 00000011
-0x00,0x01, // 00000000 00000001
-0x00,0x03, // 00000000 00000011
-0x10,0x07, // 00010000 00000111
-0x38,0x0F, // 00111000 00001111
-0xFC,0x1F, // 11111100 00011111
-0xFE,0x3F, // 11111110 00111111
-0xFF,0x7F, // 11111111 01111111
-0xFF,0xFF, // 11111111 11111111
+0x80,0x0F, // 00001000 00001111
+0x1C,0x07, // 00011100 00000111
+0x3E,0x03, // 00111110 00000011
+0xFF,0x01, // 11111111 00000001
+0xFF,0x80, // 11111111 10000000
+0xFF,0xC1, // 11111111 11000001
+0xFF,0xE3, // 11111111 11100011
+0xFF,0xF7, // 11111111 11110111
 };
 
 void MOS_SaveVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
@@ -123,7 +125,14 @@ void MOS_DrawCursor(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_AND);
 
 		blkInfo.data=mos->PSETPtn;
-		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
+		if(2!=mos->cursorType)
+		{
+			EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
+		}
+		else
+		{
+			EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
+		}
 	}
 }
 
@@ -543,6 +552,7 @@ void MOS_07H_HORIZON(
 
 	if(stat->pos.x<stat->minPos.x || stat->maxPos.x<stat->pos.x)
 	{
+		_Far struct EGB_Work *egb=EGB_GetWork();
 		if(0!=stat->showLevel)
 		{
 			MOS_RestoreVRAM(stat,egb);
@@ -589,6 +599,7 @@ void MOS_08H_VERTICAL(
 
 	if(stat->pos.y<stat->minPos.y || stat->maxPos.y<stat->pos.y)
 	{
+		_Far struct EGB_Work *egb=EGB_GetWork();
 		if(0!=stat->showLevel)
 		{
 			MOS_RestoreVRAM(stat,egb);
@@ -619,7 +630,79 @@ void MOS_09H_TYPE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	_Far struct EGB_Work *egb=EGB_GetWork();
+	if(0!=stat->showLevel)
+	{
+		MOS_RestoreVRAM(stat,egb);
+	}
+
+	unsigned char AL=EAX;
+	unsigned char DH=(EDX>>8);
+	unsigned char DL=EDX;
+
+	stat->cursorOrigin.x=DH;
+	stat->cursorOrigin.y=DL;
+	if(128<=DH)
+	{
+		stat->cursorOrigin.y-=256;
+	}
+	if(128<=DL)
+	{
+		stat->cursorOrigin.y-=256;
+	}
+
+	if(0==AL)
+	{
+		stat->cursorType=AL;
+		stat->cursorSize.x=16;
+		stat->cursorSize.y=16;
+
+		_Far unsigned char *ptnSrc;
+		_FP_SEG(ptnSrc)=SEG_TGBIOS_CODE;
+		_FP_OFF(ptnSrc)=(unsigned int)defCursorPtn;
+		MEMCPY_FAR(stat->PSETPtn,ptnSrc,32);
+		_FP_OFF(ptnSrc)=(unsigned int)defCursorANDPtn;
+		MEMCPY_FAR(stat->ANDPtn,ptnSrc,32);
+	}
+	else if(1==AL)
+	{
+		_Far unsigned char *ptnSrc;
+		_FP_SEG(ptnSrc)=DS;
+		_FP_OFF(ptnSrc)=ESI;
+
+		stat->cursorType=AL;
+		stat->cursorSize.x=(ptnSrc[0]<<3);
+		stat->cursorSize.y=ptnSrc[1];
+
+		unsigned int len=ptnSrc[0]*ptnSrc[1];
+		MEMCPY_FAR(stat->PSETPtn,ptnSrc+2,len);
+		MEMCPY_FAR(stat->ANDPtn,ptnSrc+2+len,len);
+	}
+	else if(2==AL)
+	{
+		unsigned char scrnModeID=stat->screenMode[stat->dispPage&1];
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(scrnModeID);
+		_Far unsigned char *ptnSrc;
+		_FP_SEG(ptnSrc)=DS;
+		_FP_OFF(ptnSrc)=ESI;
+
+		stat->cursorType=AL;
+		stat->cursorSize.x=(ptnSrc[0]<<3);
+		stat->cursorSize.y=ptnSrc[1];
+
+		unsigned int PSETLen=ptnSrc[0]*ptnSrc[1],ANDLen=ptnSrc[0]*ptnSrc[1];;
+		PSETLen*=scrnMode->bitsPerPixel;  // ptnSrc[0] is already divided by 8.
+
+		MEMCPY_FAR(stat->PSETPtn,ptnSrc+2,PSETLen);
+		MEMCPY_FAR(stat->ANDPtn,ptnSrc+2+PSETLen,ANDLen);
+	}
+
+	if(0!=stat->showLevel)
+	{
+		MOS_SaveVRAM(stat,egb);
+		MOS_DrawCursor(stat,egb);
+	}
 }
 
 void MOS_0AH_MOTION(
