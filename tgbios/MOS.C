@@ -26,6 +26,7 @@ struct MOS_Status
 	unsigned short color;
 	unsigned char btn; // Last known button state.
 	struct POINTW pos,pulseLeftOver;
+	struct POINTW minPos,maxPos;
 	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
 	unsigned char PSETPtn[MAX_CURSOR_WIDTH*MAX_CURSOR_HEIGHT/8];
@@ -313,6 +314,11 @@ void MOS_00H_START(
 	stat->screenMode[0]=3;
 	stat->screenMode[1]=3;
 
+	stat->minPos.x=0;
+	stat->minPos.y=0;
+	stat->maxPos.x=639;
+	stat->maxPos.y=479;
+
 	stat->activeFlag=MOS_ACTIVEFLAG_BIOS_STARTED;
 	stat->acceleration=1;
 	stat->port=PORT_NOT_FOUND;
@@ -521,7 +527,36 @@ void MOS_07H_HORIZON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	short min=EDX;
+	short max=EBX;
+
+	if(max<min)
+	{
+		short c=min;
+		min=max;
+		max=c;
+	}
+
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	stat->minPos.x=_max(0,min);
+	stat->maxPos.x=max;
+
+	if(stat->pos.x<stat->minPos.x || stat->maxPos.x<stat->pos.x)
+	{
+		if(0!=stat->showLevel)
+		{
+			MOS_RestoreVRAM(stat,egb);
+		}
+		stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
+		stat->pos.x=_max(stat->minPos.x,stat->pos.x);
+		if(0!=stat->showLevel)
+		{
+			MOS_SaveVRAM(stat,egb);
+			MOS_DrawCursor(stat,egb);
+		}
+	}
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_08H_VERTICAL(
@@ -538,7 +573,36 @@ void MOS_08H_VERTICAL(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	short min=EDX;
+	short max=EBX;
+
+	if(max<min)
+	{
+		short c=min;
+		min=max;
+		max=c;
+	}
+
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	stat->minPos.y=_max(0,min);
+	stat->maxPos.y=max;
+
+	if(stat->pos.y<stat->minPos.y || stat->maxPos.y<stat->pos.y)
+	{
+		if(0!=stat->showLevel)
+		{
+			MOS_RestoreVRAM(stat,egb);
+		}
+		stat->pos.y=_min(stat->maxPos.y,stat->pos.y);
+		stat->pos.y=_max(stat->minPos.y,stat->pos.y);
+		if(0!=stat->showLevel)
+		{
+			MOS_SaveVRAM(stat,egb);
+			MOS_DrawCursor(stat,egb);
+		}
+	}
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_09H_TYPE(
@@ -825,16 +889,13 @@ void MOS_INTERVAL(void)
 		stat->pos.x+=DX;
 		stat->pos.y+=DY;
 
-		stat->pos.x=_max(0,stat->pos.x);
-		stat->pos.y=_max(0,stat->pos.y);
 
-		unsigned char screenMode=stat->screenMode[stat->dispPage&1];
-		if(EGB_INVALID_SCRNMODE!=screenMode)
-		{
-			_Far struct EGB_ScreenMode *mode=EGB_GetScreenModeProp(screenMode);
-			stat->pos.x=_min(stat->pos.x,mode->size.x-1);
-			stat->pos.y=_min(stat->pos.y,mode->size.y-1);
-		}
+		stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
+		stat->pos.y=_min(stat->maxPos.y,stat->pos.y);
+
+		stat->pos.x=_max(stat->minPos.x,stat->pos.x);
+		stat->pos.y=_max(stat->minPos.y,stat->pos.y);
+
 
 		if(0!=stat->showLevel)
 		{
