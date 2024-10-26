@@ -117,10 +117,12 @@ void MOS_DrawCursor(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		viewport[1]=scrnMode->size;
 		viewport[1].x--;
 		viewport[1].y--;
-		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,0,EGB_FUNC_AND);
+
+		unsigned char viewportFlag=1;
+		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_AND);
 
 		blkInfo.data=mos->PSETPtn;
-		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,0,EGB_FUNC_PSET);
+		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
 	}
 }
 
@@ -148,7 +150,9 @@ void MOS_RestoreVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		viewport[1]=scrnMode->size;
 		viewport[1].x--;
 		viewport[1].y--;
-		EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,0,EGB_FUNC_PSET);
+
+		unsigned char viewportFlag=1;
+		EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
 	}
 }
 
