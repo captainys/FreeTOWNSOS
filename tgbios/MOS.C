@@ -131,7 +131,7 @@ void MOS_DrawCursor(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		}
 		else
 		{
-			EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
+			EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_MATTE);
 		}
 	}
 }
@@ -696,6 +696,83 @@ void MOS_09H_TYPE(
 
 		MEMCPY_FAR(stat->PSETPtn,ptnSrc+2,PSETLen);
 		MEMCPY_FAR(stat->ANDPtn,ptnSrc+2+PSETLen,ANDLen);
+
+		// By default, EGB uses mask.  Which is extremely inefficient.
+		// Clear transparent bits here.
+		switch(scrnMode->bitsPerPixel)
+		{
+		case 4:
+			{
+				int i;
+				_Far unsigned char *PSETPtn=stat->PSETPtn;
+				_Far unsigned char *ANDPtn=stat->ANDPtn;
+				unsigned char bit=0x80;
+				for(i=0; i<PSETLen; ++i)
+				{
+					if(bit&*ANDPtn)
+					{
+						*PSETPtn&=0xF0;
+					}
+					bit>>=1;
+					if(bit&*ANDPtn)
+					{
+						*PSETPtn&=0x0F;
+					}
+					bit>>=1;
+					++PSETPtn;
+					if(0==bit)
+					{
+						bit=0x80;
+						++ANDPtn;
+					}
+				}
+			}
+			break;
+		case 8:
+			{
+				int i;
+				_Far unsigned char *PSETPtn=stat->PSETPtn;
+				_Far unsigned char *ANDPtn=stat->ANDPtn;
+				unsigned char bit=0x80;
+				for(i=0; i<PSETLen; ++i)
+				{
+					if(bit&*ANDPtn)
+					{
+						*PSETPtn=0;
+					}
+					bit>>=1;
+					++PSETPtn;
+					if(0==bit)
+					{
+						bit=0x80;
+						++ANDPtn;
+					}
+				}
+			}
+			break;
+		case 16:
+			{
+				int i;
+				_Far unsigned char *PSETPtn=stat->PSETPtn;
+				_Far unsigned char *ANDPtn=stat->ANDPtn;
+				unsigned char bit=0x80;
+				for(i=0; i<PSETLen; ++i)
+				{
+					if(bit&*ANDPtn)
+					{
+						*(unsigned short *)PSETPtn=0;
+					}
+					bit>>=1;
+					PSETPtn+=2;
+					if(0==bit)
+					{
+						bit=0x80;
+						++ANDPtn;
+					}
+				}
+			}
+			break;
+		}
 	}
 
 	if(0!=stat->showLevel)
