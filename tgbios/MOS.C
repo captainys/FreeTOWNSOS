@@ -894,7 +894,41 @@ void MOS_0FH_COLOR(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	unsigned char AL=EAX;
+
+	if(0==AL)
+	{
+		stat->color=EDX;
+	}
+	else
+	{
+		unsigned char scrnModeID=stat->screenMode[stat->dispPage&1];
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(scrnModeID);
+		switch(scrnMode->bitsPerPixel)
+		{
+		case 1: // ?? But, p.390 tells it is possible.
+		case 4:
+			stat->color=((EDX>>7)&1);
+			stat->color|=((EDX>>14)&2);
+			stat->color|=((EDX>>21)&4);
+			stat->color|=((EDX>>28)&8);
+			break;
+		case 8:
+			stat->color=((EDX>>6)&3);
+			stat->color|=((EDX>>11)&0x1C);
+			stat->color|=((EDX>>16)&0xE0);
+			break;
+		case 16:
+			stat->color=((EDX>>3)&0x1F);
+			stat->color|=((EDX>>6)&0x3E0);
+			stat->color|=((EDX>>9)&0x7C00);
+			stat->color|=((EDX>>16)&0x8000);
+			break;
+		}
+	}
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_10H_TILEPATTERN(
