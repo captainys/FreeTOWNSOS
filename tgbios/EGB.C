@@ -2846,9 +2846,9 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 								_Far unsigned char *srcPtr,*dstPtr;
 								unsigned char srcShift,dstAndPtn,dstShift;
 								srcPtr=src;
-								srcShift=4;
+								srcShift=0;
 								dstPtr=vram;
-								if(p0.x&1)
+								if(!(p0.x&1))
 								{
 									dstAndPtn=0xF0;
 									dstShift=0;
@@ -2869,12 +2869,12 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 									}
 									dstAndPtn=~dstAndPtn;
 									dstShift=4-dstShift;
-									if(4==dstShift)
+									if(0==dstShift)
 									{
 										++dstPtr;
 									}
 									srcShift=4-srcShift;
-									if(4==srcShift)
+									if(0==srcShift)
 									{
 										++srcPtr;
 									}
