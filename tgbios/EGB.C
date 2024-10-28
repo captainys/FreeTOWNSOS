@@ -4504,7 +4504,7 @@ void EGB_PAINT(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_CLOSEPAINT(
+void EGB_4EH_CLOSEPAINT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -4518,7 +4518,173 @@ void EGB_CLOSEPAINT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+	_Far struct EGB_CoordAddrSet *fifoBuf=(_Far struct EGB_CoordAddrSet *)EGB_GetBuffer();
+	_Far short *startCoord;
+	_FP_SEG(startCoord)=DS;
+	_FP_OFF(startCoord)=ESI;
+
+	unsigned int fifoBufUsed=0;
+	unsigned int fifoBufHead=0;
+	unsigned int VRAMAddr;
+
+	if(startCoord[0]<ptrSet.page->viewport[0].x ||ptrSet.page->viewport[1].x<startCoord[0] ||
+	   startCoord[1]<ptrSet.page->viewport[0].y ||ptrSet.page->viewport[1].y<startCoord[1])
+	{
+		// Outside of the viewport. Nothing to do.
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		return;
+	}
+
+	EGB_CalcVRAMAddr(&VRAMAddr,startCoord[0],startCoord[1],ptrSet.mode);
+
+	unsigned short srcColor=0,fillColor=work->color[EGB_FILL_COLOR];
+	switch(ptrSet.mode->bitsPerPixel)
+	{
+	case 4:
+		fillColor&=0x0F;
+		if(startCoord[0]&1)
+		{
+			srcColor=(ptrSet.vram[VRAMAddr]>>4);
+			ptrSet.vram[VRAMAddr]&=0x0F;
+			ptrSet.vram[VRAMAddr]|=(fillColor<<4);
+		}
+		else
+		{
+			srcColor=(ptrSet.vram[VRAMAddr]&0x0F);
+			ptrSet.vram[VRAMAddr]&=0xF0;
+			ptrSet.vram[VRAMAddr]|=fillColor;
+		}
+		break;
+	case 8:
+		fillColor&=0xFF;
+		srcColor=ptrSet.vram[VRAMAddr];
+		ptrSet.vram[VRAMAddr]=fillColor;
+		break;
+	case 16:
+		srcColor=*(_Far unsigned short *)(ptrSet.vram+VRAMAddr);
+		*(_Far unsigned short *)(ptrSet.vram+VRAMAddr)=fillColor;
+		break;
+	}
+
+	if(srcColor==fillColor)
+	{
+		// Already same color.  Nothing to do.
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		return;
+	}
+
+	fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)].VRAMAddr=VRAMAddr;
+	fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)].pos.x=startCoord[0];
+	fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)].pos.y=startCoord[1];
+	++fifoBufUsed;
+
+	while(0<fifoBufUsed)
+	{
+		int i;
+		struct EGB_CoordAddrSet head=fifoBuf[fifoBufHead];
+		--fifoBufUsed;
+		fifoBufHead=(fifoBufHead+1)&(EGB_PAINT_FIFOBUF_SIZE-1);
+		short bytesPerPixel=ptrSet.mode->bitsPerPixel/8;
+		unsigned short cmpColor;
+
+		for(i=0; i<4; ++i)
+		{
+			struct EGB_CoordAddrSet next=head;
+			switch(i)
+			{
+			case 0:
+				--next.pos.x;
+				if(4==ptrSet.mode->bitsPerPixel)
+				{
+					if(next.pos.x&1)
+					{
+						--next.VRAMAddr;
+					}
+				}
+				else
+				{
+					next.VRAMAddr-=bytesPerPixel;
+				}
+				break;
+			case 1:
+				++next.pos.x;
+				if(4==ptrSet.mode->bitsPerPixel)
+				{
+					if(!(next.pos.x&1))
+					{
+						++next.VRAMAddr;
+					}
+				}
+				else
+				{
+					next.VRAMAddr+=bytesPerPixel;
+				}
+				break;
+			case 2:
+				--next.pos.y;
+				next.VRAMAddr-=ptrSet.mode->bytesPerLine;
+				break;
+			case 3:
+				++next.pos.y;
+				next.VRAMAddr+=ptrSet.mode->bytesPerLine;
+				break;
+			}
+
+			if(next.pos.x<ptrSet.page->viewport[0].x || ptrSet.page->viewport[1].x<next.pos.x ||
+			   next.pos.y<ptrSet.page->viewport[0].y || ptrSet.page->viewport[1].y<next.pos.y)
+			{
+				continue;
+			}
+
+			switch(ptrSet.mode->bitsPerPixel)
+			{
+			case 4:
+				if(next.pos.x&1)
+				{
+					cmpColor=(ptrSet.vram[next.VRAMAddr]>>4);
+					if(cmpColor!=srcColor)
+					{
+						continue;
+					}
+					ptrSet.vram[next.VRAMAddr]&=0x0F;
+					ptrSet.vram[next.VRAMAddr]|=(fillColor<<4);
+				}
+				else
+				{
+					cmpColor=(ptrSet.vram[next.VRAMAddr]&0x0F);
+					if(cmpColor!=srcColor)
+					{
+						continue;
+					}
+					ptrSet.vram[next.VRAMAddr]&=0xF0;
+					ptrSet.vram[next.VRAMAddr]|=fillColor;
+				}
+				break;
+			case 8:
+				if(srcColor!=ptrSet.vram[next.VRAMAddr])
+				{
+					continue;
+				}
+				ptrSet.vram[next.VRAMAddr]=fillColor;
+				break;
+			case 16:
+				if(srcColor!=*(_Far unsigned short *)(ptrSet.vram+next.VRAMAddr))
+				{
+					continue;
+				}
+				*(_Far unsigned short *)(ptrSet.vram+next.VRAMAddr)=fillColor;
+				break;
+			}
+
+			if(fifoBufUsed<EGB_PAINT_FIFOBUF_SIZE)
+			{
+				fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)]=next;
+				++fifoBufUsed;
+			}
+		}
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4603,5 +4769,15 @@ _Far struct EGB_Work *EGB_GetWork(void)
 	_Far struct EGB_Work *ptr;
 	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
 	_FP_OFF(ptr)=(unsigned int)&EGB_work;
+	return ptr;
+}
+
+static unsigned char buffer[EGB_BUFFER_SIZE];
+
+_Far unsigned char *EGB_GetBuffer(void)
+{
+	_Far unsigned char *ptr;
+	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
+	_FP_OFF(ptr)=(unsigned int)buffer;
 	return ptr;
 }

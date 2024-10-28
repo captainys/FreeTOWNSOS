@@ -401,6 +401,8 @@ void MOS_02H_DISP(
 	unsigned char AL=EAX;
 	unsigned short prevShowLevel=stat->showLevel;
 
+	_PUSHFD
+	_CLI
 	if(0==AL)
 	{
 		stat->showLevel=0;
@@ -435,6 +437,7 @@ void MOS_02H_DISP(
 			MOS_DrawCursor(stat,egb);
 		}
 	}
+	_POPFD
 }
 
 void MOS_03H_RDPOS(
@@ -553,8 +556,10 @@ void MOS_07H_HORIZON(
 	if(stat->pos.x<stat->minPos.x || stat->maxPos.x<stat->pos.x)
 	{
 		_Far struct EGB_Work *egb=EGB_GetWork();
+		_PUSHFD
 		if(0!=stat->showLevel)
 		{
+			_CLI
 			MOS_RestoreVRAM(stat,egb);
 		}
 		stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
@@ -564,6 +569,7 @@ void MOS_07H_HORIZON(
 			MOS_SaveVRAM(stat,egb);
 			MOS_DrawCursor(stat,egb);
 		}
+		_POPFD
 	}
 
 	SET_SECOND_BYTE(&EAX,0);
@@ -600,8 +606,10 @@ void MOS_08H_VERTICAL(
 	if(stat->pos.y<stat->minPos.y || stat->maxPos.y<stat->pos.y)
 	{
 		_Far struct EGB_Work *egb=EGB_GetWork();
+		_PUSHFD
 		if(0!=stat->showLevel)
 		{
+			_CLI
 			MOS_RestoreVRAM(stat,egb);
 		}
 		stat->pos.y=_min(stat->maxPos.y,stat->pos.y);
@@ -611,6 +619,7 @@ void MOS_08H_VERTICAL(
 			MOS_SaveVRAM(stat,egb);
 			MOS_DrawCursor(stat,egb);
 		}
+		_POPFD
 	}
 
 	SET_SECOND_BYTE(&EAX,0);
@@ -632,8 +641,10 @@ void MOS_09H_TYPE(
 {
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	_Far struct EGB_Work *egb=EGB_GetWork();
+	_PUSHFD
 	if(0!=stat->showLevel)
 	{
+		_CLI
 		MOS_RestoreVRAM(stat,egb);
 	}
 
@@ -780,6 +791,7 @@ void MOS_09H_TYPE(
 		MOS_SaveVRAM(stat,egb);
 		MOS_DrawCursor(stat,egb);
 	}
+	_POPFD
 }
 
 void MOS_0AH_MOTION(
@@ -1075,9 +1087,12 @@ void MOS_INTERVAL(void)
 
 	if(DX || DY)
 	{
+		_PUSHFD
+
 		_Far struct EGB_Work *egb=EGB_GetWork();
 		if(0!=stat->showLevel)
 		{
+			_CLI
 			MOS_RestoreVRAM(stat,egb);
 		}
 		stat->pos.x+=DX;
@@ -1096,6 +1111,8 @@ void MOS_INTERVAL(void)
 			MOS_SaveVRAM(stat,egb);
 			MOS_DrawCursor(stat,egb);
 		}
+
+		_POPFD
 	}
 
 	// Notify mouse to Tsugaru.

@@ -4,6 +4,8 @@
 
 #include "IODEF.H"
 
+#define EGB_BUFFER_SIZE 4096
+
 #define EGB_FOREGROUND_COLOR 0
 #define EGB_BACKGROUND_COLOR 1
 #define EGB_FILL_COLOR 2
@@ -256,6 +258,14 @@ struct EGB_BlockInfoAndColor
 	unsigned char colors[1];
 };
 
+struct EGB_CoordAddrSet // Needs to be 8-byte long.
+{
+	struct POINTW pos;
+	unsigned int VRAMAddr;
+};
+#define EGB_PAINT_FIFOBUF_SIZE (EGB_BUFFER_SIZE/sizeof(struct EGB_CoordAddrSet))
+
+
 _Far struct EGB_ScreenMode *EGB_GetScreenModeProp(int mode);
 _Far unsigned short *EGB_GetCRTCRegs(int modeComb);
 
@@ -297,6 +307,6 @@ _Far unsigned char *EGB_GetVRAMPointer(_Far struct EGB_Work *work,unsigned char 
 
 
 _Far struct EGB_Work *EGB_GetWork(void);
-
+_Far unsigned char *EGB_GetBuffer(void);
 
 #endif
