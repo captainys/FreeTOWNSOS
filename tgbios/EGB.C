@@ -3435,7 +3435,8 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 		int yMin=_min(p0.y,p1.y);
 		int yMax=_max(p0.y,p1.y);
 		unsigned int vramAddr;
-		unsigned char andPtn,color;
+		unsigned char andPtn;
+		unsigned short color;
 		if(yMax<ptrSet->page->viewport[0].y || ptrSet->page->viewport[1].y<yMax)
 		{
 			return;
@@ -4018,7 +4019,36 @@ void EGB_42H_UNCONNECT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	int i;
+	unsigned char flags=EAX;
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	struct EGB_PagePointerSet pointerSet=EGB_GetPagePointerSet(work);
+
+	_Far unsigned short *count;
+	_FP_SEG(count)=DS;
+	_FP_OFF(count)=ESI;
+	if(2<=*count)
+	{
+		_Far short *points=(_Far short *)(count+1);
+		for(i=0; i+1<*count; i+=2)
+		{
+			struct POINTW p0,p1;
+			p0.x=points[i*2];
+			p0.y=points[i*2+1];
+			p1.x=points[i*2+2];
+			p1.y=points[i*2+3];
+			if(ClipLine(&p0,&p1,pointerSet.page->viewport[0],pointerSet.page->viewport[1]))
+			{
+				EGB_DrawLine(work,&pointerSet,p0,p1);
+			}
+		}
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
