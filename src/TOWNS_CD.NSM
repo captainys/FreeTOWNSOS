@@ -144,7 +144,7 @@ TOWNSCD_READ_SECTORS:
 						MOV		AX,05C0H
 						MOV		ECX,ES:[BX+14H]
 						MOV		DX,CX
-						SHL		ECX,16
+						SHR		ECX,16
 						XOR		CH,CH
 						LDS		DI,ES:[BX+0EH]
 						MOV		BX,ES:[BX+12H]	; Do it last.  ES:BX is destroyed.
