@@ -120,8 +120,7 @@ _Handler Handle_INT4DH(void)
 
 			}
 
-			if(0==(context->timerBCounter&1) && // FM TOWNS TECHNICAL DATABOOK p.379.  Call this function every 20ms.
-			   (context->flags&SNDINT_USING_TIMERB_MOUSE))
+			if(context->flags&SNDINT_USING_TIMERB_MOUSE) // FM TOWNS TECHNICAL DATABOOK p.379.  Call this function every 20ms.
 			{
 				MOS_INTERVAL();
 			}

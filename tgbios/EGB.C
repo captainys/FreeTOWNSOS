@@ -2819,29 +2819,16 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 			case EGB_FUNC_MATTE:
 				{
 					unsigned short transparentColor=color[EGB_TRANSPARENT_COLOR];
-					switch(scrnMode->bitsPerPixel)
-					{
-					case 1:
-						transparentColor&=1;
-						break;
-					case 4:
-						transparentColor&=1;
-						break;
-					case 8:
-						transparentColor&=255;
-						break;
-					case 16:
-						transparentColor&=0x7FFF;
-						break;
-					}
-					for(y=p0.y; y<=p1.y; ++y)
 					{
 						switch(scrnMode->bitsPerPixel)
 						{
 						case 1:
+							transparentColor&=1;
 							TSUGARU_BREAK;
 							break;
 						case 4:
+							transparentColor&=15;
+							for(y=p0.y; y<=p1.y; ++y)
 							{
 								_Far unsigned char *srcPtr,*dstPtr;
 								unsigned char srcShift,dstAndPtn,dstShift;
@@ -2879,9 +2866,13 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 										++srcPtr;
 									}
 								}
+								src+=srcBytesPerLine;
+								vram+=scrnMode->bytesPerLine;
 							}
 							break;
 						case 8:
+							transparentColor&=255;
+							for(y=p0.y; y<=p1.y; ++y)
 							{
 								_Far unsigned char *srcPtr,*dstPtr;
 								srcPtr=src;
@@ -2895,9 +2886,13 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 									++dstPtr;
 									++srcPtr;
 								}
+								src+=srcBytesPerLine;
+								vram+=scrnMode->bytesPerLine;
 							}
 							break;
 						case 16:
+							transparentColor&=0x7FFF;
+							for(y=p0.y; y<=p1.y; ++y)
 							{
 								_Far unsigned short *srcPtr,*dstPtr;
 								srcPtr=(_Far unsigned short *)src;
@@ -2911,11 +2906,11 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 									++dstPtr;
 									++srcPtr;
 								}
+								src+=srcBytesPerLine;
+								vram+=scrnMode->bytesPerLine;
 							}
 							break;
 						}
-						src+=srcBytesPerLine;
-						vram+=scrnMode->bytesPerLine;
 					}
 				}
 				break;
@@ -3040,7 +3035,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 						transparentColor&=1;
 						break;
 					case 4:
-						transparentColor&=1;
+						transparentColor&=15;
 						break;
 					case 8:
 						transparentColor&=255;
