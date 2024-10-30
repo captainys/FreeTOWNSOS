@@ -2819,6 +2819,8 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 			case EGB_FUNC_MATTE:
 				{
 					unsigned short transparentColor=color[EGB_TRANSPARENT_COLOR];
+					register unsigned int count;
+					unsigned int xCount=p1.x+1-p0.x;
 					{
 						switch(scrnMode->bitsPerPixel)
 						{
@@ -2830,7 +2832,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 							transparentColor&=15;
 							for(y=p0.y; y<=p1.y; ++y)
 							{
-								_Far unsigned char *srcPtr,*dstPtr;
+								register _Far unsigned char *srcPtr,*dstPtr;
 								unsigned char srcShift,dstAndPtn,dstShift;
 								srcPtr=src;
 								srcShift=0;
@@ -2845,7 +2847,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 									dstAndPtn=0x0F;
 									dstShift=4;
 								}
-								for(x=p0.x; x<=p1.x; ++x)
+								for(count=xCount; 0<count; --count)
 								{
 									unsigned short srcColor;
 									srcColor=((*srcPtr)>>srcShift)&0x0F;
@@ -2874,10 +2876,10 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 							transparentColor&=255;
 							for(y=p0.y; y<=p1.y; ++y)
 							{
-								_Far unsigned char *srcPtr,*dstPtr;
+								register _Far unsigned char *srcPtr,*dstPtr;
 								srcPtr=src;
 								dstPtr=vram;
-								for(x=p0.x; x<=p1.x; ++x)
+								for(count=xCount; 0<count; --count)
 								{
 									if(*srcPtr!=transparentColor)
 									{
@@ -2894,10 +2896,10 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 							transparentColor&=0x7FFF;
 							for(y=p0.y; y<=p1.y; ++y)
 							{
-								_Far unsigned short *srcPtr,*dstPtr;
+								register _Far unsigned short *srcPtr,*dstPtr;
 								srcPtr=(_Far unsigned short *)src;
 								dstPtr=(_Far unsigned short *)vram;
-								for(x=p0.x; x<=p1.x; ++x)
+								for(count=xCount; 0<count; --count)
 								{
 									if(*srcPtr!=transparentColor)
 									{
@@ -3029,27 +3031,16 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 			case EGB_FUNC_MATTE:
 				{
 					unsigned short transparentColor=color[EGB_TRANSPARENT_COLOR];
+					register unsigned int count;
+					unsigned int xCount=p1.x+1-p0.x;
 					switch(scrnMode->bitsPerPixel)
 					{
 					case 1:
 						transparentColor&=1;
-						break;
-					case 4:
-						transparentColor&=15;
-						break;
-					case 8:
-						transparentColor&=255;
-						break;
-					case 16:
-						transparentColor&=0x7FFF;
-						break;
-					}
-					switch(scrnMode->bitsPerPixel)
-					{
-					case 1:
 						TSUGARU_BREAK;
 						break;
 					case 4:
+						transparentColor&=15;
 						for(y=p0.y; y<=p1.y; ++y)
 						{
 							_Far unsigned char *srcPtr,*dstPtr;
@@ -3067,7 +3058,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 								srcShift=4;
 							}
 
-							for(x=p0.x; x<=p1.x; ++x)
+							for(count=xCount; 0<count; --count)
 							{
 								unsigned short srcColor;
 								srcColor=((*srcPtr)>>srcShift)&0x0F;
@@ -3092,12 +3083,13 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 						}
 						break;
 					case 8:
+						transparentColor&=255;
 						for(y=p0.y; y<=p1.y; ++y)
 						{
-							_Far unsigned char *srcPtr,*dstPtr;
+							register _Far unsigned char *srcPtr,*dstPtr;
 							srcPtr=src+xSkip;
 							dstPtr=vram;
-							for(x=p0.x; x<=p1.x; ++x)
+							for(count=xCount; 0<count; --count)
 							{
 								if(*srcPtr!=transparentColor)
 								{
@@ -3111,13 +3103,14 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 						}
 						break;
 					case 16:
+						transparentColor&=0x7FFF;
 						for(y=p0.y; y<=p1.y; ++y)
 						{
-							_Far unsigned short *srcPtr,*dstPtr;
+							register _Far unsigned short *srcPtr,*dstPtr;
 							srcPtr=(_Far unsigned short *)src;
 							srcPtr+=xSkip;
 							dstPtr=(_Far unsigned short *)vram;
-							for(x=p0.x; x<=p1.x; ++x)
+							for(count=xCount; 0<count; --count)
 							{
 								if(*srcPtr!=transparentColor)
 								{

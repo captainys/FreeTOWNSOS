@@ -64,11 +64,11 @@ void WaitForPad(void)
 
 
 
-void Wait3Sec(void)
+void Wait500ms(void)
 {
 	unsigned int accum=0;
 	clock_t t0=clock();
-	while(accum<CLOCKS_PER_SEC*3)
+	while(accum*2<CLOCKS_PER_SEC)
 	{
 		clock_t t1=clock();
 		accum+=t1-t0;
@@ -143,7 +143,7 @@ void Test4Bit(unsigned char sampleBuffer[])
 	EGB_palette(EGB_work,0,palette);
 	TestPaintFloodFill(sampleBuffer,EGB_PSET,15,9);
 
-	Wait3Sec();
+	Wait500ms();
 }
 
 void Test8Bit(unsigned char sampleBuffer[])
@@ -159,7 +159,7 @@ void Test8Bit(unsigned char sampleBuffer[])
 	EGB_palette(EGB_work,0,palette);
 	TestPaintFloodFill(sampleBuffer,EGB_PSET,255,31);
 
-	Wait3Sec();
+	Wait500ms();
 }
 
 void Test16Bit(unsigned char sampleBuffer[])
@@ -175,7 +175,7 @@ void Test16Bit(unsigned char sampleBuffer[])
 
 	TestPaintFloodFill(sampleBuffer,EGB_PSET,32767,31);
 
-	Wait3Sec();
+	Wait500ms();
 }
 
 void Swap(char *a,char *b)

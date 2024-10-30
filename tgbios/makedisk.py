@@ -86,6 +86,22 @@ def Run(argv):
 		"-i",		"TGBIOS.BIN",
 	]).wait()
 
+	subprocess.Popen(["./makefd",
+		"-o",		os.path.join(THISDIR,"..","ctest","TESTFD.bin"),
+		"-ipl",		"../src/FD_IPL.bin",
+		"-i",		"../resources/IO.SYS",
+		"-i",		"../resources/TESTFD/CONFIG.SYS",
+		"-i",		"../resources/TESTFD/AUTOEXEC.BAT",
+		"-i",		"../resources/SUCCESS.EXE",
+		"-i",		"../resources/FAIL.EXE",
+		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../src/MINVCPI.SYS",
+		"-i",		"../externals/ORICON/ORICON.COM",
+		"-i",		"../externals/Free386/free386.com",
+		"-i",		"TGBIOS.SYS",
+		"-i",		"TGBIOS.BIN",
+	]).wait()
+
 	subprocess.Popen(["./makehd",
 		"-o",		"HDIMG.h0",
 		"-p",		"8", "TSUGARU_OS",
