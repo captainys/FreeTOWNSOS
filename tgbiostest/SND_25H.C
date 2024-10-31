@@ -13,6 +13,11 @@ int main(void)
 	{
 		fp=fopen("CARDINAL.SND","rb");
 	}
+	if(NULL==fp)
+	{
+		printf("Cannot open CARDINAL.SND\n");
+		return 1;
+	}
 	if(NULL!=fp)
 	{
 		char *snd;
