@@ -73,7 +73,7 @@ void SetScreenMode(int m1,int m2);
 
 static unsigned int drawingMode[]={EGB_PSET,EGB_OPAQUE,EGB_MATTE};
 #define TEST_DRAWING_MODES (sizeof(drawingMode)/sizeof(drawingMode[0]))
-#define SAMPLES_PER_SCRNMODE 12
+#define SAMPLES_PER_SCRNMODE ((TEST_DRAWING_MODES)*4)
 #define BYTES_PER_SAMPLE4 (64*64/2)
 #define BYTES_PER_SAMPLE8 (64*64)
 #define BYTES_PER_SAMPLE16 (64*64*2)
@@ -81,6 +81,10 @@ static unsigned int drawingMode[]={EGB_PSET,EGB_OPAQUE,EGB_MATTE};
 unsigned char sample4[SAMPLES_PER_SCRNMODE*BYTES_PER_SAMPLE4];
 unsigned char sample8[SAMPLES_PER_SCRNMODE*BYTES_PER_SAMPLE8];
 unsigned char sample16[SAMPLES_PER_SCRNMODE*BYTES_PER_SAMPLE16];
+
+unsigned char compare4[SAMPLES_PER_SCRNMODE*BYTES_PER_SAMPLE4];
+unsigned char compare8[SAMPLES_PER_SCRNMODE*BYTES_PER_SAMPLE8];
+unsigned char compare16[SAMPLES_PER_SCRNMODE*BYTES_PER_SAMPLE16];
 
 void WaitForPad(void)
 {
@@ -97,11 +101,11 @@ void WaitForPad(void)
 
 
 
-void Wait3Sec(void)
+void Wait500ms(void)
 {
 	unsigned int accum=0;
 	clock_t t0=clock();
-	while(accum<CLOCKS_PER_SEC*3)
+	while(accum*2<CLOCKS_PER_SEC)
 	{
 		clock_t t1=clock();
 		accum+=t1-t0;
@@ -152,13 +156,38 @@ struct BitmapHeader
 	short x0,y0,x1,y1;
 };
 
+void DrawBackground(unsigned int lineColor)
+{
+	short x,y;
+	short viewport[4]={0,0,320,240};
+	EGB_viewport(EGB_work,viewport);
+
+	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,lineColor);
+	EGB_writeMode(EGB_work,EGB_PSET);
+	EGB_paintMode(EGB_work,2);
+	for(x=0; x<320; x+=5)
+	{
+		short line[5]={2,x,0,x,240};
+		EGB_connect(EGB_work,line);
+	}
+	for(y=0; y<240; y+=5)
+	{
+		short line[5]={2,0,y,320,y};
+		EGB_unconnect(EGB_work,line);
+	}
+}
+
 void TestPUTBLOCK_1BIT(
 	unsigned int fgColor,
 	unsigned int bgColor,
+	unsigned int lineColor,
 	int mode)
 {
 	int i;
 	struct BitmapHeader bmp;
+
+	DrawBackground(lineColor);
+
 	bmp.ptn=AOMORI;
 	bmp.x0=0;
 	bmp.y0=0;
@@ -182,9 +211,12 @@ void TestPUTBLOCK_1BIT(
 void TestPUTBLOCK_1BIT_VIEWPORT(
 	unsigned int fgColor,
 	unsigned int bgColor,
+	unsigned int lineColor,
 	int mode)
 {
 	short viewport[4]={5,5,50,50};
+
+	DrawBackground(lineColor);
 
 	EGB_color(EGB_work,EGB_FOREGROUND_COLOR,fgColor);
 	EGB_color(EGB_work,EGB_BACKGROUND_COLOR,bgColor);
@@ -211,10 +243,14 @@ void TestPUTBLOCK_1BIT_VIEWPORT(
 
 void TestPUTBLOCK_COLOR(
 	int mode,
+	unsigned int lineColor,
 	int wid,int hei,
 	const unsigned char ptn[])
 {
 	struct BitmapHeader bmp;
+
+	DrawBackground(lineColor);
+
 	bmp.ptn=ptn;
 	bmp.x0=0;
 	bmp.y0=0;
@@ -236,10 +272,13 @@ void TestPUTBLOCK_COLOR(
 
 void TestPUTBLOCK_COLOR_VIEWPORT(
 	int mode,
+	unsigned int lineColor,
 	int wid,int hei,
 	const unsigned char ptn[])
 {
 	short viewport[4]={5,5,60,60};
+
+	DrawBackground(lineColor);
 
 	EGB_writeMode(EGB_work,mode);
 	EGB_paintMode(EGB_work,0x02);
@@ -276,6 +315,13 @@ void Test4Bit(void)
 	int i;
 	unsigned int palette[513];
 	unsigned char ptn[32*32];
+	unsigned char *samplePtr=sample4;
+
+	struct BitmapHeader bmp;
+	bmp.x0=0;
+	bmp.y0=0;
+	bmp.x1=63;
+	bmp.y1=63;
 
 	EGB_resolution(EGB_work,0,3);
 	EGB_resolution(EGB_work,1,3);
@@ -288,15 +334,25 @@ void Test4Bit(void)
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_1BIT(15,0,drawingMode[i]);
-		Wait3Sec();
+		TestPUTBLOCK_1BIT(15,0,9,drawingMode[i]);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE4;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_1BIT_VIEWPORT(12,0,drawingMode[i]);
-		Wait3Sec();
+		TestPUTBLOCK_1BIT_VIEWPORT(12,0,9,drawingMode[i]);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE4;
+
+		Wait500ms();
 	}
 
 	MakeDuck4(palette,ptn);
@@ -305,15 +361,25 @@ void Test4Bit(void)
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_COLOR(drawingMode[i],duckywid,duckyhei,(unsigned char *)ptn);
-		Wait3Sec();
+		TestPUTBLOCK_COLOR(drawingMode[i],9,duckywid,duckyhei,(unsigned char *)ptn);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE4;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],duckywid,duckyhei,(unsigned char *)ptn);
-		Wait3Sec();
+		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],9,duckywid,duckyhei,(unsigned char *)ptn);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE4;
+
+		Wait500ms();
 	}
 }
 
@@ -322,6 +388,13 @@ void Test8Bit(void)
 	int i;
 	unsigned int palette[513];
 	unsigned char ptn[32*32];
+	unsigned char *samplePtr=sample8;
+
+	struct BitmapHeader bmp;
+	bmp.x0=0;
+	bmp.y0=0;
+	bmp.x1=63;
+	bmp.y1=63;
 
 	EGB_resolution(EGB_work,0,12);
 	EGB_writePage(EGB_work,0);
@@ -329,15 +402,25 @@ void Test8Bit(void)
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_1BIT(255,0,drawingMode[i]);
-		Wait3Sec();
+		TestPUTBLOCK_1BIT(255,0,31,drawingMode[i]);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE8;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_1BIT_VIEWPORT(63,0,drawingMode[i]);
-		Wait3Sec();
+		TestPUTBLOCK_1BIT_VIEWPORT(63,0,31,drawingMode[i]);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE8;
+
+		Wait500ms();
 	}
 
 	MakeDuck256(palette,ptn);
@@ -346,21 +429,39 @@ void Test8Bit(void)
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_COLOR(drawingMode[i],duckywid,duckyhei,(unsigned char *)ptn);
-		Wait3Sec();
+		TestPUTBLOCK_COLOR(drawingMode[i],31,duckywid,duckyhei,(unsigned char *)ptn);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE8;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],duckywid,duckyhei,(unsigned char *)ptn);
-		Wait3Sec();
+		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],31,duckywid,duckyhei,(unsigned char *)ptn);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE8;
+
+		Wait500ms();
 	}
 }
 
 void Test16Bit(void)
 {
 	int i;
+	unsigned char *samplePtr=sample16;
+
+	struct BitmapHeader bmp;
+	bmp.x0=0;
+	bmp.y0=0;
+	bmp.x1=63;
+	bmp.y1=63;
+
 	EGB_resolution(EGB_work,0,10);
 	EGB_resolution(EGB_work,1,10);
 
@@ -372,29 +473,49 @@ void Test16Bit(void)
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_1BIT(32767,0x8000,drawingMode[i]);
-		Wait3Sec();
+		TestPUTBLOCK_1BIT(32767,0x8000,31,drawingMode[i]);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE16;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_1BIT_VIEWPORT(0x7C00,0x8000,drawingMode[i]);
-		Wait3Sec();
+		TestPUTBLOCK_1BIT_VIEWPORT(0x7C00,0x8000,31,drawingMode[i]);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE16;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_COLOR(drawingMode[i],duckywid,duckyhei,(unsigned char *)duck16);
-		Wait3Sec();
+		TestPUTBLOCK_COLOR(drawingMode[i],31,duckywid,duckyhei,(unsigned char *)duck16);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE16;
+
+		Wait500ms();
 	}
 
 	for(i=0; i<TEST_DRAWING_MODES; ++i)
 	{
 		EGB_clearScreen(EGB_work);
-		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],duckywid,duckyhei,(unsigned char *)duck16);
-		Wait3Sec();
+		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],31,duckywid,duckyhei,(unsigned char *)duck16);
+
+		bmp.ptn=samplePtr;
+		EGB_getBlock(EGB_work,&bmp);
+		samplePtr+=BYTES_PER_SAMPLE16;
+
+		Wait500ms();
 	}
 }
 
@@ -405,8 +526,34 @@ void Swap(char *a,char *b)
 	*b=c;
 }
 
-int main(void)
+int main(int ac,char *av[])
 {
+	int generateMode=0;
+	if(2<=ac && (0==strcmp(av[1],"-g") || 0==strcmp(av[1],"-G")))
+	{
+		generateMode=1;
+	}
+
+
+	if(0==generateMode)
+	{
+		FILE *fp=fopen("EGB_PUT.bin","rb");
+		if(NULL==fp)
+		{
+			fp=fopen("../EGB_PUT.bin","rb");
+		}
+		if(NULL==fp)
+		{
+			printf("Cannot open reference binary.\n");
+			return 1;
+		}
+		fread(compare4,1,sizeof(compare4),fp);
+		fread(compare8,1,sizeof(compare8),fp);
+		fread(compare16,1,sizeof(compare16),fp);
+		fclose(fp);
+	}
+
+
 	EGB_init(EGB_work,EgbWorkSize);
 
 	for(int y=0; y<32; ++y)
@@ -425,5 +572,38 @@ int main(void)
 	Test8Bit();
 	Test16Bit();
 
-	return 0;
+	int err=0;
+	if(generateMode)
+	{
+		FILE *fp=fopen("EGB_PUT.bin","wb");
+		fwrite(sample4,1,sizeof(sample4),fp);
+		fwrite(sample8,1,sizeof(sample8),fp);
+		fwrite(sample16,1,sizeof(sample16),fp);
+		fclose(fp);
+	}
+	else
+	{
+		if(0!=memcmp(sample4,compare4,sizeof(sample4)))
+		{
+			printf("Error in comparison in 4-bit color mode.\n");
+			err=1;
+		}
+		if(0!=memcmp(sample8,compare8,sizeof(sample8)))
+		{
+			printf("Error in comparison in 8-bit color mode.\n");
+			err=1;
+		}
+		if(0!=memcmp(sample16,compare16,sizeof(sample16)))
+		{
+			printf("Error in comparison in 16-bit color mode.\n");
+			err=1;
+		}
+
+		if(0==err)
+		{
+			printf("Comparison Successful.\n");
+		}
+	}
+
+	return err;
 }
