@@ -3063,8 +3063,11 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 								unsigned short srcColor;
 								srcColor=((*srcPtr)>>srcShift)&0x0F;
 
-								*dstPtr&=dstAndPtn;
-								*dstPtr|=(srcColor<<dstShift);
+								if(srcColor!=transparentColor)
+								{
+									*dstPtr&=dstAndPtn;
+									*dstPtr|=(srcColor<<dstShift);
+								}
 
 								dstAndPtn=~dstAndPtn;
 								dstShift=4-dstShift;
