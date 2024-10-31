@@ -19,9 +19,9 @@ def Run(argv):
 		print("Error bulding makefd.exe")
 		quit()
 
-	subprocess.Popen(["./makefd",
+	proc=subprocess.Popen(["./makefd",
 		"-o",		"BUILDTGBIOS.bin",
-		"-ipl",		"../src/FD_IPL.bin",
+		"-ipl",		"../iosys/FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
 		"-i",		"../resources/YSDOS.SYS",
 		"-i",		"../resources/YAMAND.COM",
@@ -31,9 +31,13 @@ def Run(argv):
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../resources/SUCCESS.EXE",
 		"-i",		"../resources/FAIL.EXE",
-		"-i",		"../src/MINVCPI.SYS",
+		"-i",		"../iosys/MINVCPI.SYS",
 		"-i",		"../externals/Free386/free386.com",
-	]).wait()
+	])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error making disk image.")
+		quit()
 
 if __name__=="__main__":
 	Run(sys.argv[1:])

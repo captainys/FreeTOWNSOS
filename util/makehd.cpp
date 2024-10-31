@@ -395,7 +395,7 @@ int MakeHardDiskImage(const CommandParameterInfo &cpi)
 		if(true!=hd.AddPartition(p.sizeInMB,p.label,p.label))
 		{
 			std::cout << "Failed to create a partition.\n";
-			return 1;
+			return false;
 		}
 	}
 
@@ -407,13 +407,13 @@ int MakeHardDiskImage(const CommandParameterInfo &cpi)
 		if(0==file.size())
 		{
 			std::cout << "Cannot open input file: " << in.fileName << "\n";
-			return 1;
+			return false;
 		}
 
 		if(hd.partitions.size()<=in.partition)
 		{
 			std::cout << "Destination partition does not exist.\n";
-			return 1;
+			return false;
 		}
 
 		char DOS8PLUS3[11];
@@ -467,14 +467,14 @@ int MakeHardDiskImage(const CommandParameterInfo &cpi)
 	auto img=hd.GenerateHDImage(cpi.MBRFile,cpi.IPLFile);
 	if(0==img.size())
 	{
-		return 1;
+		return false;
 	}
 	for(auto outFile : cpi.outFile)
 	{
 		std::ofstream ofp(outFile,std::ios::binary);
 		ofp.write((char *)img.data(),img.size());
 	}
-	return 0;
+	return true;
 }
 
 int main(int ac,char *av[])
@@ -485,5 +485,5 @@ int main(int ac,char *av[])
 		cpi.Help();
 		return 1;
 	}
-	return MakeHardDiskImage(cpi);
+	return (true==MakeHardDiskImage(cpi) ? 0 : 1);
 }

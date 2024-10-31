@@ -225,7 +225,10 @@ int main(int ac,char *av[])
 
 	for(auto &o : cpi.outFile)
 	{
-		MakeDisk(o,cpi);
+		if(true!=MakeDisk(o,cpi))
+		{
+			return 1;
+		}
 	}
 
 	return 0;

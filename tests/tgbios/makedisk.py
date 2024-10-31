@@ -33,14 +33,17 @@ def Run(argv):
 		print("Error bulding")
 		quit()
 
-
-	proc=subprocess.Popen(["cl","../../util/makefd.cpp","../../util/dosdisk.cpp","/EHsc"])
-	proc.communicate()
-	if 0!=proc.returncode:
-		print("Error bulding makefd.exe")
-		quit()
+	fp=open(os.path.join(THISDIR,"OUTPUT.TXT"),"r")
+	for line in fp:
+		print(line)
+	fp.close()
 
 
+	# proc=subprocess.Popen(["cl","../../util/makefd.cpp","../../util/dosdisk.cpp","/EHsc"])
+	# proc.communicate()
+	# if 0!=proc.returncode:
+	# 	print("Error bulding makefd.exe")
+	# 	quit()
 	# subprocess.Popen(["./makefd",
 	# 	"-o",		"FDIMG.bin",
 	# 	"-i",		"BUILD/SND.EXP",
