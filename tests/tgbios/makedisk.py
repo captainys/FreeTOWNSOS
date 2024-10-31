@@ -7,9 +7,6 @@ import shutil
 THISFILE=os.path.realpath(__file__)
 THISDIR=os.path.dirname(THISFILE)
 
-def CopyToResources(filename):
-	shutil.copyfile(filename,os.path.join("..","resources",filename))
-
 def Run(argv):
 	os.chdir(THISDIR)
 
@@ -18,13 +15,13 @@ def Run(argv):
 
 	proc=subprocess.Popen([
 		"Tsugaru_CUI",
-		os.path.join(THISDIR,"..","CompROM"),
+		os.path.join(THISDIR,"..","..","CompROM"),
 		"-FD0",
-		os.path.join(THISDIR,"..","make_build_env","BUILDTGBIOS.bin"),
+		os.path.join(THISDIR,"..","..","make_build_env","BUILDTGBIOS.bin"),
 		"-BOOTKEY",
 		"F0",
 		"-SHAREDDIR",
-		os.path.join(THISDIR,"..","..","HC386ENV"),
+		os.path.join(THISDIR,"..","..","..","HC386ENV"),
 		"-SHAREDDIR",
 		THISDIR,
 		"-DEBUG",
@@ -37,18 +34,18 @@ def Run(argv):
 		quit()
 
 
-	proc=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc=subprocess.Popen(["cl","../../util/makefd.cpp","../../util/dosdisk.cpp","/EHsc"])
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error bulding makefd.exe")
 		quit()
 
 
-	subprocess.Popen(["./makefd",
-		"-o",		"FDIMG.bin",
-		"-i",		"BUILD/SND.EXP",
-		"-i",		"CARDINAL.SND",
-	]).wait()
+	# subprocess.Popen(["./makefd",
+	# 	"-o",		"FDIMG.bin",
+	# 	"-i",		"BUILD/SND.EXP",
+	# 	"-i",		"CARDINAL.SND",
+	# ]).wait()
 
 
 

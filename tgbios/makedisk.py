@@ -87,7 +87,7 @@ def Run(argv):
 	]).wait()
 
 	subprocess.Popen(["./makefd",
-		"-o",		os.path.join(THISDIR,"..","ctest","TESTFD.bin"),
+		"-o",		os.path.join(THISDIR,"..","tests","ctest","TESTFD.bin"),
 		"-ipl",		"../src/FD_IPL.bin",
 		"-i",		"../resources/IO.SYS",
 		"-i",		"../resources/TESTFD/CONFIG.SYS",
