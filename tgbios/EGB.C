@@ -140,7 +140,11 @@ unsigned int EGB_CoordToVRAMOffset(_Far struct EGB_ScreenMode *mode,int x,int y)
 
 void EGB_WaitVSYNC(void)
 {
-	while(0!=(_inb(TOWNSIO_HSYNC_VSYNC)&1));
+	// To be absolutely sure that CRTC is not touched outside of VSYNC period, I need to wait until the rising edge of VSYNC (positive low)
+	// However, the original TBIOS seems to be only checking if it is in the VSYNC period.
+	// What could happen is it is the very last microsecond of VSYNC, then CRTC will be touched outside of the VSYNC period,
+	// but it will be while drawing the first a few lines, so probably not visible anyway.
+	// while(0!=(_inb(TOWNSIO_HSYNC_VSYNC)&1));
 	while(0==(_inb(TOWNSIO_HSYNC_VSYNC)&1));
 }
 
