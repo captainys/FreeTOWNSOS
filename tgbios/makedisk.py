@@ -10,6 +10,13 @@ THISDIR=os.path.dirname(THISFILE)
 def CopyToResources(filename):
 	shutil.copyfile(filename,os.path.join("..","resources",filename))
 
+def PrintOutput():
+	fp=open(os.path.join(THISDIR,"OUTPUT.TXT"),"r")
+	for line in fp:
+		print(line)
+	fp.close()
+
+
 def Run(argv):
 	os.chdir(THISDIR)
 
@@ -40,6 +47,7 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error bulding TGBIOS.BIN")
+		PrintOutput()
 		quit()
 
 
@@ -48,12 +56,14 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error bulding makefd.exe")
+		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","/EHsc"])
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building makehd.exe")
+		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makefd",
@@ -75,6 +85,7 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building FDIMG.bin")
+		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makefd",
@@ -94,6 +105,7 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building FDIMG_USEROM.bin")
+		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makefd",
@@ -114,6 +126,7 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building TESTFD.bin")
+		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makehd",
@@ -137,6 +150,7 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building HDIMG.h0")
+		PrintOutput()
 		quit()
 
 	CopyToResources("TGBIOS.SYS")
@@ -145,11 +159,7 @@ def Run(argv):
 	CopyToResources("FDIMG_USEROM.BIN")
 	CopyToResources("HDIMG.h0")
 
-
-	fp=open(os.path.join(THISDIR,"OUTPUT.TXT"),"r")
-	for line in fp:
-		print(line)
-	fp.close()
+	PrintOutput()
 
 
 

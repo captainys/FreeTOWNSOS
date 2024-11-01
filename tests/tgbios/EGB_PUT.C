@@ -20,6 +20,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "io.h"
 #include "DUCK.H"
 
+#define TSUGARU_BREAK _inline(0xE6,0xEA);
+
 static char EGB_work[EgbWorkSize];
 
 void SetScreenMode(int m1,int m2);
@@ -442,7 +444,6 @@ void Test8Bit(void)
 	{
 		EGB_clearScreen(EGB_work);
 		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],31,duckywid,duckyhei,(unsigned char *)ptn);
-
 		bmp.ptn=samplePtr;
 		EGB_getBlock(EGB_work,&bmp);
 		samplePtr+=BYTES_PER_SAMPLE8;
@@ -510,7 +511,6 @@ void Test16Bit(void)
 	{
 		EGB_clearScreen(EGB_work);
 		TestPUTBLOCK_COLOR_VIEWPORT(drawingMode[i],31,duckywid,duckyhei,(unsigned char *)duck16);
-
 		bmp.ptn=samplePtr;
 		EGB_getBlock(EGB_work,&bmp);
 		samplePtr+=BYTES_PER_SAMPLE16;
@@ -524,6 +524,27 @@ void Swap(char *a,char *b)
 	char c=*a;
 	*a=*b;
 	*b=c;
+}
+
+int memcmp32(void *P1,void *P2,size_t sz)
+{
+	unsigned char *p1=P1;
+	unsigned char *p2=P2;
+	while(0<sz)
+	{
+		int cmp;
+		size_t s;
+		s=_min(0xFFFF,sz);
+		cmp=memcmp(p1,p2,s);
+		if(0!=cmp)
+		{
+			return cmp;
+		}
+		p1+=s;
+		p2+=s;
+		sz-=s;
+	}
+	return 0;
 }
 
 int main(int ac,char *av[])
@@ -583,17 +604,18 @@ int main(int ac,char *av[])
 	}
 	else
 	{
-		if(0!=memcmp(sample4,compare4,sizeof(sample4)))
+		if(0!=memcmp32(sample4,compare4,sizeof(sample4)))
 		{
 			printf("Error in comparison in 4-bit color mode.\n");
 			err=1;
 		}
-		if(0!=memcmp(sample8,compare8,sizeof(sample8)))
+		if(0!=memcmp32(sample8,compare8,sizeof(sample8)))
 		{
 			printf("Error in comparison in 8-bit color mode.\n");
 			err=1;
 		}
-		if(0!=memcmp(sample16,compare16,sizeof(sample16)))
+		// WTF!? The third parameter to memcmp is unsigned short!?
+		if(0!=memcmp32(sample16,compare16,sizeof(sample16)))
 		{
 			printf("Error in comparison in 16-bit color mode.\n");
 			err=1;
