@@ -2965,12 +2965,13 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 					TSUGARU_BREAK
 					break;
 				case 4:
+					src+=xSkip/2;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
 						_Far unsigned char *srcPtr,*dstPtr;
 						unsigned char srcShift=0,dstAndPtn=0xF0,dstShift=0;
 
-						srcPtr=src+xSkip/2;
+						srcPtr=src;
 						dstPtr=vram;
 						if(p0.x&1)
 						{
@@ -3008,21 +3009,21 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 					break;
 				case 8:
 					transferBytesPerLine=p1.x-p0.x+1;
+					src+=xSkip;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						src+=xSkip;
 						MEMCPY_FAR(vram,src,transferBytesPerLine);
-						src+=(srcBytesPerLine-xSkip);
+						src+=srcBytesPerLine;
 						vram+=scrnMode->bytesPerLine;
 					}
 					break;
 				case 16:
 					transferBytesPerLine=p1.x-p0.x+1;
+					src+=xSkip*2;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						src+=xSkip*2;
 						MEMCPY_FAR(vram,src,transferBytesPerLine*2);
-						src+=(srcBytesPerLine-xSkip*2);
+						src+=srcBytesPerLine;
 						vram+=scrnMode->bytesPerLine;
 					}
 					break;
