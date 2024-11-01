@@ -1,7 +1,7 @@
 enable_testing()
 
 set(RUNNER_FD "${CMAKE_CURRENT_SOURCE_DIR}/TESTFD.bin")
-set(ROMDIR "${CMAKE_CURRENT_SOURCE_DIR}/../CompROM")
+set(ROMDIR "${CMAKE_CURRENT_SOURCE_DIR}/../../CompROM")
 
 add_test(EGB_4EH_CLOSEPAINT
 	Tsugaru_CUI

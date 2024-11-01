@@ -3041,12 +3041,13 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 						break;
 					case 4:
 						transparentColor&=15;
+						src+=xSkip/2;
 						for(y=p0.y; y<=p1.y; ++y)
 						{
 							_Far unsigned char *srcPtr,*dstPtr;
 							unsigned char srcShift=0,dstAndPtn=0xF0,dstShift=0;
 
-							srcPtr=src+xSkip/2;
+							srcPtr=src;
 							dstPtr=vram;
 							if(p0.x&1)
 							{
@@ -3087,10 +3088,11 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 						break;
 					case 8:
 						transparentColor&=255;
+						src+=xSkip;
 						for(y=p0.y; y<=p1.y; ++y)
 						{
 							register _Far unsigned char *srcPtr,*dstPtr;
-							srcPtr=src+xSkip;
+							srcPtr=src;
 							dstPtr=vram;
 							for(count=xCount; 0<count; --count)
 							{
@@ -3107,11 +3109,11 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 						break;
 					case 16:
 						transparentColor&=0x7FFF;
+						src+=xSkip;
 						for(y=p0.y; y<=p1.y; ++y)
 						{
 							register _Far unsigned short *srcPtr,*dstPtr;
 							srcPtr=(_Far unsigned short *)src;
-							srcPtr+=xSkip;
 							dstPtr=(_Far unsigned short *)vram;
 							for(count=xCount; 0<count; --count)
 							{

@@ -387,7 +387,7 @@ std::vector <unsigned char> HardDisk::GenerateHDImage(std::string MBRFile,std::s
 }
 
 
-int MakeHardDiskImage(const CommandParameterInfo &cpi)
+bool MakeHardDiskImage(const CommandParameterInfo &cpi)
 {
 	HardDisk hd;
 	for(auto &p : cpi.partitions)
