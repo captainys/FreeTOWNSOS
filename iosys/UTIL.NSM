@@ -4,6 +4,12 @@
 
 
 
+%macro					TSUGARU_STATE	0
+						OUT		0EBH,AL
+%endmacro
+
+
+
 %macro					PLACE 1
 						TIMES	%1-($-$$) DB 0
 %endmacro

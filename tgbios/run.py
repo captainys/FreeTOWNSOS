@@ -21,7 +21,7 @@ proc=subprocess.Popen([
 	"-DEBUG",
 	"-INITCMD","ENA FDCMON",
 	# "-INITCMD","BP 31A7:00002893", # Stop in free386.com before call init_dos_malloc
-	"-SHAREDDIR",os.path.join(THISDIR,"..","tgdrv"),
+	"-SHAREDDIR",os.path.join(THISDIR,"..","..","TOWNSEMU_TEST","FREEWARE"),
 	"-SHAREDDIR",os.path.join(THISDIR,"..","..","TOWNSEMU","testc"),
 	"-SHAREDDIR",os.path.join(THISDIR,"..","tests","tgbios"),
 	# "-POWEROFFAT","2B3D:100",

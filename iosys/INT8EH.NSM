@@ -9,6 +9,43 @@
 CODE					SEGMENT USE16
 
 INT8EH:
-						CLC
+						; According to nabe@abk's research,
+						; https://github.com/nabe-abk/free386/blob/main/doc-ja/dosext/coco_nsd.txt
+						; AH=C0H to CFH are something to do with COCO Memory, which was introduced in 
+						; Towns OS V2.1
+						; No plan to support it in Tsugaru OS for the time being.
+
+						CMP		AH,0C0H
+						JB		INT8EH_NOT_COCO
+						CMP		AH,0CFH
+						JA		INT8EH_NOT_COCO
+						JMP		INT8EH_IS_COCO
+
+						OR		AH,AH
+						JE		INT8EH_00H_GET_SYSTEM_INFO
+
+
+
+INT8EH_NOT_COCO:
+						PUSH	BP
+						MOV		BP,SP
+						AND		BYTE [BP+6],0FEH
+						POP		BP
 						IRET
 
+
+
+INT8EH_IS_COCO:
+						TSUGARU_STATE
+						PUSH	BP
+						MOV		BP,SP
+						OR		BYTE [BP+6],01H
+						POP		BP
+						MOV		AH,0FFH
+						IRET
+
+
+
+INT8EH_00H_GET_SYSTEM_INFO:
+						TSUGARU_STATE
+						JMP		INT8EH_NOT_COCO
