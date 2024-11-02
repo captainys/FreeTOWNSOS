@@ -2672,13 +2672,21 @@ void EGB_24H_GETBLOCK(
 			ptrSet.vram));
 }
 
+extern void EGB_PUTBLOCK_16_PSET(
+	_Far unsigned char *dstPtr,
+	_Far unsigned char *srcPtr,
+	unsigned int xCount,
+	unsigned int yCount,
+	unsigned int dstBytesPerLine,
+	unsigned int srcBytesPerLine);
+
 extern void EGB_PUTBLOCK_16_MATTE(
 	_Far unsigned char *dstPtr,
 	_Far unsigned char *srcPtr,
 	unsigned int xCount,
 	unsigned int yCount,
-	unsigned int srcBytesPerLine,
 	unsigned int dstBytesPerLine,
+	unsigned int srcBytesPerLine,
 	unsigned int transparentColor);
 
 unsigned char EGB_PUTBLOCK_INTERNAL(
@@ -2854,14 +2862,15 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 					}
 					break;
 				case 16:
-					transferBytesPerLine=p1.x-p0.x+1;
 					src+=xSkip*2;
-					for(y=p0.y; y<=p1.y; ++y)
-					{
-						MEMCPY_FAR(vram,src,transferBytesPerLine*2);
-						src+=srcBytesPerLine;
-						vram+=scrnMode->bytesPerLine;
-					}
+					EGB_PUTBLOCK_16_PSET(vram,src,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine,srcBytesPerLine);
+					// transferBytesPerLine=(p1.x-p0.x+1)*2;
+					// for(y=p0.y; y<=p1.y; ++y)
+					// {
+					// 	MEMCPY_FAR(vram,src,transferBytesPerLine);
+					// 	src+=srcBytesPerLine;
+					// 	vram+=scrnMode->bytesPerLine;
+					// }
 					break;
 				}
 				break;
@@ -2947,7 +2956,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 					case 16:
 						transparentColor&=0x7FFF;
 						src+=xSkip*2;
-						EGB_PUTBLOCK_16_MATTE(vram,src,xCount,p1.y+1-p0.y,srcBytesPerLine,scrnMode->bytesPerLine,transparentColor);
+						EGB_PUTBLOCK_16_MATTE(vram,src,xCount,p1.y+1-p0.y,scrnMode->bytesPerLine,srcBytesPerLine,transparentColor);
 						// for(y=p0.y; y<=p1.y; ++y)
 						// {
 						// 	register _Far unsigned short *srcPtr,*dstPtr;

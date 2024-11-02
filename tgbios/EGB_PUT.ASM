@@ -1,10 +1,98 @@
 						.386p
 
 						PUBLIC		EGB_PUTBLOCK_16_MATTE
+						PUBLIC		EGB_PUTBLOCK_16_PSET
 
 						ASSUME CS:CODE
 
 CODE					SEGMENT
+
+
+
+; extern void EGB_PUTBLOCK_16_PSET(
+; 	_Far unsigned char *dstPtr,
+; 	_Far unsigned char *srcPtr,
+; 	unsigned int xCount,
+; 	unsigned int yCount,
+; 	unsigned int dstBytesPerLine,
+; 	unsigned int srcBytesPerLine);
+
+;					for(y=p0.y; y<=p1.y; ++y)
+;					{
+;						MEMCPY_FAR(vram,src,transferBytesPerLine);
+;						src+=srcBytesPerLine;
+;						vram+=scrnMode->bytesPerLine;
+;					}
+EGB_PUTBLOCK_16_PSET	PROC
+; ESP+40H	srcBytesPerLine
+; ESP+3CH	dstBytesPerLine
+; ESP+38H	yCount
+; EXP+34H	xCount
+; ESP+2CH	srcPtr
+; ESP+24H	dstPtr
+; ESP+20H	Return EIP
+; ESP+1CH	DS
+; ESP+18H	ES
+; ESP+14H	EBP
+; ESP+10H	ESI
+; ESP+0CH	EDI
+; ESP+08H	EBX
+; ESP+04H	ECX
+; ESP		EDX
+
+						PUSH	DS
+						PUSH	ES
+						PUSH	EBP
+						PUSH	ESI
+						PUSH	EDI
+						PUSH	EBX
+						PUSH	ECX
+						PUSH	EDX
+
+						LES		EDI,[ESP+24H] ; dstPtr
+						LDS		ESI,[ESP+2CH] ; srcPtr
+
+						CLD
+						MOV		EDX,[ESP+38H] ; yCount
+						MOV		EBP,[ESP+34H] ; xCount
+
+						MOV		EAX,[ESP+40H] ; srcBytesPerLine
+						MOV		EBX,[ESP+3CH] ; dstBytesPerLine
+
+						SHL		EBP,1
+						SUB		EAX,EBP
+						SUB		EBX,EBP
+						SHR		EBP,1
+
+EGB_PUTBLOCK_16_PSET_YLOOP:
+						MOV		ECX,EBP
+
+						SHR		ECX,1
+						REP		MOVSD
+
+						JNC		EGB_PUTBLOCK_16_PSET_NEXT
+						MOVSW
+
+EGB_PUTBLOCK_16_PSET_NEXT:
+						ADD		ESI,EAX
+						ADD		EDI,EBX
+						DEC		EDX
+						JNE		EGB_PUTBLOCK_16_PSET_YLOOP
+
+						POP		EDX
+						POP		ECX
+						POP		EBX
+						POP		EDI
+						POP		ESI
+						POP		EBP
+						POP		ES
+						POP		DS
+						RET
+
+EGB_PUTBLOCK_16_PSET	ENDP
+
+
+
 ; EGB_PUTBLOCK_16_MATTE(dstPtr,srcPtr,xCount,p1.y+1-p0.y,srcBytesPerLine,scrnMode->bytesPerLine,transparentColor);
 
 ;						for(y=p0.y; y<=p1.y; ++y)
@@ -26,8 +114,8 @@ CODE					SEGMENT
 ;						}
 
 ; ESP+48H	transparentColor
-; ESP+44H	dstBytesPerLine
-; ESP+40H	srcBytesPerLine
+; ESP+44H	srcBytesPerLine
+; ESP+40H	dstBytesPerLine
 ; ESP+3CH	yCount
 ; ESP+38H	xCount
 ; ESP+30H	_Far srcPtr
@@ -64,8 +152,8 @@ EGB_PUTBLOCK_16_MATTE	PROC
 						CLD
 
 						SHL		EBP,1
-						SUB		[ESP+40H],EBP	; =srcBytesPerLine-xCount*2
-						SUB		[ESP+44H],EBP	; =dstBytesPerLine-xCount*2
+						SUB		[ESP+40H],EBP	; =dstBytesPerLine-xCount*2
+						SUB		[ESP+44H],EBP	; =srcBytesPerLine-xCount*2
 						SHR		EBP,1
 
 EGB_PUTBLOCK_16_MATTE_YLOOP:
@@ -84,8 +172,8 @@ EGB_PUTBLOCK_16_MATTE_TRANS:
 						LOOP	EGB_PUTBLOCK_16_MATTE_XLOOP
 
 EGB_PUTBLOCK_16_MATTE_NEXTY:
-						ADD		ESI,[ESP+40H]
-						ADD		EDI,[ESP+44H]
+						ADD		EDI,[ESP+40H]
+						ADD		ESI,[ESP+44H]
 
 						DEC		EDX
 						JNE		EGB_PUTBLOCK_16_MATTE_YLOOP
