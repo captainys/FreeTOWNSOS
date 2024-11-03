@@ -1,0 +1,175 @@
+; Either one of the following macros must be defined.
+;%macro					CALL_DISK_BIOS	0
+;						INT		93H
+;%endmacro
+; or
+;%macro					CALL_DISK_BIOS	0
+;						DB		9AH		; CALLF FFFB:0014
+;						DW		 0014H
+;						DW		0FFFBH
+;%endmacro
+
+
+
+
+CD_SECTOR_LEN		EQU		0800H
+
+PVD_LBA				EQU		16		; LBA of Primary Volume Descriptor
+
+PVD_ROOTDIR_LE		EQU		158
+PVD_ROOTDIR_LEN		EQU		166
+
+CD_DIR_DATA_LBA		EQU		2
+CD_DIR_DATA_LEN		EQU		10
+CD_DIR_FILENAME_LEN EQU		32
+CD_DIR_FILENAME		EQU		33
+
+
+
+; Input
+;   AL=BIOS Device ID (C0H for Internal CD,  B?H for SCSI CD)
+;   DS:DI=4KB Sector Buffer
+;   ES:SI=File Name, zero-terminated
+; Output
+;   Searches only the root directory.
+;   Registers will be destroyed.
+;   CF=0  EBX  LBA
+;         ECX  File Size
+;   CF=1  AH=00 File Not Found
+;         AH=80H Hard Error CX=Error Detail
+;         AH=Non-Zero  BIOS Error
+ISO9660_FIND_LBA:
+					PUSH	ES
+					PUSH	SI		; [BP+6]   Far Ptr File Name
+					PUSH	DS
+					PUSH	DI		; [BP+2]   Far Ptr Data Buffer
+					MOV		AH,05
+					PUSH	AX		; [BP]     05C0h or 05B?H
+					MOV		BP,SP
+
+					CLD
+
+					MOV		CX,0
+					MOV		DX,PVD_LBA
+					MOV		BX,1
+					; AL is already set
+					; DS:DI is already set
+					CALL_DISK_BIOS
+					JB		ISO9660_FIND_LBA_ERROR
+
+					MOV		EAX,[DI+PVD_ROOTDIR_LEN]
+					ADD		EAX,CD_SECTOR_LEN-1
+					XOR		EDX,EDX
+					MOV		EBX,CD_SECTOR_LEN
+					DIV		EBX
+					MOV		EBX,EAX		; EBX is the number of sectors of the root dir
+
+					PUSH	BX
+
+					; [BP-2] is the number of sectors of the root dir
+
+					MOV		EDX,[DI+PVD_ROOTDIR_LE]
+
+					PUSH	EDX
+
+					; [BP-6] is the root dir LBA
+
+					MOV		EDX,[BP-6]
+					SHLD	ECX,EDX,16
+
+					; CX|DX is Root-Dir LBE
+				
+					MOV		AX,[BP]	; AX=05C0H or 05B?H
+					MOVZX	EBX,[BP-2]
+					CMP		EBX,2
+					JBE		ISO9660_FIND_LBA_FIRST_READ
+					MOV		EBX,2
+
+ISO9660_FIND_LBA_FIRST_READ:
+					SUB		[BP-2],BX		; Decrement sectors left
+					ADD		[BP-6],EBX		; Increment LBA
+					CALL_DISK_BIOS
+					JB		ISO9660_FIND_LBA_ERROR
+
+					LDS		BX,[BP+2]
+ISO9660_FIND_LBA_OUTER_LOOP:
+					CMP		BYTE [BX],0
+					JE		ISO9660_FIND_LBA_NOT_FOUND:
+
+					MOVZX	CX,BYTE [BX+CD_DIR_FILENAME_LEN]
+					LEA		SI,[BX+CD_DIR_FILENAME]
+					LES		DI,[BP+6]		; File Name
+
+					REPE	CMPSB
+					JE		ISO9660_FIND_LBA_FOUND
+
+					MOV		AH,ES:[DI]
+					MOV		AL,   [SI]
+					CMP		AX,';'			; If it reaches \0 of incoming file name, and ';' of the ISO-Image filename, it is also a match.
+					JE		ISO9660_FIND_LBA_FOUND
+
+					MOVZX	CX,BYTE [BX]
+					INC		CX
+					AND		CL,0FEH			; Directory Entry is always even.
+					ADD		BX,CX
+
+					MOV		DX,[BP+2]		; DX is offset of the data buffer
+					ADD		DX,CD_SECTOR_LEN
+
+					CMP		BX,DX
+					JB		ISO9660_FIND_LBA_OUTER_LOOP
+
+					CMP		WORD [BP-2],0
+					JE		ISO9660_FIND_LBA_OUTER_LOOP
+
+					PUSH	BX
+
+					PUSH	DS
+					POP		ES
+					MOV		DI,[BP+2]
+					LEA		SI,[DI+CD_SECTOR_LEN]
+					MOV		CX,CD_SECTOR_LEN/4
+					REP		MOVSD
+
+					; DS:DI is pointing to DataBuffer+0800h
+
+					MOV		EDX,[BP-6]
+					SHLD	ECX,EDX,16
+
+					; CX|DX is the LBA
+
+					MOV		AX,[BP]	; AX=05C0H or 05B?H
+					MOV		BX,1
+
+					CALL_DISK_BIOS
+					JB		ISO9660_FIND_LBA_ERROR
+
+					POP		BX
+
+					INC		DWORD [BP-6]
+					DEC		WORD [BP-2]
+
+					SUB		BX,CD_SECTOR_LEN
+
+					JMP		ISO9660_FIND_LBA_OUTER_LOOP
+
+
+ISO9660_FIND_LBA_FOUND:
+					MOV		ECX,[BX+CD_DIR_DATA_LEN]
+					MOV		EBX,[BX+CD_DIR_DATA_LBA]
+					CLC
+
+ISO9660_FIND_LBA_EXIT:
+					MOV		SP,BP
+					ADD		SP,2
+					POP		DI
+					POP		DS
+					POP		SI
+					POP		ES
+					RET
+
+ISO9660_FIND_LBA_NOT_FOUND:
+					XOR		AH,AH
+ISO9660_FIND_LBA_ERROR:
+					STC
+					JMP		ISO9660_FIND_LBA_EXIT
