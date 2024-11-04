@@ -696,6 +696,8 @@ void EGB_DrawLineStipple(_Far struct EGB_Work *work,struct EGB_PagePointerSet *p
 				break;
 			default:
 				TSUGARU_BREAK;
+				_PUSH_DS
+				_POP_DS
 				break;
 			}
 			break;
@@ -713,6 +715,8 @@ void EGB_DrawLineStipple(_Far struct EGB_Work *work,struct EGB_PagePointerSet *p
 				break;
 			default:
 				TSUGARU_BREAK;
+				_PUSH_GS
+				_POP_GS
 				break;
 			}
 			break;
@@ -730,11 +734,15 @@ void EGB_DrawLineStipple(_Far struct EGB_Work *work,struct EGB_PagePointerSet *p
 				break;
 			default:
 				TSUGARU_BREAK;
+				_PUSH_FS
+				_POP_FS
 				break;
 			}
 			break;
 		default:
 			TSUGARU_BREAK;
+			_PUSHFD
+			_POPFD
 			break;
 		}
 		return;
@@ -846,6 +854,7 @@ void EGB_DrawLineStipple(_Far struct EGB_Work *work,struct EGB_PagePointerSet *p
 						--count;
 					}
 				}
+				break;
 			default:
 				TSUGARU_BREAK;
 				break;

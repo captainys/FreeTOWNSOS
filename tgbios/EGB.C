@@ -3673,9 +3673,16 @@ void EGB_RECTANGLE(
 					MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				case EGB_FUNC_XOR:
-					TSUGARU_BREAK;
-					_PUSHFD	// Just to make it distinctive.
-					_POPFD
+					{
+						unsigned int count=xMax-xMin+1;
+						_Far unsigned char *vram=ptrSet.vram+vramAddr;
+						while(0<count)
+						{
+							(*vram)^=color;
+							++vram;
+							--count;
+						}
+					}
 					break;
 				default:
 					TSUGARU_BREAK;
