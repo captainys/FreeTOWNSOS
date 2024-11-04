@@ -396,6 +396,9 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 					case EGB_FUNC_MATTE:
 						VRAM[vramAddr]=col;
 						break;
+					case EGB_FUNC_XOR:
+						VRAM[vramAddr]^=col;
+						break;
 					default:
 						TSUGARU_BREAK;
 						break;
@@ -537,6 +540,9 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 					case EGB_FUNC_OPAQUE:
 					case EGB_FUNC_MATTE:
 						VRAM[vramAddr]=col;
+						break;
+					case EGB_FUNC_XOR:
+						VRAM[vramAddr]^=col;
 						break;
 					default:
 						TSUGARU_BREAK;
