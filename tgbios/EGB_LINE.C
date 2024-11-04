@@ -131,6 +131,13 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 					vramAddr+=ptrSet->mode->bytesPerLine;
 				}
 				break;
+			case EGB_FUNC_XOR:
+				for(y=yMin; y<=yMax; ++y)
+				{
+					ptrSet->vram[vramAddr]^=color;
+					vramAddr+=ptrSet->mode->bytesPerLine;
+				}
+				break;
 			default:
 				TSUGARU_BREAK;
 				break;
@@ -241,6 +248,18 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 			case EGB_FUNC_OPAQUE:
 			case EGB_FUNC_MATTE:
 				MEMSETB_FAR(ptrSet->vram+vramAddr,color,xMax-xMin+1);
+				break;
+			case EGB_FUNC_XOR:
+				{
+					unsigned int count=xMax-xMin+1;
+					_Far unsigned char *vram=ptrSet->vram+vramAddr;
+					while(0<count)
+					{
+						(*vram)^=color;
+						++vram;
+						--count;
+					}
+				}
 				break;
 			default:
 				TSUGARU_BREAK;
