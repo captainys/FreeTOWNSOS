@@ -488,7 +488,29 @@ void MOS_04H_SETPOS(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	unsigned int DX=EDX;
+	unsigned int BX=EBX;
+
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	_Far struct EGB_Work *egb=EGB_GetWork();
+	unsigned char AL=EAX&1;
+
+	_PUSHFD
+	if(0!=stat->showLevel)
+	{
+		_CLI
+		MOS_RestoreVRAM(stat,egb);
+	}
+	stat->pos.x=DX;
+	stat->pos.y=BX;
+	stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
+	stat->pos.x=_max(stat->minPos.x,stat->pos.x);
+	if(0!=stat->showLevel)
+	{
+		MOS_SaveVRAM(stat,egb);
+		MOS_DrawCursor(stat,egb);
+	}
+	_POPFD
 }
 
 void MOS_05H_RDON(
@@ -889,7 +911,35 @@ void MOS_0EH_WRITEPAGE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	_Far struct MOS_Status *stat=MOS_GetStatus();
+	_Far struct EGB_Work *egb=EGB_GetWork();
+	unsigned char AL=EAX&1;
+
+	_PUSHFD
+	if(0!=stat->showLevel)
+	{
+		_CLI
+		MOS_RestoreVRAM(stat,egb);
+	}
+	stat->dispPage=AL;
+
+	unsigned char scrnModeID=stat->screenMode[stat->dispPage&1];
+	_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(scrnModeID);
+	stat->minPos.x=0;
+	stat->minPos.y=0;
+	stat->maxPos=scrnMode->visiSize;
+	stat->maxPos.x--;
+	stat->maxPos.y--;
+	stat->pos=scrnMode->visiSize;
+	stat->pos.x>>=1;
+	stat->pos.y>>=1;
+
+	if(0!=stat->showLevel)
+	{
+		MOS_SaveVRAM(stat,egb);
+		MOS_DrawCursor(stat,egb);
+	}
+	_POPFD
 }
 
 void MOS_0FH_COLOR(

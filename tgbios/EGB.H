@@ -186,6 +186,9 @@ struct EGB_Work
 	unsigned short superImposeArea[4];
 	unsigned char superImposeBright;
 
+	unsigned short alpha;	// PASTEL in the TBIOS teminology.  Solidness of opaqueness.  Alpha blending is more generally accepted terminology.
+	unsigned char pen,penSize;
+
 	// Confirmed in Towns OS V2.1 L50
 	// Drawing Mode is a system-wide setting.  Not per page.  Then, probably paint mode, too.
 	unsigned char drawingMode;

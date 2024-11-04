@@ -344,6 +344,7 @@ void EGB_INIT(
 	work->paintMode=EGB_PAINTFLAG_LINE_NORMAL;
 	work->drawingMode=0;
 
+	work->alpha=256;
 	work->fontStyle=0;
 	work->fontSpacing=0;
 	work->fontRotation=0;
@@ -431,18 +432,25 @@ void EGB_RESOLUTION(
 	_Far struct EGB_Work *work=EGB_GetWork();
 
 	unsigned char AL=EAX&0xFF;
-	if(EGB_INVALID_SCRNMODE==AL)
-	{
-		EGB_SetError(EAX,EGB_GENERAL_ERROR);
-		return;
-	}
-
 	if(0==AL || 1==AL)
 	{
 		unsigned int newScreenMode[2];
 		newScreenMode[0]=work->perPage[0].screenMode;
 		newScreenMode[1]=work->perPage[1].screenMode;
 		newScreenMode[AL]=EDX&0x3F;
+
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(newScreenMode[AL]);
+		if(NULL==scrnMode)
+		{
+			EGB_SetError(EAX,EGB_GENERAL_ERROR);
+			return;
+		}
+		if(EGB_INVALID_SCRNMODE==scrnMode->combination[0] && 1==AL)
+		{
+			EGB_SetError(EAX,EGB_GENERAL_ERROR);
+			return;
+		}
+
 		{
 			int modeComb;
 			_Far unsigned short *regSet;
@@ -1154,7 +1162,8 @@ void EGB_PASTEL(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	work->alpha=EDX;
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1348,7 +1357,15 @@ void EGB_PEN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	unsigned char AL=EAX;
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	work->pen=AL;
+	if(0x80&AL)
+	{
+		TSUGARU_BREAK;
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1366,8 +1383,22 @@ void EGB_PENSIZE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
-	EGB_SetError(EAX,EGB_NO_ERROR);
+	unsigned char AL=EAX;
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	if(AL<=32)
+	{
+		work->penSize=AL;
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		if(1<AL)
+		{
+			TSUGARU_BREAK;
+		}
+	}
+	else
+	{
+		EGB_SetError(EAX,EGB_GENERAL_ERROR);
+	}
 }
 
 void EGB_PENSTYLE(
