@@ -307,6 +307,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 
 _Far unsigned char *EGB_GetVRAMPointer(_Far struct EGB_Work *work,unsigned char page);
 
+unsigned int GetExpandedColor(unsigned short color,unsigned int bitsPerPixel);
 void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,struct POINTW p0,struct POINTW p1);
 void EGB_DrawLineStipple(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,struct POINTW p0,struct POINTW p1,unsigned int *stipplePtr);
 
