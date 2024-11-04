@@ -321,14 +321,12 @@ void EGB_INIT(
 	{
 		_Far struct EGB_PerPage *p=&(work->perPage[i]);
 		p->screenMode=3;
-		p->alpha=128;
 		p->viewport[0].x=0;
 		p->viewport[0].y=0;
 		p->viewport[1].x=639;
 		p->viewport[1].y=479;
 		p->textX=0;
 		p->textY=16;
-		p->penWidth=1;
 		p->hatchWid=0;
 		p->hatchHei=0;
 		p->hatchingPtn=NULL;
@@ -345,6 +343,8 @@ void EGB_INIT(
 	work->drawingMode=0;
 
 	work->alpha=256;
+	work->penSize=1;
+	work->lineStipple=0xffffffff;
 	work->fontStyle=0;
 	work->fontSpacing=0;
 	work->fontRotation=0;
@@ -1201,7 +1201,13 @@ void EGB_LINEPATTERN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	work->lineStipple=EDX;
+	work->lineStippleCorner=EAX;
+	if(0xFFFFFFFF!=EDX)
+	{
+		TSUGARU_BREAK;
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 

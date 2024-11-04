@@ -20,7 +20,13 @@ void EGB_TEXTDIRECTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	unsigned char AL=EAX;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	work->fontRotation=AL;
+	if(0!=AL)
+	{
+		TSUGARU_BREAK;
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -38,7 +44,13 @@ void EGB_TEXTDISPLAYDIRECTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	unsigned char AL=EAX;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	work->stringRotation=AL;
+	if(0!=AL)
+	{
+		TSUGARU_BREAK;
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 

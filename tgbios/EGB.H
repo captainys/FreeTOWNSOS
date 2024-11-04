@@ -143,8 +143,6 @@ struct EGB_PerPage
 	unsigned char screenMode;
 	unsigned char _padding0;
 
-	unsigned short alpha;
-
 	// Confirmed in Towns OS V2.1 L50
 	// Viewport is a per-page setting.  Reset upon EGB_Resolution.
 	struct POINTW viewport[2];
@@ -154,7 +152,6 @@ struct EGB_PerPage
 
 	unsigned char ZOOM;
 
-	unsigned char penWidth;
 	unsigned char hatchWid;
 	unsigned char hatchHei;
 	_Far unsigned char *hatchingPtn;
@@ -187,6 +184,8 @@ struct EGB_Work
 	unsigned char superImposeBright;
 
 	unsigned short alpha;	// PASTEL in the TBIOS teminology.  Solidness of opaqueness.  Alpha blending is more generally accepted terminology.
+	unsigned char lineStippleCorner;
+	unsigned int lineStipple;
 	unsigned char pen,penSize;
 
 	// Confirmed in Towns OS V2.1 L50
