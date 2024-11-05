@@ -257,8 +257,8 @@ void EGB_ResetPalette(_Far struct EGB_Work *work,int writePage)
 			for(i=0; i<256; ++i)
 			{
 				unsigned char b= pal[i];
-				unsigned char r=(pal[i]>>8);
-				unsigned char g=(pal[i]>>16);
+				unsigned char g=(pal[i]>>8);
+				unsigned char r=(pal[i]>>16);
 
 				_outb(TOWNSIO_ANALOGPALETTE_CODE,(unsigned char)i);
 				_outb(TOWNSIO_ANALOGPALETTE_BLUE,b);
@@ -286,8 +286,8 @@ void EGB_ResetPalette(_Far struct EGB_Work *work,int writePage)
 			for(i=0; i<16; ++i)
 			{
 				unsigned char b= pal[i];
-				unsigned char r=(pal[i]>>8);
-				unsigned char g=(pal[i]>>16);
+				unsigned char g=(pal[i]>>8);
+				unsigned char r=(pal[i]>>16);
 
 				_outb(TOWNSIO_ANALOGPALETTE_CODE,(unsigned char)i);
 				_outb(TOWNSIO_ANALOGPALETTE_BLUE,b);
@@ -957,6 +957,11 @@ void EGB_PALETTE(
 	_Far struct EGB_ScreenMode *scrnModeProp;
 
 	_PUSHFD;
+
+	if(waitVSYNC)
+	{
+		EGB_WaitVSYNC();
+	}
 
 	_FP_SEG(paletteSet)=DS;
 	_FP_OFF(paletteSet)=ESI;
