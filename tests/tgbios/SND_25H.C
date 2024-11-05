@@ -48,7 +48,7 @@ int main(int ac,char *av[])
 
 			err=SND_pcm_mode_set(1);
 			printf("%d\n",err);
-			err=SND_pcm_play2(71,64,127,snd);
+			err=SND_pcm_play2(71,snd[28],127,snd);
 			printf("%d\n",err);
 
 			while(SND_pcm_status(71)!=0);

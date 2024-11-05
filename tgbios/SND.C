@@ -2486,7 +2486,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 			else
 			{
 				unsigned int bytesLeft=stat->PCMCh[ch].header->totalBytes-stat->PCMCh[ch].curPos;
-				unsigned int transferSize=PCM_BANK_SIZE;
+				unsigned int transferSize,transferSizeLimit=PCM_BANK_SIZE;
 				unsigned int currentPosition=stat->PCMCh[ch].curPos;
 				_Far unsigned char *waveRAM;
 				_FP_SEG(waveRAM)=SEG_WAVE_RAM;
@@ -2494,9 +2494,9 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 
 				if(stat->PCMCh[ch].nextFillBank&1)
 				{
-					transferSize-=256;
+					transferSizeLimit-=256;
 				}
-				transferSize=_min(transferSize,bytesLeft);
+				transferSize=_min(transferSizeLimit,bytesLeft);
 
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->PCMCh[ch].nextFillBank);
 				for(i=0;i<transferSize;i++)
@@ -2505,11 +2505,14 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 				}
 				if(transferSize<PCM_BANK_SIZE)
 				{
-					int i,fillEnd=_min(transferSize+256,PCM_BANK_SIZE);
+					int fillEnd=_min(transferSize+256,PCM_BANK_SIZE);
 					for(i=i; i<fillEnd; ++i)
 					{
 						waveRAM[i]=PCM_LOOP_STOP_CODE;
 					}
+				}
+				if(transferSize<transferSizeLimit)
+				{
 					waveRAM[0xFFE]=PCM_LOOP_STOP_CODE;
 					waveRAM[0xFFF]=PCM_LOOP_STOP_CODE;
 
