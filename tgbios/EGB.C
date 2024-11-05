@@ -3861,7 +3861,20 @@ void EGB_ELLIPTICFAN(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_PAINT(
+int IsBorderColor(unsigned int cmpColor,unsigned int nBorderColors,_Far unsigned int borderColor[])
+{
+	while(0<nBorderColors)
+	{
+		--nBorderColors;
+		if(borderColor[nBorderColors]==cmpColor)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void EGB_4DH_PAINT(
 	unsigned int EDI,
 	unsigned int ESI,
 	unsigned int EBP,
@@ -3875,7 +3888,171 @@ void EGB_PAINT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	_Far struct EGB_Work *work=EGB_GetWork();
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+	_Far struct EGB_CoordAddrSet *fifoBuf=(_Far struct EGB_CoordAddrSet *)EGB_GetBuffer();
+	_Far short *startCoord;
+	_FP_SEG(startCoord)=DS;
+	_FP_OFF(startCoord)=ESI;
+
+	unsigned int nBorderColors=startCoord[2];
+	_Far unsigned int *borderColors=(_Far unsigned int *)(startCoord+4);
+
+	if(0==nBorderColors)
+	{
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		return;
+	}
+
+	unsigned int fifoBufUsed=0;
+	unsigned int fifoBufHead=0;
+	unsigned int VRAMAddr;
+
+	if(startCoord[0]<ptrSet.page->viewport[0].x ||ptrSet.page->viewport[1].x<startCoord[0] ||
+	   startCoord[1]<ptrSet.page->viewport[0].y ||ptrSet.page->viewport[1].y<startCoord[1])
+	{
+		// Outside of the viewport. Nothing to do.
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		return;
+	}
+
+	EGB_CalcVRAMAddr(&VRAMAddr,startCoord[0],startCoord[1],ptrSet.mode);
+
+	unsigned short fillColor=work->color[EGB_FILL_COLOR];
+	switch(ptrSet.mode->bitsPerPixel)
+	{
+	case 4:
+		fillColor&=0x0F;
+		if(startCoord[0]&1)
+		{
+			ptrSet.vram[VRAMAddr]&=0x0F;
+			ptrSet.vram[VRAMAddr]|=(fillColor<<4);
+		}
+		else
+		{
+			ptrSet.vram[VRAMAddr]&=0xF0;
+			ptrSet.vram[VRAMAddr]|=fillColor;
+		}
+		break;
+	case 8:
+		fillColor&=0xFF;
+		ptrSet.vram[VRAMAddr]=fillColor;
+		break;
+	case 16:
+		*(_Far unsigned short *)(ptrSet.vram+VRAMAddr)=fillColor;
+		break;
+	}
+
+	fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)].VRAMAddr=VRAMAddr;
+	fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)].pos.x=startCoord[0];
+	fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)].pos.y=startCoord[1];
+	++fifoBufUsed;
+
+	while(0<fifoBufUsed)
+	{
+		int i;
+		struct EGB_CoordAddrSet head=fifoBuf[fifoBufHead];
+		--fifoBufUsed;
+		fifoBufHead=(fifoBufHead+1)&(EGB_PAINT_FIFOBUF_SIZE-1);
+		short bytesPerPixel=ptrSet.mode->bitsPerPixel/8;
+		unsigned short cmpColor;
+
+		for(i=0; i<4; ++i)
+		{
+			struct EGB_CoordAddrSet next=head;
+			switch(i)
+			{
+			case 0:
+				--next.pos.x;
+				if(4==ptrSet.mode->bitsPerPixel)
+				{
+					if(next.pos.x&1)
+					{
+						--next.VRAMAddr;
+					}
+				}
+				else
+				{
+					next.VRAMAddr-=bytesPerPixel;
+				}
+				break;
+			case 1:
+				++next.pos.x;
+				if(4==ptrSet.mode->bitsPerPixel)
+				{
+					if(!(next.pos.x&1))
+					{
+						++next.VRAMAddr;
+					}
+				}
+				else
+				{
+					next.VRAMAddr+=bytesPerPixel;
+				}
+				break;
+			case 2:
+				--next.pos.y;
+				next.VRAMAddr-=ptrSet.mode->bytesPerLine;
+				break;
+			case 3:
+				++next.pos.y;
+				next.VRAMAddr+=ptrSet.mode->bytesPerLine;
+				break;
+			}
+
+			if(next.pos.x<ptrSet.page->viewport[0].x || ptrSet.page->viewport[1].x<next.pos.x ||
+			   next.pos.y<ptrSet.page->viewport[0].y || ptrSet.page->viewport[1].y<next.pos.y)
+			{
+				continue;
+			}
+
+			switch(ptrSet.mode->bitsPerPixel)
+			{
+			case 4:
+				if(next.pos.x&1)
+				{
+					cmpColor=(ptrSet.vram[next.VRAMAddr]>>4);
+					if(IsBorderColor(cmpColor,nBorderColors,borderColors))
+					{
+						continue;
+					}
+					ptrSet.vram[next.VRAMAddr]&=0x0F;
+					ptrSet.vram[next.VRAMAddr]|=(fillColor<<4);
+				}
+				else
+				{
+					cmpColor=(ptrSet.vram[next.VRAMAddr]&0x0F);
+					if(IsBorderColor(cmpColor,nBorderColors,borderColors))
+					{
+						continue;
+					}
+					ptrSet.vram[next.VRAMAddr]&=0xF0;
+					ptrSet.vram[next.VRAMAddr]|=fillColor;
+				}
+				break;
+			case 8:
+				if(IsBorderColor(ptrSet.vram[next.VRAMAddr],nBorderColors,borderColors))
+				{
+					continue;
+				}
+				ptrSet.vram[next.VRAMAddr]=fillColor;
+				break;
+			case 16:
+				if(IsBorderColor(*(_Far unsigned short *)(ptrSet.vram+next.VRAMAddr),nBorderColors,borderColors))
+				{
+					continue;
+				}
+				*(_Far unsigned short *)(ptrSet.vram+next.VRAMAddr)=fillColor;
+				break;
+			}
+
+			if(fifoBufUsed<EGB_PAINT_FIFOBUF_SIZE)
+			{
+				fifoBuf[(fifoBufHead+fifoBufUsed)&(EGB_PAINT_FIFOBUF_SIZE-1)]=next;
+				++fifoBufUsed;
+			}
+		}
+	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
