@@ -1818,10 +1818,13 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			{
 				int i;
 				unsigned int oneTransferSize=_min(PCM_BANK_SIZE,transferSize);
+				unsigned int curPos=info->PCMCh[ch].curPos;
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|bank);
+				waveRAM[0xFFE]=PCM_LOOP_STOP_CODE;
+				waveRAM[0xFFF]=PCM_LOOP_STOP_CODE;
 				for(i=0;i<oneTransferSize;i++)
 				{
-					waveRAM[i]=_min(info->PCMCh[ch].playPtr[i],PCM_LOOP_STOP_CODE-1);
+					waveRAM[i]=_min(info->PCMCh[ch].playPtr[curPos+i],PCM_LOOP_STOP_CODE-1);
 				}
 				for(i=i; i<PCM_BANK_SIZE && 0<trailingLoopStopSize; ++i)
 				{
@@ -1874,11 +1877,19 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 
 			_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
 
-			if(sndData->totalBytes<=PCM_BANK_SIZE*2-256)
+			if(sndData->totalBytes<=PCM_BANK_SIZE)
 			{
 				unsigned short endAddr=ST;
 				endAddr<<=8;
-				endAddr+=sndData->totalBytes;
+				endAddr+=0xFFF;
+				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
+				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
+			}
+			else if(sndData->totalBytes<=PCM_BANK_SIZE*2-256)
+			{
+				unsigned short endAddr=ST;
+				endAddr<<=8;
+				endAddr+=0x1FFF;
 				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
 				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
 			}
@@ -2488,13 +2499,27 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 				transferSize=_min(transferSize,bytesLeft);
 
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->PCMCh[ch].nextFillBank);
-				for(int i=0;i<transferSize;i++)
+				for(i=0;i<transferSize;i++)
 				{
 					waveRAM[i]=_min(stat->PCMCh[ch].playPtr[i+currentPosition],PCM_LOOP_STOP_CODE-1);
 				}
 				if(transferSize<PCM_BANK_SIZE)
 				{
-					waveRAM[transferSize]=PCM_LOOP_STOP_CODE;
+					int i,fillEnd=_min(transferSize+256,PCM_BANK_SIZE);
+					for(i=i; i<fillEnd; ++i)
+					{
+						waveRAM[i]=PCM_LOOP_STOP_CODE;
+					}
+					waveRAM[0xFFE]=PCM_LOOP_STOP_CODE;
+					waveRAM[0xFFF]=PCM_LOOP_STOP_CODE;
+
+					_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+
+					unsigned short endAddr=stat->PCMCh[ch].nextFillBank;
+					endAddr<<=12;
+					endAddr+=0xFFF;
+					_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
+					_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
 				}
 
 				stat->PCMCh[ch].curPos+=transferSize;
