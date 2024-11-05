@@ -3,7 +3,10 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 #include <ctype.h>
+#include <map>
+#include <unordered_set>
 #include <unordered_map>
 
 #include "iso9660.h"
@@ -17,25 +20,28 @@ public:
 		std::string nameInISO;
 		unsigned int attrib=0;
 		size_t LBA=0;
+		size_t len=0;
 	};
 
 	class File : public FileBase
 	{
 	public:
+		size_t dirIndex; // Index to allDirList;
 		std::string input;
 	};
 	class Dir : public FileBase
 	{
 	public:
-		int id;
+		size_t ownIndex=~0;
+		size_t parentDirIndex=~0;
+		size_t IDinISO=~0;
 		std::vector <size_t> fileList;	// Indexes to allFileList
-		std::vector <size_t> subDirList;	// Indexes to allDirList
+		std::vector <size_t> subDirList;	// Indexes to allDirList.  Not id member variable.  It is index.
 	};
 
 	bool caseSensitive=false;
 	std::vector <File> allFileList;
 	std::vector <Dir> allDirList;		// allDirList[0] is always the root directory.
-	std::unordered_map <std::string,size_t> nameToFileIdx;  // "ABC/XYZ/DATA.BIN" -> index
 	std::unordered_map <std::string,size_t> nameToDirIdx;   // "ABC/XYZ" -> index
 
 	// Steps:
@@ -46,9 +52,25 @@ public:
 
 	ISOImage();
 
+	// (1)
 	bool AddFileSimple(std::string file); // As is.  If "C:/abc/xyz.txt" is given, "Will be made /XYZ.TXT in ISO."
 	bool AddFile(std::string fileIn,std::string fileInISO);
-	bool AddDir(std::string dir);
+
+	// (2)
+	template <class T>
+	static bool Compare(const std::pair<std::string,T> &a,const std::pair<std::string,T> &b)
+	{
+		return a.first<b.first;
+	}
+	void SortFiles(void);
+	void MakeDirectoryList(void);
+
+	// (3)
+	// MakePathTable can be used before setting LBAs for the directories and files for calculating the size of the path table.
+	// In which case, all LBA will be filled as ~0.
+	std::vector <unsigned char> MakePathTableLE(void) const;
+	std::vector <unsigned char> MakePathTableBE(void) const;
+
 
 	// Capitalize if caseSensitive==false.
 	// Backslash to slash.
@@ -65,18 +87,17 @@ public:
 	std::string Join(std::string dir,std::string name) const;
 
 	bool FileExists(std::string name) const;
+
+	void ErrorMessage(std::string func,unsigned int lineNum,std::string message);
+
+	void Print(void) const;
+	void PrintDirs(void) const;
+	void PrintFiles(void) const;
 };
 
 
 ISOImage::ISOImage()
 {
-	Dir dir;
-	dir.id=1; // Looks to be 1 is for root dir.
-
-	auto dirIdx=allDirList.size(); // Should be zero.
-	allDirList.push_back(dir);
-
-	nameToDirIdx[""]=dirIdx;
 }
 
 bool ISOImage::AddFileSimple(std::string file)
@@ -92,11 +113,7 @@ bool ISOImage::AddFileSimple(std::string file)
 	File f;
 	f.input=file;
 	f.nameInISO=sep[1];
-
-	size_t fileIdx=allFileList.size();
 	allFileList.push_back(f);
-
-	nameToFileIdx[f.nameInISO]=fileIdx;
 
 	return true;
 }
@@ -109,61 +126,116 @@ bool ISOImage::AddFile(std::string fileIn,std::string fileInISO)
 		return false;
 	}
 
-	fileInISO=NormalizeFileName(fileInISO);
-	auto sep=SeparatePath(fileInISO);
-
-	auto dirFound=nameToDirIdx.find(sep[0]);
-	if(nameToDirIdx.end()==dirFound)
-	{
-		AddDir(sep[0]);
-		dirFound=nameToDirIdx.find(sep[0]);
-
-		if(nameToDirIdx.end()==dirFound)
-		{
-			std::cout << __FUNCTION__ << "\n";
-			std::cout << __LINE__ << "\n";
-			std::cout << "Something went wrong.\n";
-			return false;
-		}
-	}
-
 	File f;
 	f.input=fileIn;
-	f.nameInISO=sep[1];
-
-	size_t fileIdx=allFileList.size();
+	f.nameInISO=NormalizeFileName(fileInISO);
 	allFileList.push_back(f);
-
-	nameToFileIdx[f.nameInISO]=fileIdx;
-
-	allDirList[dirFound->second].fileList.push_back(fileIdx);
 
 	return true;
 }
 
-bool ISOImage::AddDir(std::string dir)
+void ISOImage::SortFiles(void)
 {
-	std::string partial;
-	dir.push_back('/');
-	for(auto c : dir)
+	std::pair <std::string,File> sort;
+	std::vector <std::pair <std::string,File> > files;
+	for(auto &f : allFileList)
 	{
-		if(c=='/' || c=='\\')
-		{
-			auto found=nameToDirIdx.find(partial);
-			if(nameToDirIdx.end()==found)
-			{
-				Dir dir;
-				dir.nameInISO=partial;
-
-				auto dirIdx=allDirList.size(); // Should be zero.
-				allDirList.push_back(dir);
-
-				nameToDirIdx[partial]=dirIdx;
-			}
-		}
-		partial.push_back(c);
+		auto sep=SeparatePath(f.nameInISO);
+		std::pair <std::string,File> pair;
+		pair.first=sep[1];
+		pair.second=f;
+		files.push_back(pair);
 	}
-	return 0;
+	std::sort(files.begin(),files.end(),Compare<File>);
+
+	allFileList.clear();
+	for(auto &f : files)
+	{
+		allFileList.push_back(f.second);
+	}
+}
+
+void ISOImage::MakeDirectoryList(void)
+{
+	std::unordered_set <std::string> visited;
+	std::vector <std::pair <std::string,std::string> > dirs;
+	for(auto &f : allFileList)
+	{
+		auto sep=SeparatePath(f.nameInISO);
+		auto dirName=NormalizeFileName(sep[0]);
+		// sep[0] is the directory name.
+		std::string partial;
+		dirName.push_back('/');
+		for(auto c : dirName)
+		{
+			if('/'==c && visited.end()==visited.find(partial))
+			{
+				std::pair <std::string,std::string> pair;
+				auto sepsep=SeparatePath(partial);
+				pair.first=sepsep[1];
+				pair.second=partial;
+				dirs.push_back(pair);
+				visited.insert(partial);
+			}
+			partial.push_back(c);
+		}
+	}
+	std::sort(dirs.begin(),dirs.end(),Compare<std::string>);
+
+	size_t index=0;
+	for(auto &f : dirs)
+	{
+		Dir dir;
+		dir.ownIndex=index;
+		dir.IDinISO=index+1;
+		dir.nameInISO=f.second;
+
+		allDirList.push_back(dir);
+		nameToDirIdx[f.second]=index;
+
+		++index;
+	}
+
+	size_t fileIndex=0;
+	for(auto &f : allFileList)
+	{
+		auto sep=SeparatePath(f.nameInISO);
+		// sep[0] is the directory name.
+		auto foundDir=nameToDirIdx.find(sep[0]);
+		if(nameToDirIdx.end()!=foundDir)
+		{
+			auto dirIndex=foundDir->second;
+			allDirList[dirIndex].fileList.push_back(fileIndex);
+			f.dirIndex=dirIndex;
+		}
+		else
+		{
+			ErrorMessage(__FUNCTION__,__LINE__,"Something went wrong.");
+		}
+		++fileIndex;
+	}
+
+	for(auto &d : allDirList)
+	{
+		if(0==d.ownIndex)
+		{
+			// Don't add the root directory as a child of the root directory.
+			continue;
+		}
+
+		auto sep=SeparatePath(d.nameInISO);
+		auto found=nameToDirIdx.find(sep[0]);
+		if(nameToDirIdx.end()!=found)
+		{
+			auto dirIndex=found->second;
+			d.parentDirIndex=dirIndex;
+			allDirList[d.parentDirIndex].subDirList.push_back(d.ownIndex);
+		}
+		else
+		{
+			ErrorMessage(__FUNCTION__,__LINE__,"Something went wrong.");
+		}
+	}
 }
 
 std::string ISOImage::NormalizeFileName(std::string fileName) const
@@ -258,6 +330,44 @@ bool ISOImage::FileExists(std::string name) const
 	return ifp.is_open();
 }
 
+void ISOImage::ErrorMessage(std::string func,unsigned int lineNum,std::string message)
+{
+	std::cout << func << "\n";
+	std::cout << lineNum << "\n";
+	std::cout << message << "\n";
+}
+
+void ISOImage::Print(void) const
+{
+	PrintDirs();
+	PrintFiles();
+}
+
+void ISOImage::PrintDirs(void) const
+{
+	std::cout << "-- Directories --\n";
+	for(auto &d : allDirList)
+	{
+		std::cout << '[' << d.nameInISO << "]   ID in ISO=" << d.IDinISO << "  Parent dir ID=" << allDirList[d.parentDirIndex].IDinISO << "\n";
+		for(auto fileIdx : d.fileList)
+		{
+			std::cout << "  f " << allFileList[fileIdx].nameInISO << "\n";
+		}
+		for(auto dirIdx : d.subDirList)
+		{
+			std::cout << "  d " << allDirList[dirIdx].nameInISO << "\n";
+		}
+	}
+}
+
+void ISOImage::PrintFiles(void) const
+{
+	std::cout << "-- Files --\n";
+	for(auto &f : allFileList)
+	{
+		std::cout << '[' << f.nameInISO << "]  SRC=" << f.input << "  Dir ID=" << allDirList[f.dirIndex].IDinISO << "\n";
+	}
+}
 
 
 class CommandParameterInfo
@@ -274,6 +384,11 @@ void Test1(void)
 	iso.AddFile("iso9660.h","src/iso9660.h");
 	iso.AddFile("dosdisk.h","src/dosdisk.h");
 	iso.AddFile("makefd.cpp","makefdd/src/dosdisk.h");
+
+	iso.SortFiles();
+	iso.MakeDirectoryList();
+
+	iso.Print();
 }
 
 int main(int ac,char *av[])

@@ -62,10 +62,10 @@ struct ISO9660_PrimaryVolumeDescriptor
 	uint8_t unused1;
 	char systemID[32];	// Can be empty (all ' ')
 	char volumeID[32];	// App Name followed by ' 's
-	char unused2[8]
+	char unused2[8];
 	unsigned char volumeSpaceLE[4];
 	unsigned char volumeSpaceBE[4];
-	char unused3[32]
+	char unused3[32];
 	unsigned char volumeSetSizeLE[2]; // Make it 01 00
 	unsigned char volumeSetSizeBE[2]; // Make it 00 01
 	unsigned char volumeSequenceLE[2]; // Make it 01 00
