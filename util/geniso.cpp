@@ -68,6 +68,8 @@ public:
 	// (3)
 	// MakePathTable can be used before setting LBAs for the directories and files for calculating the size of the path table.
 	// In which case, all LBA will be filled as ~0.
+	// Observation of some ISO images suggests that the index in the path table starts with 1 (root Dir)
+	// Root-dir name length is 1.  But, the value in the name is \0.
 	std::vector <unsigned char> MakePathTableLE(void) const;
 	std::vector <unsigned char> MakePathTableBE(void) const;
 
