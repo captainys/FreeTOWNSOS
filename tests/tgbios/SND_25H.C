@@ -5,13 +5,22 @@
 char SND_work[SndWorkSize];
 
 
-int main(void)
+int main(int ac,char *av[])
 {
 	size_t sz;
-	FILE *fp=fopen("../CARDINAL.SND","rb");
-	if(NULL==fp)
+	FILE *fp;
+
+	if(2<=ac)
 	{
-		fp=fopen("CARDINAL.SND","rb");
+		fp=fopen(av[1],"rb");
+	}
+	else
+	{
+		fp=fopen("../CARDINAL.SND","rb");
+		if(NULL==fp)
+		{
+			fp=fopen("CARDINAL.SND","rb");
+		}
 	}
 	if(NULL==fp)
 	{
