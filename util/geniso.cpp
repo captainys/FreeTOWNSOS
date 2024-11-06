@@ -160,6 +160,8 @@ public:
 
 	std::vector <unsigned char> MakeDirectoryBinary(const Dir &dir) const;
 
+	std::vector <unsigned char> MakeFileBinary(const File &file) const;
+
 	// Capitalize if caseSensitive==false.
 	// Backslash to slash.
 	// If the first is '/', remove.
@@ -564,6 +566,12 @@ bool ISOImage::MakeISOImageFile(std::string fileName) const
 		filePos+=WriteToFile(ofp,directory.size(),directory.data());
 	}
 
+	for(auto &f : allFileList)
+	{
+		VerifyFilePosLBA(filePos,f.LBA);
+		auto file=MakeFileBinary(f);
+		filePos+=WriteToFile(ofp,file.size(),file.data());
+	}
 
 	return true;
 }
@@ -754,6 +762,25 @@ std::vector <unsigned char> ISOImage::MakeDirectoryBinary(const Dir &dir) const
 			++subDirPos;
 		}
 		ptr+=len;
+	}
+
+	return data;
+}
+
+std::vector <unsigned char> ISOImage::MakeFileBinary(const File &file) const
+{
+	std::vector <unsigned char> data;
+	size_t len=(file.len+CD_SECTOR_SIZE-1);
+	len/=CD_SECTOR_SIZE;
+	len*=CD_SECTOR_SIZE;
+
+	data.resize(len);
+	memset(data.data(),0,data.size());
+
+	std::ifstream ifp(file.input,std::ios::binary);
+	if(true==ifp.is_open())
+	{
+		ifp.read((char *)data.data(),file.len);
 	}
 
 	return data;
