@@ -148,6 +148,8 @@ public:
 	size_t WriteToFile(std::ofstream &ofp,size_t len,void *data) const;
 	bool VerifyFilePosLBA(size_t filePos,size_t LBA) const;
 
+	static struct ISO9660_DateTime GetTodaysDateGMT(void);
+
 	std::vector <unsigned char> MakeDescriptorTable(void) const;
 
 	// MakePathTable can be used before setting LBAs for the directories and files for calculating the size of the path table.
@@ -156,7 +158,7 @@ public:
 	// Root-dir name length is 1.  But, the value in the name is \0.
 	std::vector <unsigned char> MakePathTable(ENDIANNESS endian) const;
 
-
+	std::vector <unsigned char> MakeDirectoryBinary(const Dir &dir) const;
 
 	// Capitalize if caseSensitive==false.
 	// Backslash to slash.
@@ -492,16 +494,7 @@ std::vector <unsigned char> ISOImage::MakeDescriptorTable(void) const
 	PutDword(PVD.LBSPathTableOptBE,BIG_ENDIAN,0);
 
 	allDirList[0].MakeISO9660Directory(PVD.rootDir);
-	auto t=time(NULL);
-	auto tm=gmtime(&t);
-	PVD.rootDir.dateTime.yearsSince1900=tm->tm_year;
-	PVD.rootDir.dateTime.month=tm->tm_mon+1; // 1 to 12
-	PVD.rootDir.dateTime.day=tm->tm_mday;  // 1 to 31
-	PVD.rootDir.dateTime.hour=tm->tm_hour; // 0 to 23
-	PVD.rootDir.dateTime.min=tm->tm_min;  // 0 to 59
-	PVD.rootDir.dateTime.sec=tm->tm_sec;  // 0 to 59
-	PVD.rootDir.dateTime.offsetFromGMT=0; // I use gmtime.  Must be zero.
-
+	PVD.rootDir.dateTime=GetTodaysDateGMT();
 
 	memset(PVD.volumeSetID,' ',128);  // Keep it all ' '
 	memset(PVD.publisherID,' ',128);  // Publisher Name
@@ -546,9 +539,31 @@ bool ISOImage::MakeISOImageFile(std::string fileName) const
 	}
 	VerifyFilePosLBA(filePos,LBA_PVD);
 
-	auto PVD=MakeDescriptorTable();
-	filePos+=WriteToFile(ofp,PVD.size(),PVD.data());
-	VerifyFilePosLBA(filePos,LBA_PATHTABLE_LE);
+	{
+		auto PVD=MakeDescriptorTable();
+		filePos+=WriteToFile(ofp,PVD.size(),PVD.data());
+		VerifyFilePosLBA(filePos,LBA_PATHTABLE_LE);
+	}
+
+	{
+		auto pathTable=MakePathTable(LITTLE_ENDIAN);
+		filePos+=WriteToFile(ofp,pathTable.size(),pathTable.data());
+		VerifyFilePosLBA(filePos,LBA_PATHTABLE_BE);
+	}
+
+	{
+		auto pathTable=MakePathTable(BIG_ENDIAN);
+		filePos+=WriteToFile(ofp,pathTable.size(),pathTable.data());
+		VerifyFilePosLBA(filePos,LBA_FIRST_DIRECTORY);
+	}
+
+	for(auto &d : allDirList)
+	{
+		VerifyFilePosLBA(filePos,d.LBA);
+		auto directory=MakeDirectoryBinary(d);
+		filePos+=WriteToFile(ofp,directory.size(),directory.data());
+	}
+
 
 	return true;
 }
@@ -569,9 +584,178 @@ bool ISOImage::VerifyFilePosLBA(size_t filePos,size_t LBA) const
 	return fileLBA==LBA;
 }
 
+/* static */ struct ISO9660_DateTime ISOImage::GetTodaysDateGMT(void)
+{
+	struct ISO9660_DateTime dateTime;
+	auto t=time(NULL);
+	auto tm=gmtime(&t);
+	dateTime.yearsSince1900=tm->tm_year;
+	dateTime.month=tm->tm_mon+1; // 1 to 12
+	dateTime.day=tm->tm_mday;  // 1 to 31
+	dateTime.hour=tm->tm_hour; // 0 to 23
+	dateTime.min=tm->tm_min;  // 0 to 59
+	dateTime.sec=tm->tm_sec;  // 0 to 59
+	dateTime.offsetFromGMT=0; // I use gmtime.  Must be zero.
+	return dateTime;
+}
+
 std::vector <unsigned char> ISOImage::MakePathTable(ENDIANNESS endian) const
 {
 	std::vector <unsigned char> data;
+	auto size=CalculatePathTableSize();
+
+	size=(size+CD_SECTOR_SIZE-1);
+	size/=CD_SECTOR_SIZE;
+	size*=CD_SECTOR_SIZE;
+
+	data.resize(size);
+	memset(data.data(),0,data.size());
+
+	size_t ptr=0;
+	for(auto &d : allDirList)
+	{
+		auto *entry=(struct ISO9660_PathTableEntry *)(data.data()+ptr);
+		auto sep=SeparatePath(d.nameInISO);
+		size_t nameLEN=0;
+		if(0==sep[1].size())
+		{
+			nameLEN=1;
+		}
+		else
+		{
+			nameLEN=sep[1].size();
+			auto *name=entry->name;
+			memcpy(name,sep[1].c_str(),sep[1].size());
+		}
+
+		entry->len=nameLEN;
+		PutDword(entry->LBA,endian,d.LBA);
+		PutWord(entry->parentDirNum,endian,allDirList[d.parentDirIndex].IDinISO);
+
+		size_t len=nameLEN+8;
+		len=(len+1)&~1;
+		ptr+=len;
+	}
+
+	return data;
+}
+
+std::vector <unsigned char> ISOImage::MakeDirectoryBinary(const Dir &dir) const
+{
+	std::vector <unsigned char> data;
+	size_t len=(dir.len+CD_SECTOR_SIZE-1);
+	len/=CD_SECTOR_SIZE;
+	len*=CD_SECTOR_SIZE;
+
+	const Dir &parent=allDirList[dir.parentDirIndex];
+
+	data.resize(len);
+	memset(data.data(),0,data.size());
+
+	auto thisDir=(struct ISO9660_Directory *)data.data();
+	thisDir->len=34;
+	PutDword(thisDir->LBA_LE,LITTLE_ENDIAN,dir.LBA);
+	PutDword(thisDir->LBA_BE,BIG_ENDIAN,dir.LBA);
+	PutDword(thisDir->sizeLE,LITTLE_ENDIAN,dir.len);
+	PutDword(thisDir->sizeBE,BIG_ENDIAN,dir.len);
+	thisDir->dateTime=GetTodaysDateGMT();
+	thisDir->flags=ISO9660_FLAG_DIRECTORY;
+	PutWord(thisDir->volumeSeqLE,LITTLE_ENDIAN,1);
+	PutWord(thisDir->volumeSeqBE,BIG_ENDIAN,1);
+	thisDir->nameLEN=1;
+	thisDir->name[0]=0;
+
+	auto parentDir=(struct ISO9660_Directory *)(data.data()+34);
+	parentDir->len=34;
+	PutDword(parentDir->LBA_LE,LITTLE_ENDIAN,parent.LBA);
+	PutDword(parentDir->LBA_BE,BIG_ENDIAN,parent.LBA);
+	PutDword(parentDir->sizeLE,LITTLE_ENDIAN,parent.len);
+	PutDword(parentDir->sizeBE,BIG_ENDIAN,parent.len);
+	parentDir->dateTime=GetTodaysDateGMT();
+	parentDir->flags=ISO9660_FLAG_DIRECTORY;
+	PutWord(parentDir->volumeSeqLE,LITTLE_ENDIAN,1);
+	PutWord(parentDir->volumeSeqBE,BIG_ENDIAN,1);
+	parentDir->nameLEN=1;
+	parentDir->name[0]=1;
+
+	size_t ptr=34+34;
+	size_t filePos=0,subDirPos=0;
+	while(filePos<dir.fileList.size() || subDirPos<dir.subDirList.size())
+	{
+		int fileOrDir=0;
+		if(filePos<dir.fileList.size() && subDirPos<dir.subDirList.size())
+		{
+			const File &f=allFileList[dir.fileList[filePos]];
+			const Dir &d=allDirList[dir.subDirList[subDirPos]];
+			auto dirSep=SeparatePath(d.nameInISO);
+
+			if(f.nameInISO<dirSep[1])
+			{
+				fileOrDir=0;
+			}
+			else
+			{
+				fileOrDir=1;
+			}
+		}
+		else if(filePos<dir.fileList.size())
+		{
+			fileOrDir=0;
+		}
+		else
+		{
+			fileOrDir=1;
+		}
+
+		auto entry=(struct ISO9660_Directory *)(data.data()+ptr);
+		size_t len=0;
+		if(0==fileOrDir)
+		{
+			const File &f=allFileList[dir.fileList[filePos]];
+			len=f.CalculateDirSize();
+
+			auto name=f.nameInISO;
+			name.push_back(';');
+			name.push_back('1');
+
+			entry->len=len;
+			PutDword(entry->LBA_LE,LITTLE_ENDIAN,f.LBA);
+			PutDword(entry->LBA_BE,BIG_ENDIAN,f.LBA);
+			PutDword(entry->sizeLE,LITTLE_ENDIAN,f.len);
+			PutDword(entry->sizeBE,BIG_ENDIAN,f.len);
+			entry->dateTime=GetTodaysDateGMT();
+			entry->flags=0;
+			PutWord(entry->volumeSeqLE,LITTLE_ENDIAN,1);
+			PutWord(entry->volumeSeqBE,BIG_ENDIAN,1);
+			entry->nameLEN=name.size();
+			memcpy(entry->name,name.data(),name.size());
+
+			++filePos;
+		}
+		else
+		{
+			const Dir &d=allDirList[dir.subDirList[subDirPos]];
+			len=d.CalculateDirSize();
+			auto sep=SeparatePath(d.nameInISO);
+			auto name=sep[1];
+
+			entry->len=len;
+			PutDword(entry->LBA_LE,LITTLE_ENDIAN,d.LBA);
+			PutDword(entry->LBA_BE,BIG_ENDIAN,d.LBA);
+			PutDword(entry->sizeLE,LITTLE_ENDIAN,d.len);
+			PutDword(entry->sizeBE,BIG_ENDIAN,d.len);
+			entry->dateTime=GetTodaysDateGMT();
+			entry->flags=ISO9660_FLAG_DIRECTORY;
+			PutWord(entry->volumeSeqLE,LITTLE_ENDIAN,1);
+			PutWord(entry->volumeSeqBE,BIG_ENDIAN,1);
+			entry->nameLEN=name.size();
+			memcpy(entry->name,name.data(),name.size());
+
+			++subDirPos;
+		}
+		ptr+=len;
+	}
+
 	return data;
 }
 
