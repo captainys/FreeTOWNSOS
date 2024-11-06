@@ -98,16 +98,29 @@ ISO9660_FIND_LBA_OUTER_LOOP:
 
 					MOVZX	CX,BYTE [BX+CD_DIR_FILENAME_LEN]
 					LEA		SI,[BX+CD_DIR_FILENAME]
+
+					CMP		CX,2
+					JB		ISO9660_NOT_SEMICOLON_ONE
+
+					ADD		SI,CX
+					SUB		SI,2
+					CMP		WORD [SI],313Bh ; ';1'
+					JNE		ISO9660_NOT_SEMICOLON_ONE
+
+					SUB		CX,2
+
+ISO9660_NOT_SEMICOLON_ONE
+					LEA		SI,[BX+CD_DIR_FILENAME]
 					LES		DI,[BP+6]		; File Name
 
 					REPE	CMPSB
+					JNE		ISO9660_FIND_LBA_NEXT
+
+					CMP		BYTE ES:[DI],0
 					JE		ISO9660_FIND_LBA_FOUND
 
-					MOV		AH,ES:[DI]
-					MOV		AL,   [SI]
-					CMP		AX,';'			; If it reaches \0 of incoming file name, and ';' of the ISO-Image filename, it is also a match.
-					JE		ISO9660_FIND_LBA_FOUND
 
+ISO9660_FIND_LBA_NEXT:
 					MOVZX	CX,BYTE [BX]
 					INC		CX
 					AND		CL,0FEH			; Directory Entry is always even.
@@ -161,7 +174,7 @@ ISO9660_FIND_LBA_FOUND:
 
 ISO9660_FIND_LBA_EXIT:
 					MOV		SP,BP
-					ADD		SP,2
+					POP		DI ; Dummy pop
 					POP		DI
 					POP		DS
 					POP		SI
