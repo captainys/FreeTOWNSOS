@@ -303,6 +303,8 @@ void ISOImage::MakeDirectoryList(void)
 		if(0==d.ownIndex)
 		{
 			// Don't add the root directory as a child of the root directory.
+			// But, parent of the root directory is made the same, apparently.
+			d.parentDirIndex=d.ownIndex;
 			continue;
 		}
 
