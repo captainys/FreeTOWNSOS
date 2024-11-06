@@ -5,6 +5,7 @@
 #include <iostream>
 #include <algorithm>
 #include <ctype.h>
+#include <stdint.h>
 #include <map>
 #include <unordered_set>
 #include <unordered_map>
@@ -14,6 +15,45 @@
 class ISOImage
 {
 public:
+	enum ENDIANNESS
+	{
+		LITTLE_ENDIAN,
+		BIG_ENDIAN
+	};
+	const int CD_SECTOR_SIZE=2048;
+
+	static void PutDword(unsigned char *ptr,ENDIANNESS endian,uint32_t i)
+	{
+		if(LITTLE_ENDIAN==endian)
+		{
+			ptr[0]=i;
+			ptr[1]=i>>8;
+			ptr[2]=i>>16;
+			ptr[3]=i>>24;
+		}
+		else
+		{
+			ptr[3]=i;
+			ptr[2]=i>>8;
+			ptr[1]=i>>16;
+			ptr[0]=i>>24;
+		}
+	}
+	static void PutWord(unsigned char *ptr,ENDIANNESS endian,uint16_t i)
+	{
+		if(LITTLE_ENDIAN==endian)
+		{
+			ptr[0]=i;
+			ptr[1]=i>>8;
+		}
+		else
+		{
+			ptr[1]=i;
+			ptr[0]=i>>8;
+		}
+	}
+
+
 	class FileBase
 	{
 	public:
@@ -28,6 +68,7 @@ public:
 	public:
 		size_t dirIndex; // Index to allDirList;
 		std::string input;
+		size_t CalculateDirSize(void) const;
 	};
 	class Dir : public FileBase
 	{
@@ -37,6 +78,7 @@ public:
 		size_t IDinISO=~0;
 		std::vector <size_t> fileList;	// Indexes to allFileList
 		std::vector <size_t> subDirList;	// Indexes to allDirList.  Not id member variable.  It is index.
+		size_t CalculateDirSize(void) const;
 	};
 
 	bool caseSensitive=false;
@@ -49,6 +91,26 @@ public:
 	//   (2) Make directory structure.
 	//   (3) Calculate number of sectors for each.
 	//   (4) Place elements.
+
+	// LBA 16  Primary Volume Descriptor
+	// LBA 17  Last Volume Descriptor
+	// LBA 18  Path Table LSB
+	// LBA ?   Path Table MSB
+	// LBA ?   Root Diectory
+	// LBA ?   Directory
+	// LBA ?   Directory
+	// LBA ?      :
+	// LBA ?   File
+	// LBA ?   File
+	// LBA ?      :
+
+	const unsigned int LBA_PVD=16;
+	const unsigned int LBA_LAST_VD=17;
+	const unsigned int LBA_PATHTABLE_LE=18;
+	unsigned int LBA_PATHTABLE_BE=0;
+	unsigned int LBA_FIRST_DIRECTORY=0;
+	unsigned int totalSectorCount=0;
+
 
 	ISOImage();
 
@@ -66,12 +128,17 @@ public:
 	void MakeDirectoryList(void);
 
 	// (3)
+	size_t CalculatePathTableSize(void) const;
+
+	void CalculatePathTableLBA(void);
+
+	void CalculateDirFileLBA(void);
+
 	// MakePathTable can be used before setting LBAs for the directories and files for calculating the size of the path table.
 	// In which case, all LBA will be filled as ~0.
 	// Observation of some ISO images suggests that the index in the path table starts with 1 (root Dir)
 	// Root-dir name length is 1.  But, the value in the name is \0.
-	std::vector <unsigned char> MakePathTableLE(void) const;
-	std::vector <unsigned char> MakePathTableBE(void) const;
+	std::vector <unsigned char> MakePathTable(ENDIANNESS endian) const;
 
 
 	// Capitalize if caseSensitive==false.
@@ -89,6 +156,7 @@ public:
 	std::string Join(std::string dir,std::string name) const;
 
 	bool FileExists(std::string name) const;
+	size_t GetFileLength(std::string name) const;
 
 	void ErrorMessage(std::string func,unsigned int lineNum,std::string message);
 
@@ -96,6 +164,17 @@ public:
 	void PrintDirs(void) const;
 	void PrintFiles(void) const;
 };
+
+size_t ISOImage::File::CalculateDirSize(void) const
+{
+	size_t len=33+nameInISO.size()+2; // +2 for ";1"
+	return (len+1)&~1;  // Always 2*N
+}
+size_t ISOImage::Dir::CalculateDirSize(void) const
+{
+	size_t len=33+nameInISO.size(); // Directory does not have ";1"
+	return (len+1)&~1;  // Always 2*N
+}
 
 
 ISOImage::ISOImage()
@@ -114,6 +193,7 @@ bool ISOImage::AddFileSimple(std::string file)
 
 	File f;
 	f.input=file;
+	f.len=GetFileLength(file);
 	f.nameInISO=sep[1];
 	allFileList.push_back(f);
 
@@ -130,6 +210,7 @@ bool ISOImage::AddFile(std::string fileIn,std::string fileInISO)
 
 	File f;
 	f.input=fileIn;
+	f.len=GetFileLength(fileIn);
 	f.nameInISO=NormalizeFileName(fileInISO);
 	allFileList.push_back(f);
 
@@ -240,6 +321,65 @@ void ISOImage::MakeDirectoryList(void)
 	}
 }
 
+size_t ISOImage::CalculatePathTableSize(void) const
+{
+	size_t total=0;
+	for(auto &d : allDirList)
+	{
+		auto sep=SeparatePath(d.nameInISO);
+		size_t nameLEN=std::max<size_t>(1,sep[1].size());
+		size_t len=nameLEN+8;
+		len=(len+1)&~1;
+		total+=len;
+	}
+	return total;
+}
+
+void ISOImage::CalculatePathTableLBA(void)
+{
+	auto len=CalculatePathTableSize();
+	auto nSectors=(len+CD_SECTOR_SIZE-1)/CD_SECTOR_SIZE;
+	LBA_PATHTABLE_BE=LBA_PATHTABLE_LE+nSectors;
+	LBA_FIRST_DIRECTORY=LBA_PATHTABLE_BE+nSectors;
+}
+
+void ISOImage::CalculateDirFileLBA(void)
+{
+	size_t LBA=LBA_FIRST_DIRECTORY;
+	for(auto &d : allDirList)
+	{
+		size_t len=34+34; // 34 bytes for "." and 34 bytes for ".."  Name of . is {0} and .. is {1}
+		for(auto idx : d.fileList)
+		{
+			len+=allFileList[idx].CalculateDirSize();
+		}
+		for(auto idx : d.subDirList)
+		{
+			len+=allDirList[idx].CalculateDirSize();
+		}
+
+		d.LBA=LBA;
+		d.len=len;
+
+		auto nSectors=(len+CD_SECTOR_SIZE-1)/CD_SECTOR_SIZE;
+		LBA+=nSectors;
+	}
+	for(auto &f : allFileList)
+	{
+		f.LBA=LBA;
+		auto nSectors=(f.len+CD_SECTOR_SIZE-1)/CD_SECTOR_SIZE;
+		LBA+=nSectors;
+	}
+
+	totalSectorCount=LBA;
+}
+
+std::vector <unsigned char> ISOImage::MakePathTable(ENDIANNESS endian) const
+{
+	std::vector <unsigned char> data;
+	return data;
+}
+
 std::string ISOImage::NormalizeFileName(std::string fileName) const
 {
 	if(true!=caseSensitive)
@@ -332,6 +472,18 @@ bool ISOImage::FileExists(std::string name) const
 	return ifp.is_open();
 }
 
+size_t ISOImage::GetFileLength(std::string name) const
+{
+	std::ifstream ifp(name,std::ios::binary);
+	if(true==ifp.is_open())
+	{
+		ifp.seekg(std::ios::end,0);
+		size_t sz=ifp.tellg();
+		return sz;
+	}
+	return 0;
+}
+
 void ISOImage::ErrorMessage(std::string func,unsigned int lineNum,std::string message)
 {
 	std::cout << func << "\n";
@@ -350,7 +502,7 @@ void ISOImage::PrintDirs(void) const
 	std::cout << "-- Directories --\n";
 	for(auto &d : allDirList)
 	{
-		std::cout << '[' << d.nameInISO << "]   ID in ISO=" << d.IDinISO << "  Parent dir ID=" << allDirList[d.parentDirIndex].IDinISO << "\n";
+		std::cout << '[' << d.nameInISO << "]  LBA=" << d.LBA << "  ID in ISO=" << d.IDinISO << "  Parent dir ID=" << allDirList[d.parentDirIndex].IDinISO << "\n";
 		for(auto fileIdx : d.fileList)
 		{
 			std::cout << "  f " << allFileList[fileIdx].nameInISO << "\n";
@@ -367,7 +519,7 @@ void ISOImage::PrintFiles(void) const
 	std::cout << "-- Files --\n";
 	for(auto &f : allFileList)
 	{
-		std::cout << '[' << f.nameInISO << "]  SRC=" << f.input << "  Dir ID=" << allDirList[f.dirIndex].IDinISO << "\n";
+		std::cout << '[' << f.nameInISO << "]  SRC=" << f.input << " LBA=" << f.LBA << "  Dir ID=" << allDirList[f.dirIndex].IDinISO << "\n";
 	}
 }
 
@@ -389,6 +541,8 @@ void Test1(void)
 
 	iso.SortFiles();
 	iso.MakeDirectoryList();
+	iso.CalculatePathTableLBA();
+	iso.CalculateDirFileLBA();
 
 	iso.Print();
 }

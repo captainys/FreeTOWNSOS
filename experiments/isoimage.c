@@ -23,8 +23,12 @@ unsigned char sectorBuff[SECTOR_LEN];
 #define PATHTABLE_PARENTINDEX 6
 #define PATHTABLE_NAME 8
 
+#define CD_DIR_DIR_LEN 0
+#define CD_DIR_EXT_ATTR_LEN 1
 #define CD_DIR_DATA_LBA 2
 #define CD_DIR_DATA_LEN 10
+#define CD_DIR_FLAGS 25
+#define CD_DIR_VOL_SEQ 28
 #define CD_DIR_FILENAME_LEN 32
 #define CD_DIR_FILENAME 33
 
@@ -129,6 +133,7 @@ int main(int ac,char *av[])
 
 		LBA=rootDirLBA;
 		count=(rootDirLEN+SECTOR_LEN-1)/SECTOR_LEN;
+		size_t AUTOEXEC_LBA=0,AUTOEXEC_LEN=0;
 		while(0<count)
 		{
 			size_t ptr=0;
@@ -149,26 +154,25 @@ int main(int ac,char *av[])
 				   0==strncmp((char *)sectorBuff+ptr+CD_DIR_FILENAME,"AUTOEXEC.BAT",fileNameLEN) ||
 				   0==strncmp((char *)sectorBuff+ptr+CD_DIR_FILENAME,"AUTOEXEC.BAT;1",fileNameLEN))
 				{
-					int i;
-					size_t fileLEN=GetDwordLE(sectorBuff+ptr+CD_DIR_DATA_LEN);
-					size_t fileLBA=GetDwordLE(sectorBuff+ptr+CD_DIR_DATA_LBA);
-					printf("Found AUTOEXEC.BAT\n");
-					printf("Length LBA=%d LEN=%d\n",fileLBA,fileLEN);
-
-					ReadSector(av[1],fileLBA);
-					for(i=0; i<fileLEN; ++i)
-					{
-						printf("%c",sectorBuff[i]);
-					}
-					printf("\n");
-
-					break;
+					AUTOEXEC_LEN=GetDwordLE(sectorBuff+ptr+CD_DIR_DATA_LEN);
+					AUTOEXEC_LBA=GetDwordLE(sectorBuff+ptr+CD_DIR_DATA_LBA);
 				}
+
+				printf("L:%d ",sectorBuff[ptr+CD_DIR_DIR_LEN]);
+				printf("ATTR:0x%02x ",sectorBuff[ptr+CD_DIR_EXT_ATTR_LEN]);
+				printf("FLAGS:0x%02x ",sectorBuff[ptr+CD_DIR_FLAGS]);
+				printf("LBA:%d ",GetDwordLE(sectorBuff+ptr+CD_DIR_DATA_LBA));
+				printf("NAMELEN:%d ",fileNameLEN);
 
 				for(int i=0; i<fileNameLEN; ++i)
 				{
 					printf("%c",sectorBuff[ptr+CD_DIR_FILENAME+i]);
 				}
+				for(int i=0; i<fileNameLEN; ++i)
+				{
+					printf("[%d]",sectorBuff[ptr+CD_DIR_FILENAME+i]);
+				}
+
 				printf("\n");
 
 				ptr+=dirLEN;
@@ -176,6 +180,20 @@ int main(int ac,char *av[])
 
 			++LBA;
 			--count;
+		}
+
+		if(0!=AUTOEXEC_LEN && 0!=AUTOEXEC_LBA)
+		{
+			int i;
+			printf("Found AUTOEXEC.BAT\n");
+			printf("Length LBA=%d LEN=%d\n",AUTOEXEC_LBA,AUTOEXEC_LEN);
+
+			ReadSector(av[1],AUTOEXEC_LBA);
+			for(i=0; i<AUTOEXEC_LEN; ++i)
+			{
+				printf("%c",sectorBuff[i]);
+			}
+			printf("\n");
 		}
 	}
 	return 0;
