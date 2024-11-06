@@ -144,6 +144,10 @@ public:
 
 
 	// (4)
+	bool MakeISOImageFile(std::string fileName) const;
+	size_t WriteToFile(std::ofstream &ofp,size_t len,void *data) const;
+	bool VerifyFilePosLBA(size_t filePos,size_t LBA) const;
+
 	std::vector <unsigned char> MakeDescriptorTable(void) const;
 
 	// MakePathTable can be used before setting LBAs for the directories and files for calculating the size of the path table.
@@ -151,6 +155,7 @@ public:
 	// Observation of some ISO images suggests that the index in the path table starts with 1 (root Dir)
 	// Root-dir name length is 1.  But, the value in the name is \0.
 	std::vector <unsigned char> MakePathTable(ENDIANNESS endian) const;
+
 
 
 	// Capitalize if caseSensitive==false.
@@ -519,6 +524,51 @@ std::vector <unsigned char> ISOImage::MakeDescriptorTable(void) const
 	return data;
 }
 
+bool ISOImage::MakeISOImageFile(std::string fileName) const
+{
+	std::ofstream ofp(fileName,std::ios::binary);
+
+	if(true!=ofp.is_open())
+	{
+		ErrorMessage(__FUNCTION__,__LINE__,"Cannot open ISO file.");
+		return false;
+	}
+
+	std::vector <unsigned char> zeroSector;
+	zeroSector.resize(CD_SECTOR_SIZE);
+	memset(zeroSector.data(),0,zeroSector.size());
+
+	size_t filePos=0;
+
+	for(int i=0; i<LBA_PVD; ++i)
+	{
+		filePos+=WriteToFile(ofp,zeroSector.size(),zeroSector.data());
+	}
+	VerifyFilePosLBA(filePos,LBA_PVD);
+
+	auto PVD=MakeDescriptorTable();
+	filePos+=WriteToFile(ofp,PVD.size(),PVD.data());
+	VerifyFilePosLBA(filePos,LBA_PATHTABLE_LE);
+
+	return true;
+}
+
+size_t ISOImage::WriteToFile(std::ofstream &ofp,size_t len,void *data) const
+{
+	ofp.write((const char *)data,len);
+	return len;
+}
+
+bool ISOImage::VerifyFilePosLBA(size_t filePos,size_t LBA) const
+{
+	auto fileLBA=filePos/CD_SECTOR_SIZE;
+	if(fileLBA!=LBA)
+	{
+		ErrorMessage(__FUNCTION__,__LINE__,"File Position and LBA inconsistency.");
+	}
+	return fileLBA==LBA;
+}
+
 std::vector <unsigned char> ISOImage::MakePathTable(ENDIANNESS endian) const
 {
 	std::vector <unsigned char> data;
@@ -708,6 +758,8 @@ void Test1(void)
 	iso.CalculateDirFileLBA();
 
 	iso.Print();
+
+	iso.MakeISOImageFile("test.iso");
 }
 
 int main(int ac,char *av[])
