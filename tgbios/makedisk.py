@@ -51,18 +51,24 @@ def Run(argv):
 		quit()
 
 
-
-	proc=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
-	proc.communicate()
-	if 0!=proc.returncode:
+	proc1=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc1.communicate()
+	if 0!=proc1.returncode:
 		print("Error bulding makefd.exe")
 		PrintOutput()
 		quit()
 
-	proc=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","/EHsc"])
-	proc.communicate()
-	if 0!=proc.returncode:
+	proc2=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc2.communicate()
+	if 0!=proc2.returncode:
 		print("Error building makehd.exe")
+		PrintOutput()
+		quit()
+
+	proc3=subprocess.Popen(["cl","../util/geniso.cpp","/EHsc"])
+	proc3.communicate()
+	if 0!=proc3.returncode:
+		print("Error building geniso.exe")
 		PrintOutput()
 		quit()
 
@@ -152,6 +158,31 @@ def Run(argv):
 		print("Error building HDIMG.h0")
 		PrintOutput()
 		quit()
+
+
+	proc=subprocess.Popen(["./geniso",
+		"-o",		"CDIMG.ISO",
+		"-VOL",		"TSUGARU_OS",	# Volume Label
+		"-SYS",		"TSUGARU_OS",	# System Label
+		# "-IPL",		"../iosys/CD_IPL.bin",
+		"-F",		"../resources/IO.SYS",
+		"-F",		"../resources/YSDOS.SYS",
+		"-F",		"../resources/YAMAND.COM",
+		"-F",		"../resources/CD/CONFIG.SYS",
+		"-F",		"../resources/CD/AUTOEXEC.BAT",
+		"-F",		"../resources/TGDRV.COM",
+		"-F",		"../iosys/MINVCPI.SYS",
+		"-F",		"../externals/ORICON/ORICON.COM",
+		"-F",		"../externals/Free386/free386.com",
+		"-F",		"TGBIOS.SYS",
+		"-F",		"TGBIOS.BIN",
+	])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error building CDIMG.ISO")
+		PrintOutput()
+		quit()
+
 
 	CopyToResources("TGBIOS.SYS")
 	CopyToResources("TGBIOS.BIN")

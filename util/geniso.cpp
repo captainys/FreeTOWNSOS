@@ -1020,6 +1020,11 @@ bool CommandParameterInfo::RecognizeCommandParameter(ISOImage &iso,int ac,char *
 			iso.volumeLabel=av[i+1];
 			++i;
 		}
+		else if("-SYS"==opt && i+1<ac) // System Label
+		{
+			iso.systemLabel=av[i+1];
+			++i;
+		}
 		else if("-IPL"==opt && i+1<ac)
 		{
 			if(true!=iso.LoadIPL(av[i+1]))
@@ -1029,7 +1034,7 @@ bool CommandParameterInfo::RecognizeCommandParameter(ISOImage &iso,int ac,char *
 			}
 			++i;
 		}
-		else if("-VERBOSE")
+		else if("-VERBOSE"==opt)
 		{
 			verbose=true;
 		}
