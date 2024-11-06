@@ -93,6 +93,7 @@ public:
 	std::vector <File> allFileList;
 	std::vector <Dir> allDirList;		// allDirList[0] is always the root directory.
 	std::unordered_map <std::string,size_t> nameToDirIdx;   // "ABC/XYZ" -> index
+	std::vector <unsigned char> IPLSector;
 
 	// Steps:
 	//   (1) Add files.
@@ -123,6 +124,7 @@ public:
 	ISOImage();
 
 	// (1)
+	bool LoadIPL(std::string file);
 	bool AddFileSimple(std::string file); // As is.  If "C:/abc/xyz.txt" is given, "Will be made /XYZ.TXT in ISO."
 	bool AddFile(std::string fileIn,std::string fileInISO);
 
@@ -145,7 +147,7 @@ public:
 
 	// (4)
 	bool MakeISOImageFile(std::string fileName) const;
-	size_t WriteToFile(std::ofstream &ofp,size_t len,void *data) const;
+	size_t WriteToFile(std::ofstream &ofp,size_t len,const void *data) const;
 	bool VerifyFilePosLBA(size_t filePos,size_t LBA) const;
 
 	static struct ISO9660_DateTime GetTodaysDateGMT(void);
@@ -242,6 +244,29 @@ size_t ISOImage::Dir::MakeISO9660Directory(struct ISO9660_Directory &dir) const
 
 ISOImage::ISOImage()
 {
+	IPLSector.resize(CD_SECTOR_SIZE);
+	memset(IPLSector.data(),0,CD_SECTOR_SIZE);
+}
+
+bool ISOImage::LoadIPL(std::string file)
+{
+	std::ifstream ifp(file,std::ios::binary);
+	if(true!=ifp.is_open())
+	{
+		ErrorMessage(__FUNCTION__,__LINE__,"Cannot open IPL sector image.\n");
+		return false;
+	}
+
+	ifp.seekg(0,std::ios::end);
+	size_t sz=ifp.tellg();
+	if(CD_SECTOR_SIZE<sz)
+	{
+		ErrorMessage(__FUNCTION__,__LINE__,"IPL sector image is larger than the sector length.\n");
+		return false;
+	}
+	ifp.seekg(0,std::ios::beg);
+	ifp.read((char *)IPLSector.data(),sz);
+	return true;
 }
 
 bool ISOImage::AddFileSimple(std::string file)
@@ -536,7 +561,10 @@ bool ISOImage::MakeISOImageFile(std::string fileName) const
 
 	size_t filePos=0;
 
-	for(int i=0; i<LBA_PVD; ++i)
+	filePos+=WriteToFile(ofp,IPLSector.size(),IPLSector.data());
+	VerifyFilePosLBA(filePos,1);
+
+	for(int i=1; i<LBA_PVD; ++i)
 	{
 		filePos+=WriteToFile(ofp,zeroSector.size(),zeroSector.data());
 	}
@@ -577,7 +605,7 @@ bool ISOImage::MakeISOImageFile(std::string fileName) const
 	return true;
 }
 
-size_t ISOImage::WriteToFile(std::ofstream &ofp,size_t len,void *data) const
+size_t ISOImage::WriteToFile(std::ofstream &ofp,size_t len,const void *data) const
 {
 	ofp.write((const char *)data,len);
 	return len;
@@ -954,9 +982,77 @@ void ISOImage::PrintFiles(void) const
 class CommandParameterInfo
 {
 public:
+	std::string output;
+	bool verbose=false;
+	bool RecognizeCommandParameter(ISOImage &iso,int ac,char *av[]);
 };
 
+bool CommandParameterInfo::RecognizeCommandParameter(ISOImage &iso,int ac,char *av[])
+{
+	std::vector <std::string> argv;
+	for(int i=1; i<ac; ++i)
+	{
+		std::string opt=av[i];
+		for(auto &c : opt)
+		{
+			c=toupper(c);
+		}
+		if("-F"==opt && i+1<ac) // Simple file.  File added to the root dir.
+		{
+			if(true!=iso.AddFileSimple(av[i+1]))
+			{
+				std::cout << "Error while adding a file.\n";
+				return false;
+			}
+			++i;
+		}
+		else if("-FF"==opt && i+2<ac) // Not so simple file.  Input file name, and the name in the ISO image.
+		{
+			if(true!=iso.AddFile(av[i+1],av[i+2]))
+			{
+				std::cout << "Error while adding a file.\n";
+				return false;
+			}
+			i+=2;
+		}
+		else if("-VOL"==opt && i+1<ac) // Volume Label
+		{
+			iso.volumeLabel=av[i+1];
+			++i;
+		}
+		else if("-IPL"==opt && i+1<ac)
+		{
+			if(true!=iso.LoadIPL(av[i+1]))
+			{
+				std::cout << "Error while loading the IPL sector.\n";
+				return false;
+			}
+			++i;
+		}
+		else if("-VERBOSE")
+		{
+			verbose=true;
+		}
+		else if("-O"==opt && i+1<ac)
+		{
+			output=av[i+1];
+			++i;
+		}
+		else
+		{
+			std::cout << "Undefined option: " << opt << "\n";
+			return false;
+		}
+	}
 
+	if(""==output)
+	{
+		std::cout << "No output file is specified.\n";
+		return false;
+	}
+
+	return true;
+}
 
 void Test1(void)
 {
@@ -983,6 +1079,31 @@ int main(int ac,char *av[])
 	assert(sizeof(struct ISO9660_PathTableEntry)==10);
 	assert(sizeof(struct ISO9660_Directory)==34);
 	assert(sizeof(struct ISO9660_DateTime)==7);
-	Test1();
+
+	CommandParameterInfo cpi;
+	ISOImage iso;
+	if(true!=cpi.RecognizeCommandParameter(iso,ac,av))
+	{
+		return 1;
+	}
+
+	iso.SortFiles();
+	iso.MakeDirectoryList();
+	iso.CalculatePathTableLBA();
+	iso.CalculateDirFileLBA();
+
+	if(true==cpi.verbose)
+	{
+		iso.Print();
+	}
+
+	if(true!=iso.MakeISOImageFile(cpi.output))
+	{
+		std::cout << "Error while writing .ISO file.\n";
+		return 1;
+	}
+
+	std::cout << "Created " << cpi.output << "\n";
+
 	return 0;
 }
