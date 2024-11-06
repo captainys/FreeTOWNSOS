@@ -6,6 +6,12 @@
 
 #include <stdint.h>
 
+#define ISO9660_VD_BOOT_RECORD 0
+#define ISO9660_VD_PRIMARY 1
+#define ISO9660_VD_SUPPLEMENTAL 2
+#define ISO9660_VD_PARTITION 3
+#define ISO9660_VD_LAST 255
+
 #define ISO9660_FLAG_HIDDEN 1
 #define ISO9660_FLAG_DIRECTORY 2
 #define ISO9660_FLAG_ASSOCIATED 4
@@ -63,7 +69,7 @@ struct ISO9660_BootRecord
 
 struct ISO9660_PrimaryVolumeDescriptor
 {
-	uint8_t one; // Type Code=01
+	uint8_t typeCode; // Type Code=01
 	char CD001[5];
 	uint8_t version;
 	uint8_t unused1;

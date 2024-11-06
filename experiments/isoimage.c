@@ -8,6 +8,7 @@
 #define SECTOR_LEN 2048
 unsigned char sectorBuff[SECTOR_LEN];
 
+#define PVD_VOLUME_SPACE_SIZE 80
 #define PVD_PATHTABLE_SIZE_LE 132
 #define PVD_PATHTABLE_SIZE_BE 136
 #define PVD_PATHTABLE_LBA_LE 140
@@ -90,6 +91,7 @@ int main(int ac,char *av[])
 		printf("%c%c%c%c%c\n",sectorBuff[1],sectorBuff[2],sectorBuff[3],sectorBuff[4],sectorBuff[5]);
 		printf("RootDir LBA=0x%08x\n",rootDirLBA);
 		printf("RootDir LEN=0x%08x\n",rootDirLEN);
+		printf("Volume Space Size=%d\n",GetDwordLE(sectorBuff+PVD_VOLUME_SPACE_SIZE));
 
 		unsigned int pathTableSizeLE=GetDwordLE(sectorBuff+PVD_PATHTABLE_SIZE_LE);
 		unsigned int pathTableSizeBE=GetDwordBE(sectorBuff+PVD_PATHTABLE_SIZE_BE);

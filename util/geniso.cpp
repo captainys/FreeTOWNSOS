@@ -4,12 +4,14 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-#include <ctype.h>
-#include <stdint.h>
-#include <assert.h>
 #include <map>
 #include <unordered_set>
 #include <unordered_map>
+
+#include <ctype.h>
+#include <stdint.h>
+#include <assert.h>
+#include <time.h>
 
 #include "iso9660.h"
 
@@ -21,7 +23,9 @@ public:
 		LITTLE_ENDIAN,
 		BIG_ENDIAN
 	};
-	const int CD_SECTOR_SIZE=2048;
+	enum {
+		CD_SECTOR_SIZE=2048,
+	};
 
 	static void PutDword(unsigned char *ptr,ENDIANNESS endian,uint32_t i)
 	{
@@ -80,9 +84,12 @@ public:
 		std::vector <size_t> fileList;	// Indexes to allFileList
 		std::vector <size_t> subDirList;	// Indexes to allDirList.  Not id member variable.  It is index.
 		size_t CalculateDirSize(void) const;
+		size_t MakeISO9660Directory(struct ISO9660_Directory &dir) const;
 	};
 
 	bool caseSensitive=false;
+	std::string systemLabel="TSUGARU OS";
+	std::string volumeLabel="TSUGARU VOLUME";
 	std::vector <File> allFileList;
 	std::vector <Dir> allDirList;		// allDirList[0] is always the root directory.
 	std::unordered_map <std::string,size_t> nameToDirIdx;   // "ABC/XYZ" -> index
@@ -135,6 +142,10 @@ public:
 
 	void CalculateDirFileLBA(void);
 
+
+	// (4)
+	std::vector <unsigned char> MakeDescriptorTable(void) const;
+
 	// MakePathTable can be used before setting LBAs for the directories and files for calculating the size of the path table.
 	// In which case, all LBA will be filled as ~0.
 	// Observation of some ISO images suggests that the index in the path table starts with 1 (root Dir)
@@ -151,15 +162,17 @@ public:
 	std::string NormalizeFileName(std::string fileNameIn) const;
 
 	// "ABC/XYZ/DATA.BIN" -> [0]="ABC/XYZ", [1]="DATA.BIN"
-	std::array <std::string,2> SeparatePath(std::string path) const;
+	static std::array <std::string,2> SeparatePath(std::string path);
 
 	// "ABC/XYZ","DATA.BIN" -> "ABC/XYZ/DATA.BIN
-	std::string Join(std::string dir,std::string name) const;
+	static std::string Join(std::string dir,std::string name);
 
 	bool FileExists(std::string name) const;
 	size_t GetFileLength(std::string name) const;
 
-	void ErrorMessage(std::string func,unsigned int lineNum,std::string message);
+	std::string GetTodayString(void) const;
+
+	static void ErrorMessage(std::string func,unsigned int lineNum,std::string message);
 
 	void Print(void) const;
 	void PrintDirs(void) const;
@@ -173,10 +186,49 @@ size_t ISOImage::File::CalculateDirSize(void) const
 }
 size_t ISOImage::Dir::CalculateDirSize(void) const
 {
-	size_t len=33+nameInISO.size(); // Directory does not have ";1"
+	auto sep=SeparatePath(nameInISO);
+	size_t len=33+sep[1].size(); // Directory does not have ";1"
 	return (len+1)&~1;  // Always 2*N
 }
+size_t ISOImage::Dir::MakeISO9660Directory(struct ISO9660_Directory &dir) const
+{
+	auto sep=SeparatePath(nameInISO);
+	size_t nameLen=0;
+	char *name=dir.name;
+	if(0==sep[1].size())
+	{
+		nameLen=1;
+		name[0]=0;
+		name[1]=0;
+	}
+	else
+	{
+		nameLen=sep[1].size();
+		memcpy(name,sep[1].c_str(),sep[1].size());
+	}
 
+	size_t sizeInDisc=(len+CD_SECTOR_SIZE-1);
+	sizeInDisc/=CD_SECTOR_SIZE;
+	sizeInDisc*=CD_SECTOR_SIZE;
+
+	size_t dirLen=(33+nameLen+1)&~1;
+	dir.len=dirLen;
+	dir.extAtt=0;
+	PutDword(dir.LBA_LE,LITTLE_ENDIAN,LBA);
+	PutDword(dir.LBA_BE,BIG_ENDIAN,LBA);
+	PutDword(dir.sizeLE,LITTLE_ENDIAN,sizeInDisc);
+	PutDword(dir.sizeBE,BIG_ENDIAN,sizeInDisc);
+	// Leave dateTime zero.
+	memset(&dir.dateTime,0,sizeof(dir.dateTime));
+	dir.flags=ISO9660_FLAG_DIRECTORY;
+	dir.unitSizeForInterleave=0; // Keep it zero.
+	dir.interleaveGAP=0;         // Keep it zero.
+	PutWord(dir.volumeSeqLE,LITTLE_ENDIAN,1);
+	PutWord(dir.volumeSeqBE,BIG_ENDIAN,1);
+	dir.nameLEN=nameLen;
+
+	return dirLen;
+}
 
 ISOImage::ISOImage()
 {
@@ -377,6 +429,96 @@ void ISOImage::CalculateDirFileLBA(void)
 	totalSectorCount=LBA;
 }
 
+std::vector <unsigned char> ISOImage::MakeDescriptorTable(void) const
+{
+	std::vector <unsigned char> data;
+	data.resize(CD_SECTOR_SIZE*2); // PVD plus Last Volume Descriptor
+
+	if(0==allDirList.size())
+	{
+		ErrorMessage(__FUNCTION__,__LINE__,"Called before making directory structure.");
+		return data;
+	}
+
+	memset(data.data(),0,data.size());
+
+	// Easy part.  Terminator in the next sector.
+	data[CD_SECTOR_SIZE]=ISO9660_VD_LAST;
+	data[CD_SECTOR_SIZE+1]='C';
+	data[CD_SECTOR_SIZE+2]='D';
+	data[CD_SECTOR_SIZE+3]='0';
+	data[CD_SECTOR_SIZE+4]='0';
+	data[CD_SECTOR_SIZE+5]='1';
+
+	auto &PVD=*(struct ISO9660_PrimaryVolumeDescriptor *)data.data();
+	PVD.typeCode=ISO9660_VD_PRIMARY;
+	PVD.CD001[0]='C';
+	PVD.CD001[1]='D';
+	PVD.CD001[2]='0';
+	PVD.CD001[3]='0';
+	PVD.CD001[4]='1';
+	PVD.version=1;
+	// char unused1; already zero-cleared.
+	memset(PVD.systemID,32,' ');
+	memcpy(PVD.volumeID,systemLabel.c_str(),std::min<size_t>(32,systemLabel.size()));
+	memset(PVD.volumeID,32,' ');
+	memcpy(PVD.volumeID,volumeLabel.c_str(),std::min<size_t>(32,volumeLabel.size()));
+	// char unused2[8]; already zero-cleared;
+
+	// Existing ISO image seems to have larger totalSectorCount than actual number of sectors (file size/2048).
+	// But, cannot tell how it should be calculated.
+	PutDword(PVD.volumeSpaceLE,LITTLE_ENDIAN,totalSectorCount);
+	PutDword(PVD.volumeSpaceBE,BIG_ENDIAN,   totalSectorCount);
+
+	// char unused3[32]; already zero-cleared;
+	PutWord(PVD.volumeSetSizeLE,LITTLE_ENDIAN,1); // Make it 01 00
+	PutWord(PVD.volumeSetSizeBE,BIG_ENDIAN,1);    // Make it 00 01
+	PutWord(PVD.volumeSequenceLE,LITTLE_ENDIAN,1); // Make it 01 00
+	PutWord(PVD.volumeSequenceBE,BIG_ENDIAN,1); // Make it 00 01
+	PutWord(PVD.logicalBlockLE,LITTLE_ENDIAN,CD_SECTOR_SIZE); // 08 00  0800H in Little Endian
+	PutWord(PVD.logicalBlockBE,BIG_ENDIAN,CD_SECTOR_SIZE); // 00 08  0800H in Big Endian
+
+	size_t pathTableSize=CalculatePathTableSize();
+	PutDword(PVD.pathTableSizeLE,LITTLE_ENDIAN,pathTableSize); // Size in bytes
+	PutDword(PVD.pathTableSizeBE,BIG_ENDIAN,pathTableSize);
+	PutDword(PVD.LBAPathTableLE,LITTLE_ENDIAN,LBA_PATHTABLE_LE);
+	PutDword(PVD.LBSPathTableOptLE,LITTLE_ENDIAN,0);
+	PutDword(PVD.LBAPathTableBE,BIG_ENDIAN,LBA_PATHTABLE_BE);
+	PutDword(PVD.LBSPathTableOptBE,BIG_ENDIAN,0);
+
+	allDirList[0].MakeISO9660Directory(PVD.rootDir);
+	auto t=time(NULL);
+	auto tm=gmtime(&t);
+	PVD.rootDir.dateTime.yearsSince1900=tm->tm_year;
+	PVD.rootDir.dateTime.month=tm->tm_mon+1; // 1 to 12
+	PVD.rootDir.dateTime.day=tm->tm_mday;  // 1 to 31
+	PVD.rootDir.dateTime.hour=tm->tm_hour; // 0 to 23
+	PVD.rootDir.dateTime.min=tm->tm_min;  // 0 to 59
+	PVD.rootDir.dateTime.sec=tm->tm_sec;  // 0 to 59
+	PVD.rootDir.dateTime.offsetFromGMT=0; // I use gmtime.  Must be zero.
+
+
+	memset(PVD.volumeSetID,' ',128);  // Keep it all ' '
+	memset(PVD.publisherID,' ',128);  // Publisher Name
+	PVD.publisherID[0]=0x5F;
+	memset(PVD.dataPreparerID,' ',128);   // Keep it all ' '
+	PVD.dataPreparerID[0]=0x5F;
+	memset(PVD.appID,' ',128); // Name of the program
+	PVD.appID[0]=0x5F;
+	memset(PVD.copyrightFileID,37,' ');
+	memset(PVD.abstractFileID,37,' ');
+	memset(PVD.biblioFileID,37,' ');
+	auto todayString=GetTodayString();
+	memcpy(PVD.creationDate,todayString.c_str(),16); // Like "20241105123700000" Not a C-String ... I see some ISO's that makes it a C-string.
+	memcpy(PVD.modificationDate,todayString.c_str(),16);// Like "20241105123700000" Not a C-String ...
+	memset(PVD.expierationDate,16,'0'); // keep it all '0'
+	memset(PVD.effectiveDate,16,'0');
+	PVD.fileStructVersion=1;
+	//	char unused4; // Already zero-cleared.
+
+	return data;
+}
+
 std::vector <unsigned char> ISOImage::MakePathTable(ENDIANNESS endian) const
 {
 	std::vector <unsigned char> data;
@@ -415,7 +557,7 @@ std::string ISOImage::NormalizeFileName(std::string fileName) const
 	return fileName;
 }
 
-std::array <std::string,2> ISOImage::SeparatePath(std::string path) const
+std::array <std::string,2> ISOImage::SeparatePath(std::string path)
 {
 	std::array <std::string,2> dirFile;
 	if(0<path.size())
@@ -448,7 +590,7 @@ std::array <std::string,2> ISOImage::SeparatePath(std::string path) const
 	return dirFile;
 }
 
-std::string ISOImage::Join(std::string dir,std::string name) const
+std::string ISOImage::Join(std::string dir,std::string name)
 {
 	if(0==dir.size())
 	{
@@ -485,6 +627,24 @@ size_t ISOImage::GetFileLength(std::string name) const
 		return sz;
 	}
 	return 0;
+}
+
+std::string ISOImage::GetTodayString(void) const
+{
+	auto t=time(NULL);
+	auto tm=localtime(&t);
+	const int date=tm->tm_mday;
+	const int month=tm->tm_mon+1;
+	const int year=std::min(9999,1900+tm->tm_year);
+	const int hour=tm->tm_hour;
+	const int min=tm->tm_min;
+	const int sec=tm->tm_sec;
+
+	char str[256];
+	sprintf(str,"%04d%02d%02d%02d%02d%02d0000000000000000",year,month,date,hour,min,sec);
+	str[16]=0;
+
+	return str;
 }
 
 void ISOImage::ErrorMessage(std::string func,unsigned int lineNum,std::string message)
