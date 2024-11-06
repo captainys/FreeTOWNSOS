@@ -24,8 +24,6 @@ CODE					SEGMENT USE16
 
 						DB		"IPL4"
 
-						MOV		CS:[BOOT_DEVICE],BX
-
 						CMP		BL,BOOTDEV_CD	; BL device  BH unit-num
 						JE		BOOT_FROM_CD
 
@@ -38,17 +36,21 @@ READ_ERROR:
 
 
 BOOT_FROM_SCSI_CD:
+						MOV		BL,BOOTDEV_SCSICD
+						MOV		CS:[BOOT_DEVICE],BX
+
 						AND		BH,7
 						OR		BH,DISKBIOS_SCSI_0
 						JMP		START_BOOT_SEQUENCE
 
 BOOT_FROM_CD:
+						MOV		CS:[BOOT_DEVICE],BX
 						MOV		BH,0C0h
 
 
 
 START_BOOT_SEQUENCE:
-						MOV		[DISKBIOS_DEVICE_CODE],BH
+						MOV		CS:[DISKBIOS_DEVICE_CODE],BH
 
 						; Input
 						;   AL=BIOS Device ID (C0H for Internal CD,  B?H for SCSI CD)
@@ -76,6 +78,33 @@ START_BOOT_SEQUENCE:
 						CALL	ISO9660_FIND_LBA
 						JC		READ_ERROR
 
+
+						MOV		CS:[IOSYS_LBA],EBX
+						MOV		CS:[IOSYS_LEN],ECX
+
+						XCHG	EBX,ECX
+						ADD		EBX,7FFH
+						SHR		EBX,11
+
+						; EBX is Number of sectors
+
+						MOV		EDX,ECX
+						SHLD	ECX,EDX,16
+
+						; CX|DX is the sector
+
+						MOV		AL,CS:[DISKBIOS_DEVICE_CODE];
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+
+						MOV		DI,0040H
+						MOV		DS,DI
+						XOR		DI,DI
+
+						CALL_DISK_BIOS
+
+						JB		READ_ERROR
+
+
 INFINITY:
 						JMP		INFINITY
 
@@ -87,5 +116,5 @@ IOSYS_FILENAME			DB		"IO.SYS",0
 
 BOOT_DEVICE				DW		0
 DISKBIOS_DEVICE_CODE	DB		0h
-ROOTDIR_SECTOR			DW		0
-ROOTDIR_NUM_SECTORS		DW		0
+IOSYS_LBA				DD		0
+IOSYS_LEN				DD		0
