@@ -6,6 +6,13 @@
 
 #include <stdint.h>
 
+#define ISO9660_FLAG_HIDDEN 1
+#define ISO9660_FLAG_DIRECTORY 2
+#define ISO9660_FLAG_ASSOCIATED 4
+#define ISO9660_FLAG_FORMAT 8
+#define ISO9660_FLAG_GROUP_PERMISSION 16
+#define ISO9660_FLAG_NOT_FINAL 128
+
 struct ISO9660_DateTime
 {
 	uint8_t yearsSince1900;
@@ -21,9 +28,9 @@ struct ISO9660_PathTableEntry
 {
 	uint8_t len;
 	uint8_t extAtt;
-	uint32_t LBA;
-	uint16_t parentDirNum;
-	char name[1];
+	unsigned char LBA[4];
+	unsigned char parentDirNum[2];
+	char name[2]; // Minimum 2 bytes. (1 byte name + 1 byte padding)
 };
 
 struct ISO9660_Directory

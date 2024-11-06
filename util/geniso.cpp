@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <ctype.h>
 #include <stdint.h>
+#include <assert.h>
 #include <map>
 #include <unordered_set>
 #include <unordered_map>
@@ -551,6 +552,11 @@ void Test1(void)
 
 int main(int ac,char *av[])
 {
+	// Make sure alighment is not breaking the struct.
+	assert(sizeof(struct ISO9660_PrimaryVolumeDescriptor)==883);
+	assert(sizeof(struct ISO9660_PathTableEntry)==10);
+	assert(sizeof(struct ISO9660_Directory)==34);
+	assert(sizeof(struct ISO9660_DateTime)==7);
 	Test1();
 	return 0;
 }
