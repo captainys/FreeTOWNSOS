@@ -190,7 +190,8 @@ public:
 
 size_t ISOImage::File::CalculateDirSize(void) const
 {
-	size_t len=33+nameInISO.size()+2; // +2 for ";1"
+	auto sep=SeparatePath(nameInISO);
+	size_t len=33+sep[1].size()+2; // +2 for ";1"
 	return (len+1)&~1;  // Always 2*N
 }
 size_t ISOImage::Dir::CalculateDirSize(void) const
@@ -695,9 +696,10 @@ std::vector <unsigned char> ISOImage::MakeDirectoryBinary(const Dir &dir) const
 		{
 			const File &f=allFileList[dir.fileList[filePos]];
 			const Dir &d=allDirList[dir.subDirList[subDirPos]];
+			auto fileSep=SeparatePath(f.nameInISO);
 			auto dirSep=SeparatePath(d.nameInISO);
 
-			if(f.nameInISO<dirSep[1])
+			if(fileSep[1]<dirSep[1])
 			{
 				fileOrDir=0;
 			}
@@ -722,7 +724,8 @@ std::vector <unsigned char> ISOImage::MakeDirectoryBinary(const Dir &dir) const
 			const File &f=allFileList[dir.fileList[filePos]];
 			len=f.CalculateDirSize();
 
-			auto name=f.nameInISO;
+			auto sep=SeparatePath(f.nameInISO);
+			auto name=sep[1];
 			name.push_back(';');
 			name.push_back('1');
 
@@ -883,7 +886,7 @@ size_t ISOImage::GetFileLength(std::string name) const
 	std::ifstream ifp(name,std::ios::binary);
 	if(true==ifp.is_open())
 	{
-		ifp.seekg(std::ios::end,0);
+		ifp.seekg(0,std::ios::end);
 		size_t sz=ifp.tellg();
 		return sz;
 	}
