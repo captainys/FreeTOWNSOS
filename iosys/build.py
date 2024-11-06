@@ -17,6 +17,7 @@ def Run(argv):
 		"FD_IPL",
 		"HD_MBR",
 		"HD_IPL",
+		"CD_IPL",
 		"IOSYS",
 		"INT8EH",
 		"INT90H",

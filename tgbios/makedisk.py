@@ -164,7 +164,7 @@ def Run(argv):
 		"-o",		"CDIMG.ISO",
 		"-VOL",		"TSUGARU_OS",	# Volume Label
 		"-SYS",		"TSUGARU_OS",	# System Label
-		# "-IPL",		"../iosys/CD_IPL.bin",
+		"-IPL",		"../iosys/CD_IPL.bin",
 		"-F",		"../resources/IO.SYS",
 		"-F",		"../resources/YSDOS.SYS",
 		"-F",		"../resources/YAMAND.COM",
@@ -176,6 +176,7 @@ def Run(argv):
 		"-F",		"../externals/Free386/free386.com",
 		"-F",		"TGBIOS.SYS",
 		"-F",		"TGBIOS.BIN",
+		"-VERBOSE",
 	])
 	proc.communicate()
 	if 0!=proc.returncode:

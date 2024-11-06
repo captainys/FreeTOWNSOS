@@ -1,0 +1,91 @@
+; IPL to be boot from a CD ISO image.
+
+
+%macro					CALL_DISK_BIOS	0
+						DB		9AH		; CALLF FFFB:0014
+						DW		 0014H
+						DW		0FFFBH
+%endmacro
+
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+; CD-Read Buffer B000:4000
+CD_RESD_BUFFER_OFFSET	EQU		4000h
+
+
+
+CODE					SEGMENT USE16
+
+						DB		"IPL4"
+
+						MOV		CS:[BOOT_DEVICE],BX
+
+						CMP		BL,BOOTDEV_CD	; BL device  BH unit-num
+						JE		BOOT_FROM_CD
+
+						CMP		BL,BOOTDEV_HD	; BL device  BH unit-num
+						JE		BOOT_FROM_SCSI_CD
+
+READ_ERROR:
+						STC
+						RETF
+
+
+BOOT_FROM_SCSI_CD:
+						AND		BH,7
+						OR		BH,DISKBIOS_SCSI_0
+						JMP		START_BOOT_SEQUENCE
+
+BOOT_FROM_CD:
+						MOV		BH,0C0h
+
+
+
+START_BOOT_SEQUENCE:
+						MOV		[DISKBIOS_DEVICE_CODE],BH
+
+						; Input
+						;   AL=BIOS Device ID (C0H for Internal CD,  B?H for SCSI CD)
+						;   DS:DI=4KB Sector Buffer
+						;   ES:SI=File Name, zero-terminated
+						; Output
+						;   Searches only the root directory.
+						;   Registers will be destroyed.
+						;   CF=0  EBX  LBA
+						;         ECX  File Size
+						;   CF=1  AH=00 File Not Found
+						;         AH=80H Hard Error CX=Error Detail
+						;         AH=Non-Zero  BIOS Error
+
+						MOV		AL,BH
+
+						PUSH	CS
+						POP		DS
+						MOV		DI,CD_RESD_BUFFER_OFFSET
+
+						PUSH	CS
+						POP		ES
+						MOV		SI,IOSYS_FILENAME
+
+						CALL	ISO9660_FIND_LBA
+						JC		READ_ERROR
+
+INFINITY:
+						JMP		INFINITY
+
+
+
+						%INCLUDE "ISO9660.NSM"
+
+IOSYS_FILENAME			DB		"IO.SYS",0
+
+BOOT_DEVICE				DW		0
+DISKBIOS_DEVICE_CODE	DB		0h
+ROOTDIR_SECTOR			DW		0
+ROOTDIR_NUM_SECTORS		DW		0
