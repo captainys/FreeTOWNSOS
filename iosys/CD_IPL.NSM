@@ -105,8 +105,11 @@ START_BOOT_SEQUENCE:
 						JB		READ_ERROR
 
 
-INFINITY:
-						JMP		INFINITY
+						MOV		BX,CS:[BOOT_DEVICE]
+
+						DB		0EAH ; JMPF
+						DW		0000H
+						DW		0050H
 
 
 

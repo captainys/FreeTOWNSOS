@@ -58,7 +58,14 @@ REALENTRY:
 						MOV		CS:[BOOT_DEVICE],BX
 						SHL		EBX,16
 						MOV		CS:[BOOT_PARTITION],BX
-						MOV		CS:[DOSSEG],CS  ; DOS will be loaded this location.
+
+						; Apparently MSCDEX.EXE is assuming it is loaded above 1000H.
+						MOV		AX,CS
+						CMP		AX,1000H
+						JAE		FORCE_DOS_1000H_OR_ABOVE
+						MOV		AX,1000H
+FORCE_DOS_1000H_OR_ABOVE:
+						MOV		CS:[DOSSEG],AX  ; DOS will be loaded this location.
 
 						MOV		CS:[CONDEV_PTR],SI
 						MOV		CS:[CONDEV_PTR+2],GS
@@ -126,11 +133,17 @@ NOT_BOOT_FROM_FD:
 						CMP		BL,BOOTDEV_CD
 						JNE		NOT_BOOT_FROM_CD
 						CALL	LOAD_DOS_FROM_CD
-						JMP		YSDOS_LOADED
 						JB		TRY_LOAD_DOS_FROM_ROM
 						JMP		YSDOS_LOADED
 
 NOT_BOOT_FROM_CD:
+						CMP		BL,BOOTDEV_SCSICD
+						JNE		NOT_BOOT_FROM_SCSICD
+						CALL	LOAD_DOS_FROM_CD		; Internal to SCSI CD redirection must be enabled by now.
+						JB		TRY_LOAD_DOS_FROM_ROM
+						JMP		YSDOS_LOADED
+
+NOT_BOOT_FROM_SCSICD:
 						CMP		BL,BOOTDEV_HD
 						JNE		NOT_BOOT_FROM_HD
 						CALL	LOAD_DOS_FROM_HD
@@ -247,14 +260,16 @@ YSDOS_LOADED:
 						MOV		DL,CS:[BOOT_DEVICE]
 						CMP		DL,BOOTDEV_FD
 						JE		BOOTDRV_ALREADY_SET
+						CMP		DL,BOOTDEV_CD
+						JE		BOOTDRV_ALREADY_SET
+						CMP		DL,BOOTDEV_SCSICD
+						JE		BOOTDRV_ALREADY_SET
 
 						CALL	FIND_BOOT_DRIVE
 						MOV		CS:[BOOT_DRIVE],AL
 BOOTDRV_ALREADY_SET:
+						; Postpone set current drive until installation of MSCDEX
 
-						MOV		DL,CS:[BOOT_DRIVE]
-						MOV		AH,0Eh
-						INT		21H
 
 
 
@@ -289,6 +304,12 @@ CLOSE_DEFAULT_FILE_LOOP:
 
 						POP		ES
 						MOV		AH,49H	; FREE MEMORY
+						INT		21H
+
+						CALL	INSTALL_MSCDEX
+
+						MOV		DL,CS:[BOOT_DRIVE]
+						MOV		AH,0Eh
 						INT		21H
 
 						CALL	DO_CONFIG_SYS
@@ -454,6 +475,47 @@ CREATE_ADDITIONAL_SFT:
 
 						RET
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+MSCDEX_FILENAME			DB		"C:\MSCDEX.EXE",0
+MSCDEX_PARAMETER		DB		" /L:Q /D:TOWNS_CD /M:8",0
+
+MSCDEX_PARAMBLOCK		DW		0	; ENVSEG to copy from
+						DW		MSCDEX_PARAMETER		; Command Tail OFFSET
+MSCDEX_PARAM_SEG		DW		IOSYS_CS				; Command Tail SEG
+						DW		FCB_WAS_A_BAD_IDEA		; First FCB to be copied
+						DW		DOSLOADER_EXE_SEG
+						DW		FCB_WAS_A_BAD_IDEA		; Second FCB to be copied
+						DW		DOSLOADER_EXE_SEG
+
+INSTALL_MSCDEX:
+						MOV		AX,4B00H	; EXEC
+						PUSH	CS
+						POP		DS
+						MOV		DX,MSCDEX_FILENAME
+						PUSH	CS
+						POP		ES
+						MOV		BX,MSCDEX_PARAMBLOCK
+						MOV		CS:[MSCDEX_PARAM_SEG],CS
+						INT		21H
+						JC		INSTALL_MSCDEX_FAIL
+
+						; If successful, update MCB so that drivers won't overwrite MSCDEX.
+
+						LES		DI,CS:[SYSVARS_PTR]
+						MOV		DS,ES:[DI-2]		; First MCB
+
+						CMP		BYTE [0],4DH	; Has a chain.
+						JNE		INSTALL_MSCDEX_FAIL
+
+						MOV		AX,DS
+						ADD		AX,[3]
+						INC		AX
+						MOV		ES:[DI-2],AX
+
+INSTALL_MSCDEX_FAIL:
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1035,7 +1097,55 @@ LOAD_DOS_FROM_HD_ERR:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 LOAD_DOS_FROM_CD:
-						STC
+						MOV		BYTE CS:[BOOT_DRIVE],'Q'-'A'
+
+						; Input
+						;   AL=BIOS Device ID (C0H for Internal CD,  B?H for SCSI CD)
+						;   DS:DI=4KB Sector Buffer
+						;   ES:SI=File Name, zero-terminated
+						; Output
+						;   Searches only the root directory.
+						;   Registers will be destroyed.
+						;   CF=0  EBX  LBA
+						;         ECX  File Size
+						;   CF=1  AH=00 File Not Found
+						;         AH=80H Hard Error CX=Error Detail
+						;         AH=Non-Zero  BIOS Error
+
+						MOV		AL,DISKBIOS_CD
+
+						MOV		DI,BOOTSECT_SEG	; Can be used for finding LBA for YSDOS.SYS
+						MOV		DS,DI
+						XOR		DI,DI
+
+						PUSH	CS
+						POP		ES
+						MOV		SI,YSDOS_SYS_FILENAME_CSTR
+
+						CALL	ISO9660_FIND_LBA
+						JC		LOAD_DOS_FROM_CD_EXIT
+
+
+						XCHG	EBX,ECX
+						ADD		EBX,7FFH
+						SHR		EBX,11
+
+						; EBX is Number of sectors
+
+						MOV		EDX,ECX
+						SHLD	ECX,EDX,16
+
+						; CX|DX is the sector
+
+						MOV		AL,DISKBIOS_CD
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+
+						MOV		DS,CS:[DOSSEG]	; YSDOS Loading Point
+						XOR		DI,DI
+
+						INT		93H
+
+LOAD_DOS_FROM_CD_EXIT:
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1315,11 +1425,18 @@ FOUND_BOOT_DRIVE:
 
 						%INCLUDE	"DOSUTIL.NSM"
 
+
+%macro					CALL_DISK_BIOS	0
+						INT		93H
+%endmacro
+						%INCLUDE	"ISO9660.NSM"
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 YSDOS_SYS_FILENAME		DB		"YSDOS   SYS"
 MSDOS_SYS_FILENAME		DB		"MSDOS   SYS"
+YSDOS_SYS_FILENAME_CSTR	DB		"YSDOS.SYS",0
 
 DISKBIOS_BOOT_DEVICE	DB		0
 BOOT_PARTITION			DB		0		; If booting from HDD
