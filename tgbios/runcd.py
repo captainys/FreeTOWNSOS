@@ -1,3 +1,5 @@
+# CD IPL is mainly for targeting running Tsugaru OS on actual TOWNS.
+
 import subprocess
 import os
 import sys
@@ -5,7 +7,7 @@ import sys
 THISFILE=os.path.realpath(__file__)
 THISDIR=os.path.dirname(THISFILE)
 
-ROMDIR=os.path.join(THISDIR,"..","CompROM")
+ROMDIR=os.path.join(THISDIR,"..","..","TOWNSEMU_TEST","ROM_MX")
 FDIMG=os.path.join(THISDIR,"FDIMG.bin")
 HDIMG=os.path.join(THISDIR,"HDIMG.h0")
 CDIMG=os.path.join(THISDIR,"CDIMG.ISO")
