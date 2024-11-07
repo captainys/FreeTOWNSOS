@@ -21,6 +21,7 @@ def Run(argv):
 		"FDIMG.BIN",
 		"FDIMG_USEROM.BIN",
 		"HDIMG.h0",
+		"CDIMG.ISO",
 	]
 	for file in files:
 		Copy(file)
