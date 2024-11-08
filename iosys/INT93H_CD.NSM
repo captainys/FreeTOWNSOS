@@ -5,8 +5,7 @@
 %endmacro
 
 
-CD_EMULATION_SCSI		DB		0
-CD_EMULATION_SCSI_ID	DB		0
+CD_EMULATION_SCSI		DB		0	; BIOS Device CODE.  0B?H for SCSI ID ?.
 
 
 CDC_PARAM				DB		0,0,0,0,0,0,0,0
@@ -848,17 +847,40 @@ CDC_WAIT_DMAE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_ENABLE_EMULATION:
-						TSUGARU_DEBUG
-
 						; Identify SCSI device type of ID in DL
 						; If successful jump INT93H_CD_ENABLE_EMULATION_SUCCESSFUL
 
+						PUSH	DX
+						; Input
+						;   CL   SCSI ID
+						; Output
+						;   CL   05 or 04 means CD
+						;        00 means HD
+						;   Carry  Set if error
+						MOV		CL,DL
+						CALL	IDENTIFY_SCSI_DEVICE
+						POP		DX
+
+						JC		INT93H_CD_ENABLE_EMULATION_ERROR
+
+						;	CL needs to be 4 or 5.  unsigned(CL-4)<=1
+						SUB		CL,4
+						CMP		CL,1
+						JA		INT93H_CD_ENABLE_EMULATION_ERROR
+
+						; SCSI ID DL is connected and a CD-ROM or CD-R.
+
+						AND		DL,0FH;
+						OR		DL,DISKBIOS_SCSI_0
+						MOV		CS:[CD_EMULATION_SCSI],DL
+
+						MOV		BYTE CS:[ERROR_CODE],0
+						JMP		INT93H_EXIT
+
+INT93H_CD_ENABLE_EMULATION_ERROR:
 						MOV		BYTE CS:[ERROR_CODE],1
 						JMP		INT93H_EXIT
 
-INT93H_CD_ENABLE_EMULATION_SUCCESSFUL:
-						MOV		BYTE CS:[ERROR_CODE],0
-						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -881,8 +903,9 @@ INT93H_CD_EMU_04H_SEEK_LBA:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_05H_READ_LBA:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		CL,CS:[CD_EMULATION_SCSI]
+						AND		CL,7
+						JMP		INT93H_HD_05H_READ_FOR_CD_EMULATION
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
