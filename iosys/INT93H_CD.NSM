@@ -17,6 +17,27 @@ INT49H_CD_INT_HANDLER:
 						RETF
 
 
+; Extension to INT 93H AL=C?H
+; YSSCSI.SYS Extension
+; AX=73C0H  BX=0  CX=0  YSSCSICD installation check.
+;   Returns BX=7711H CX=6809H if YSSCSICD is installed already.
+;   TGBIOS should return BX=7710H CX=6809H if CD to SCSI redirection is enabled.
+;
+; AX=71C0H Play CDDA
+; AX=72C0H Play CDDA BCD
+;     BL Starting time M (In BCD if AH=72H)
+;     BH Starting time S (In BCD if AH=72H)
+;     CL Starting time F (In BCD if AH=72H)
+;     CH Ending time M (In BCD if AH=72H)
+;     DL Ending time S (In BCD if AH=72H)
+;     DH Ending time F (In BCD if AH=72H)
+; 
+; TGBIOS Extension
+; AX=74C0H Enable SCSI redirection
+;     DL SCSI ID or FFH for auto-scan descending order or FEH for auto-scan ascending order.
+
+
+
 
 INT93H_CD:
 						MOV		BYTE CS:[ERROR_CODE],02H	; Tentative Wrong Device ID
@@ -30,6 +51,9 @@ INT93H_CD:
 
 						CMP		BYTE CS:[CD_EMULATION_SCSI],0
 						JNE		INT93H_CD_EMU_BY_SCSI
+
+						CMP		AH,DISKBIOS_CMD_EXT_ENABLE_SCSI_REDIR
+						JE		INT93H_CD_ENABLE_EMULATION
 
 						MOVZX	BX,AH
 						CMP		BX,14H
@@ -820,6 +844,21 @@ CDC_WAIT_DMAE:
 						AND		AL,40H
 						JE		CDC_WAIT_DMAE
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_ENABLE_EMULATION:
+						TSUGARU_DEBUG
+
+						; Identify SCSI device type of ID in DL
+						; If successful jump INT93H_CD_ENABLE_EMULATION_SUCCESSFUL
+
+						MOV		BYTE CS:[ERROR_CODE],1
+						JMP		INT93H_EXIT
+
+INT93H_CD_ENABLE_EMULATION_SUCCESSFUL:
+						MOV		BYTE CS:[ERROR_CODE],0
+						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

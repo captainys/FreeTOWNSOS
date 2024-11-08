@@ -60,6 +60,10 @@ REALENTRY:
 						MOV		CS:[BOOT_PARTITION],BX
 
 						; Apparently MSCDEX.EXE is assuming it is loaded above 1000H.
+						; During the initialization, it subtracts 1000H from the segment, and then access offset FFF0H of that
+						; segment to verify integrity.  However, if the segment is lower than 1000H, it underflows to FF??H, then
+						; 80386+ CPU will read above 1MB if accessing FF??H:FFF0H.
+						; Therefore, make DOSSEG at least 1000H.
 						MOV		AX,CS
 						CMP		AX,1000H
 						JAE		FORCE_DOS_1000H_OR_ABOVE
@@ -123,6 +127,18 @@ CLONE_ENTRY:
 
 
 						MOV		BX,CS:[BOOT_DEVICE]
+						CMP		BL,BOOTDEV_SCSICD
+						JNE		NOT_BOOT_FROM_SCSICD
+
+						MOV		AX,(DISKBIOS_CMD_EXT_ENABLE_SCSI_REDIR*0x100)+DISKBIOS_CD
+						MOV		DL,BH
+						INT		93H
+INSTALL_SCSI_CD_FAILED:
+						JB		INSTALL_SCSI_CD_FAILED
+						MOV		BX,BOOTDEV_CD
+						MOV		CS:[BOOT_DEVICE],BX
+
+NOT_BOOT_FROM_SCSICD:
 						CMP		BL,BOOTDEV_FD
 						JNE		NOT_BOOT_FROM_FD
 						CALL	LOAD_DOS_FROM_FD
@@ -137,13 +153,6 @@ NOT_BOOT_FROM_FD:
 						JMP		YSDOS_LOADED
 
 NOT_BOOT_FROM_CD:
-						CMP		BL,BOOTDEV_SCSICD
-						JNE		NOT_BOOT_FROM_SCSICD
-						CALL	LOAD_DOS_FROM_CD		; Internal to SCSI CD redirection must be enabled by now.
-						JB		TRY_LOAD_DOS_FROM_ROM
-						JMP		YSDOS_LOADED
-
-NOT_BOOT_FROM_SCSICD:
 						CMP		BL,BOOTDEV_HD
 						JNE		NOT_BOOT_FROM_HD
 						CALL	LOAD_DOS_FROM_HD
