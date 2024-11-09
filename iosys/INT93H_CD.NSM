@@ -903,9 +903,17 @@ INT93H_CD_EMU_04H_SEEK_LBA:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_05H_READ_LBA:
+						MOV		CH,[BP+SAVED_ECX+1]
+						CMP		CH,0FFH
+						JE		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
+
 						MOV		CL,CS:[CD_EMULATION_SCSI]
 						AND		CL,7
 						JMP		INT93H_HD_05H_READ_FOR_CD_EMULATION
+
+INT93H_CD_EMU_05H_READ_LBA_SPECIAL:
+						TSUGARU_DEBUG
+						JMP		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -947,7 +955,144 @@ INT93H_CD_EMU_53H_CDDA_GET_STATUS:
 
 INT93H_CD_EMU_54H_CDDA_GET_CDINFO:
 						TSUGARU_DEBUG
+
+						MOV		CL,CS:[CD_EMULATION_SCSI]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JNC		SHORT INT93H_CD_EMU_54H_NOT_HARD_ERROR
+						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
 						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_54H_NOT_HARD_ERROR:
+						MOV		AL,CS:[SCSI_DATABUF+1]
+						CMP		AL,11H ; 11H=PLAYING
+						JNE		SHORT INT93H_CD_EMU_54H_NOT_ALREADY_PLAYING
+						MOV		BYTE CS:[ERROR_CODE],DISKBIOS_ERROR_CD_PLAYING
+						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_54H_NOT_ALREADY_PLAYING:
+						MOV		CL,CS:[CD_EMULATION_SCSI]
+						MOV		CH,0AAH		; Get min-max track
+						CALL	SCSI_READTOC
+						JNC		INT93H_CD_EMU_54H_HAVE_MIN_MAX_TRACK
+						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
+						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_54H_HAVE_MIN_MAX_TRACK:
+						MOV		CL,CS:[SCSI_DATABUF+2]	; First track
+						MOV		CH,CS:[SCSI_DATABUF+3]	; Last track
+
+						MOV		ES,[BP+SAVED_DS]
+						MOV		SI,[BP+SAVED_EDI]
+
+						MOV		BYTE ES:[SI],0		; Tentatively no data/no audio
+						MOV		ES:[SI+1],CX			; First/Last track
+
+
+						; Volume size is also obtained from RedTOC in CDSD.SYS
+						; VolSize calls DskInfo, which shoots RedTOC with CX=0,
+						; RedTOC issues SCSI call READ TOC with Track=0AAH.
+						; BL(Min), DH(Sec), DL(Frm) are taken from data buffer+9, 10, 11
+						; Min, Sec, Frm are then converted to HSG and returned.
+
+						MOV		DL,CS:[SCSI_DATABUF+9]
+						MOV		AX,CS:[SCSI_DATABUF+10]
+						; !CAUTION!  SCSI uses big-endian.  AL is HIBYTE(sec) and AH is LOBYTE(frm).
+
+						; For unknown reason, CDSD.SYS seems to subtract 150 frames (2 seconds) from volume size.
+						; Uncomment the following if it is correct.
+						; But, to make it compatible with FM TOWNS CD-ROM BIOS, it shouldn't subtract 2 seconds apparently.
+;						SUB		AL,2	; 2 seconds
+;						JNC		SHORT @f
+;						ADD		AL,60
+;						DEC		DL
+;@@:
+						MOV		ES:[SI+3],DL
+						MOV		ES:[SI+4],AX
+
+						LEA		DI,[SI+6]
+						MOV		DL,ES:[SI+1]
+
+INT93H_CD_EMU_54H_TRACK_LOOP:
+						PUSH	DI
+						PUSH	DX
+
+						MOV		CH,DL
+						MOV		CL,CS:[CD_EMULATION_SCSI]
+						AND		CL,7
+						PUSH	ES
+						PUSH	SI
+						CALL	SCSI_READTOC
+						POP		SI
+						POP		ES
+						JNC		SHORT INT93H_CD_EMU_54H_READTOC_NOERR
+
+						POP		DX
+						POP		DI
+						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
+						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_54H_READTOC_NOERR:
+						;[Summary]
+						;  [SCSI_DATABUF+5]==14H indicates it is a data track, audio track otherwise.
+						;[Details]
+						; From assembly code of CDSD.SYS
+						; Indication of Data Track 41H is coming from 5th byte of data buffer in RedTOC:
+						;	mov	cx,[si+5]		; Set ADR/Control
+						;	xchg	ch,cl			; ch = ADR/CTL, cl = Track Address
+						; And then rolled 4 times in AudTrk:
+						;	rol	ch,1
+						;	rol	ch,1
+						;	rol	ch,1
+						;	rol	ch,1
+						; Which is copied to IOCTL communicatoin buffer +6:
+						;	mov	es:[di+6],ch		; Control Information
+						; Then CDISC2.SYS receives it in GetCDInfo:
+						;		mov	ax, word ptr es:[si.I_CtrlInfo]
+						;
+						; Actual read from a CD data track (track 1):
+						;+0+1+2+3+4+5
+						;00520109001401000000020000000000
+						;          ^^
+						; Actual read from a CD audio track (track 2):
+						;+0+1+2+3+4+5
+						;004A0109001002000028060200000000
+						;
+						;Fifth byte of Read TOC (43H) return is described as:
+						; ADR | Control
+						; What's ADR and Control?  ADR is the type of information encoded in the Q sub-channel.  Control is the atribute of the track.
+						;
+						; According to https://www.staff.uni-mainz.de/tacke/scsi/SCSI2-14.html, Control bits are:
+						;   Bit 0: Audio has pre-emphasis
+						;   Bit 1: Digital copy permitted
+						;   Bit 2: Is data track
+						;   Bit 3: Four-channel audio
+						;
+						; Probably MSCDEX's ADR/Control byte has ADR and Control swapped from SCSI2 spec.
+
+						POP		DX
+						POP		DI
+
+						MOV		AH,1  ; Tentatively audio
+						MOV		AL,BYTE CS:[SCSI_DATABUF+9]
+						CMP		BYTE CS:[SCSI_DATABUF+5],14H
+						JNE		SHORT INT93H_CD_EMU_54H_IS_AUDIO_TRACK
+						MOV		AH,2	; Data track
+						OR		AL,80H
+INT93H_CD_EMU_54H_IS_AUDIO_TRACK:
+						OR		ES:[SI],AH
+
+						MOV		ES:[DI],AL
+						MOV		AX,WORD CS:[SCSI_DATABUF+10]
+						MOV		ES:[DI+1],AX
+
+						LEA		DI,[DI+3]
+
+						INC		DL
+						CMP		DL,ES:[SI+2]
+						JBE		SHORT INT93H_CD_EMU_54H_TRACK_LOOP
+
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

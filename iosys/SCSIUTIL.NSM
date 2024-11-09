@@ -1,3 +1,41 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SCSI_CLEAR_DATA_BUF:
+						CLD
+						PUSH	CX
+						PUSH	ES
+						PUSH	CS
+						POP		ES
+
+						XOR		EAX,EAX
+						MOV		CX,SCSI_DATABUF_LEN/4
+						MOV		DI,SCSI_DATABUF
+						REP		STOSD
+
+						POP		ES
+						POP		CX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SCSI_COMMAND_OWN_BUFFER:
+						CALL	SCSI_CLEAR_DATA_BUF
+
+						PUSH	DS
+						PUSH	CS
+						POP		DS
+						AND		CL,7
+						XOR		EDI,EDI
+						MOV		DI,CS
+						SHL		EDI,4
+						ADD		EDI,SCSI_DATABUF
+						CALL	SCSI_COMMAND
+						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 ; Input
 ;   CL   SCSI ID
 ; Output
@@ -134,28 +172,113 @@ SCSI_TEST_UNIT_READY_CMD	DB		0,0,0,0,0,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-
 ; Input
 ;   CL SCSI ID
 SCSI_SENSE:
-						PUSH	DS
-
-						PUSH	CS
-						POP		DS
-						AND		CL,7
 						MOV		SI,SCSI_SENSE_CMD
-						MOV		EDI,0
-						MOV		DI,CS
-						SHL		EDI,4
-						ADD		EDI,SCSI_DATABUF
-						CALL	SCSI_COMMAND
-						POP		DS
-						RET
-
+						JMP		SCSI_COMMAND_OWN_BUFFER
 
 SCSI_SENSE_CMD			DB	03H,0,0,0,18,0
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input
+;    CL   SCSI ID
+
+SCSI_RESTORE:
+						MOV		SI,SCSI_RESTORE_CMD
+						JMP		SCSI_COMMAND_OWN_BUFFER
+
+SCSI_RESTORE_CMD		DB		2BH,0,0,0,0,0,0,0,0,0	; 2Bh SEEK(10)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input
+;    CL   SCSI ID
+; Why is it called read sub channel?  It's just play state inqury, isn't it?
+; Output
+;    SCSI_DATABUF  Filled with the Sub-Ch Info
+SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS:
+						MOV		WORD CS:[SCSI_READ_SUB_CH_CMD+1],4002H	; 40H=Return SubQ,  02H=MSF bit
+						MOV		BYTE CS:[SCSI_READ_SUB_CH_CMD+3],01H  ; Return format is CD-ROM Current Position
+						MOV		BYTE CS:[SCSI_READ_SUB_CH_CMD+8],16;  
+						; I have a feeling that the size [SCSI_READ_SUB_CH_CMD+8] needs to be 48, but
+						; I just follow CDSD source.
+						MOV		SI,SCSI_READ_SUB_CH_CMD
+						JMP		SCSI_COMMAND_OWN_BUFFER
+
+SCSI_READ_SUB_CH_CMD	DB		42H,0,0,0,0,0,0,0,0,0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input
+;    CL   	SCSI ID
+;    EAX	Start MSF 00|FF|SS|MM
+;    EDX	End MSF   00|FF|SS|MM
+SCSI_START_PLAY:
+						MOV		CS:[SCSI_START_PLAY_CMD+3],EAX
+						MOV		CS:[SCSI_START_PLAY_CMD+6],EDX
+						MOV		SI,SCSI_START_PLAY_CMD
+						JMP		SCSI_COMMAND_OWN_BUFFER
+
+SCSI_START_PLAY_CMD		DB		47H,0,0,0,0,0,0,0,0,0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input	CL SCSI ID
+;       CH 0AAH    : Get min max track.
+;       CH Non 0AAH: Get Track Info
+
+; Observation:
+;   Wrong parameter -> INT 93H AH=0FDH returned AX=0200, CH=0
+;               AX=0200H seem to mean go get sense data?
+
+; Redbook INT 93H AH=54H (pp.440) tells bit7 of starting position (Minute) should be on for a data track.
+; Then, the question is how can I get a data track info?
+
+SCSI_READTOC:
+						MOV		BYTE CS:[SCSI_READTOC_CMD+1],2	; CDSD.SYS tells MSF flag.
+						MOV		BYTE CS:[SCSI_READTOC_CMD+6],CH
+						MOV		BYTE CS:[SCSI_READTOC_CMD+8],12 ; CDSD.SYS tells allocation length.fs
+						; MOV	BYTE CS:[SCSI_READTOC_CMD+9],040H; CDSD.SYS tells it updates session???
+						MOV		SI,SCSI_READTOC_CMD
+						JMP		SCSI_COMMAND_OWN_BUFFER
+
+SCSI_READTOC_CMD		DB		43H,0,0,0,0,0,0,0,0,0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input	CL SCSI ID
+SCSI_PAUSE:
+						MOV		BYTE CS:[SCSI_PAUSE_CMD+8],0
+						MOV		SI,SCSI_PAUSE_CMD
+						JMP		SCSI_COMMAND_OWN_BUFFER
+
+SCSI_PAUSE_CMD			DB		4BH,0,0,0,0,0,0,0,0,0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input	AL SCSI ID
+SCSI_UNPAUSE:
+
+						MOV		BYTE [SCSI_PAUSE_CMD+8],1	; Resume flag
+						MOV		SI,SCSI_PAUSE_CMD
+						JMP		SCSI_COMMAND_OWN_BUFFER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SCSI_STOP_PLAY:
+;x3_304_1997.pdf
+; STOP PLAY/SCAN Command Descriptor BlockIssuing a STOP PLAY/SCAN command 
+; while the drive is scanning shall result in continuation of the PLAYcommand.  Issuing  a  STOP  PLAY/SCAN  
+; command  while  the  drive  is  paused  shall  stop  the  PLAY  command.
+;
+; Issuing a STOP PLAY/SCAN command when no play operation is in progress shall not be considered anerror.
+
+						; SCSI3_CMD_STOP_PLAY (4EH) looks to be a SCSI-3 command.
+						; The best thing I can do here is to PAUSE.
+						JMP		SCSI_PAUSE
+
+; SCSI3_CMD_STOP_PLAY	DB	4EH,0,0,0,0,0,0,0,0,0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
