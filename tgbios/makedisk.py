@@ -172,6 +172,7 @@ def Run(argv):
 		"-F",		"../resources/CD/AUTOEXEC.BAT",
 		"-F",		"../resources/TGDRV.COM",
 		"-F",		"../iosys/MINVCPI.SYS",
+		"-F",		"../iosys/FAKENSDD.SYS",
 		"-F",		"../externals/ORICON/ORICON.COM",
 		"-F",		"../externals/Free386/free386.com",
 		"-F",		"TGBIOS.SYS",

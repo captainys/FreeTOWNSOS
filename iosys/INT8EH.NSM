@@ -21,12 +21,12 @@ INT8EH:
 						JA		INT8EH_NOT_COCO
 						JMP		INT8EH_IS_COCO
 
-						OR		AH,AH
-						JE		INT8EH_00H_GET_SYSTEM_INFO
-
 
 
 INT8EH_NOT_COCO:
+						OR		AH,AH
+						JE		INT8EH_00H_GET_SYSTEM_INFO
+
 						PUSH	BP
 						MOV		BP,SP
 						AND		BYTE [BP+6],0FEH
@@ -41,7 +41,7 @@ INT8EH_IS_COCO:
 						MOV		BP,SP
 						OR		BYTE [BP+6],01H
 						POP		BP
-						MOV		AH,0FFH
+						MOV		AH,0FFH  ; Make sure to return AH=non_zero.
 						IRET
 
 

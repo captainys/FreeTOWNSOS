@@ -1,0 +1,205 @@
+; Fake FORRBIOS.NSD
+; It reacts to:
+; INT 8EH
+;   AX=C000H Installation Check
+;     Output
+;       CX=436FH DX=436FH SI=204Bh DI=656EH "CoCo Ken"  BH=32H
+
+;   AX=C10CH Register Call Buffer
+;     Input   DX=Call-Buffer DOSSEG
+;             If buffer size>=16KB  CX=Buffer Size divided by 16KB, ESI=0FFFF0000H  Buffer size needs to be 16KB*N
+;             Else                  CX=1  ESI=Only low xx bits are 0, where the buffer size is xxKB.
+
+;   AX=C207H Register Call32 Proc
+;     Input DX:BX=CS:IP
+
+;   AX=C103H
+;     Input  CX=Driver Number
+;     Output 
+;       AH=0 Driver exists  AH=non-zero Driver does not exist
+;       CX=Number of drivers
+;       BX=CS selector of the driver
+;       DX=DS selector of the driver
+;       DS:EDI=8-byte two LDT entries for CS and DS  CS first, DS next
+;     Sample output:
+;       EBX=0000004C  EDX=00000044
+;       DS:0000E790 FF 7F 00 50 24 9A 40 00 FF 7F 00 50 24 92 40 00
+;         Then,
+;       Code 004C:LiBase=00245000 Lim=00007FFF OpSz=20H AdSz=20H P=01 DPL=00 Type=1AH @ PHYS:0003ED28H
+;       Data 0044:LiBase=00245000 Lim=00007FFF OpSz=20H AdSz=20H P=01 DPL=00 Type=12H @ PHYS:0003ED20H
+;         WORD DS:[6] will be Strategy entry, which receives DS:EBX as the command header
+;         WORD DS:[8] will be Interrupt entry.
+;       Inherits the DOS Device-Driver structure.
+
+; It pretends to have only one NSDD, FORRBIOS.NSD.
+
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+
+
+						DD      0FFFFFFFFh                  ; SYSDEV_NEXT
+						DW      SYSDEV_DEVFLAG_IS_CHARDEV   ; SYSDEV_DEVFLAGS
+STRATEGY_PTR			DW      STRATEGY16                  ; SYSDEV_STRATEGY
+INTERRUPT_PTR			DW      INTERRUPT16                 ; SYSDEV_INTERRUPT
+DRIVER_NAME				DB      "********"
+
+CASCADE_INT8E			DD		0
+REQ_HEADER				DD		0
+REQ_HEADER_SEG			DW		0
+
+CALLBUF_PTR				DD		0
+CALLBUF_SIZE			DW		0
+
+PROT_SELECTOR_CS		EQU		4CH
+PROT_SELECTOR_DS		EQU		44H
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+						BITS	32
+
+STRATEGY32:
+						TSUGARU_DEBUG
+						RETF
+
+
+INTERRUPT32:
+						TSUGARU_DEBUG
+						RETF
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+						BITS	16
+INT8E_INTERCEPT:
+						CMP		AX,0C000H
+						JE		INT8E_C000_INST_CHECK
+						CMP		AX,0C10CH
+						JE		INT8E_C10C_REGIST_CALLBUF
+						CMP		AX,0C207H
+						JE		INT8E_C207_REGIST_CALL32PROC
+						CMP		AX,0C103H
+						JE		INT8E_C103_GET_NSD
+
+						JMP		FAR [CS:CASCADE_INT8E]
+
+
+;   AX=C000H Installation Check
+;     Output
+;       AH=0  CX=436FH DX=436FH SI=204Bh DI=656EH "CoCo Ken"  BH==' '  BL=questionable
+INT8E_C000_INST_CHECK:
+						XOR		AH,AH
+						MOV		CX,436FH
+						MOV		DX,436FH
+						MOV		SI,204Bh
+						MOV		DI,656EH
+						MOV		BH,32H
+
+						; Clear CF
+						PUSH	BP
+						MOV		BP,SP	; [BP+0]=BP  [BP+2]=ReturnIP  [BP+4]=ReturnCS  [BP+6]=FLAGS
+						AND		BYTE [BP+6],0FEH
+						POP		BP
+						IRET
+
+
+
+;   AX=C10CH Register Call Buffer
+;     Input   DX=Call-Buffer DOSSEG
+;             If buffer size>=16KB  CX=Buffer Size divided by 16KB, ESI=0FFFF0000H  Buffer size needs to be 16KB*N
+;             Else                  CX=1  ESI=Only low xx bits are 0, where the buffer size is xxKB.
+INT8E_C10C_REGIST_CALLBUF:
+						TSUGARU_STATE
+
+						IRET
+
+
+
+;   AX=C207H Register Call32 Proc
+;     Input DX:BX=CS:IP
+INT8E_C207_REGIST_CALL32PROC:
+						TSUGARU_STATE
+
+						IRET
+
+
+
+;   AX=C103H
+;     Input  CX=Driver Number
+;     Output 
+;       AH=0 Driver exists  AH=non-zero Driver does not exist
+;       CX=Number of drivers
+;       BX=CS selector of the driver
+;       DX=DS selector of the driver
+;       DS:EDI=8-byte two LDT entries for CS and DS  CS first, DS next
+;     Sample output:
+;       EBX=0000004C  EDX=00000044
+;       DS:0000E790 FF 7F 00 50 24 9A 40 00 FF 7F 00 50 24 92 40 00
+;         Then,
+;       Code 004C:LiBase=00245000 Lim=00007FFF OpSz=20H AdSz=20H P=01 DPL=00 Type=1AH @ PHYS:0003ED28H
+;       Data 0044:LiBase=00245000 Lim=00007FFF OpSz=20H AdSz=20H P=01 DPL=00 Type=12H @ PHYS:0003ED20H
+;         WORD DS:[6] will be Strategy entry, which receives DS:EBX as the command header
+;         WORD DS:[8] will be Interrupt entry.
+;       Inherits the DOS Device-Driver structure.
+INT8E_C103_GET_NSD:
+						TSUGARU_STATE
+						MOV		AH,0FFH ; Return AH=non_zero to tell drive ID=CX does not exist.
+						IRET
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+END_OF_FAKENSDD_DRIVER:
+
+STRATEGY16:
+						MOV		CS:[REQ_HEADER],BX
+						MOV		CS:[REQ_HEADER+2],ES
+						RETF
+
+INTERRUPT16:
+						SAVE_WORLD
+
+						LES		BX,CS:[REQ_HEADER]
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
+
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JNE		INTERRUPT_EXIT
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
+
+						XOR		AX,AX
+						MOV		DS,AX
+
+						MOV		EAX,[4*08EH]
+						MOV		CS:[CASCADE_INT8E],EAX
+
+						MOV		AX,CS
+						SHL		EAX,16
+						MOV		AX,INT8E_INTERCEPT
+						MOV		[4*08EH],EAX
+
+						MOV		AX,STRATEGY32
+						MOV		CS:[STRATEGY_PTR],AX
+						MOV		AX,INTERRUPT32
+						MOV		CS:[INTERRUPT_PTR],AX
+
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_FAKENSDD_DRIVER
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
+INTERRUPT_EXIT:
+						RESTORE_WORLD
+						RETF
+
+FAKENSDD_LOGO:			DB		"FAKE FORRBIOS.NSD Driver by CaptainYS (http://www.ysflight.com)",0Dh,0Ah,'$',0
+
+END_OF_MINVCPI:			DB		"FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0

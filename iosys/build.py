@@ -31,10 +31,12 @@ def Run(argv):
 		"INTFDH",
 		"DOSLOAD",
 		"MINVCPI",
+		"FAKENSDD"
 	]
 
 	rename=[
-		["MINVCPI.bin","MINVCPI.SYS"]
+		["MINVCPI.bin","MINVCPI.SYS"],
+		["FAKENSDD.bin","FAKENSDD.SYS"],
 	]
 
 	for src in srcs:
