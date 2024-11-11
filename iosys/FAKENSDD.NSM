@@ -1,4 +1,4 @@
-; Fake FORRBIOS.NSD
+; Fake FORRBIOS.NSD + CoCo memory manager
 ; It reacts to:
 ; INT 8EH
 ;   AX=C000H Installation Check
@@ -66,6 +66,8 @@ PROT_SELECTOR_DS		EQU		44H
 
 						BITS	32
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 STRATEGY32:
 						PUSH	FS
 						PUSH	PROT_SELECTOR_DS
@@ -77,21 +79,83 @@ STRATEGY32:
 						POP		FS
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INTERRUPT32:
-						PUSH	FS
-						PUSH	EAX
+						SAVE_WORLD
 
 						LFS		EAX,CS:[REQ_HEADER]
 						MOV		AH,FS:[EAX+2]
 						; 0C1H	; Wake Up
 						; 0C0H	; Sleep
 
-						; Main body should be in TGBIOS.BIN
+						CMP		AH,0C1H
+						JE		FORRBIOS_WAKEUP
+						CMP		AH,0C0H
+						JE		FORRBIOS_SUTDOWN
 
-						POP		EAX
-						POP		FS
+INTERRUPT32_EXIT:
+						RESTORE_WORLD
+
+						; I probably need to set NO_ERROR state in somewhere, but there is no information about what to write to where.
+
 						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ORIGINAL_INT93H_HANDLER			DD	0
+ORIGINAL_INT93H_HANDLER_SEG		DD	0
+
+ORIGINAL_INT97H_HANDLER			DD	0
+ORIGINAL_INT97H_HANDLER_SEG		DD	0
+
+FORRBIOS_WAKEUP:
+						MOV		AX,PROT_SELECTOR_DS
+						MOV		DS,AX
+
+						MOV		AX,2502H	; Get Protected-Mode INT Vector
+						MOV		CL,93H
+						INT		21H
+						MOV		[ORIGINAL_INT93H_HANDLER],EBX
+						MOV		[ORIGINAL_INT93H_HANDLER_SEG],ES
+
+						MOV		AX,2502H	; Get Protected-Mode INT Vector
+						MOV		CL,97H
+						INT		21H
+						MOV		[ORIGINAL_INT97H_HANDLER],EBX
+						MOV		[ORIGINAL_INT97H_HANDLER_SEG],ES
+
+						MOV		AX,2504H
+						MOV		CL,93H
+						PUSH	CS
+						POP		DS
+						MOV		EDX,INT93H_INTERCEPT
+						INT		21H
+
+						MOV		AX,2504H
+						MOV		CL,97H
+						PUSH	CS
+						POP		DS
+						MOV		EDX,INT97H_INTERCEPT
+						INT		21H
+
+						JMP		INTERRUPT32_EXIT
+
+
+FORRBIOS_SUTDOWN:
+						JMP		INTERRUPT32_EXIT
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_INTERCEPT:
+						JMP		FAR [CS:ORIGINAL_INT93H_HANDLER]
+
+
+INT97H_INTERCEPT:
+						JMP		FAR [CS:ORIGINAL_INT97H_HANDLER]
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
