@@ -67,12 +67,30 @@ PROT_SELECTOR_DS		EQU		44H
 						BITS	32
 
 STRATEGY32:
-						TSUGARU_DEBUG
+						PUSH	FS
+						PUSH	PROT_SELECTOR_DS
+						POP		FS
+
+						MOV		FS:[REQ_HEADER_SEG],DS
+						MOV		FS:[REQ_HEADER],EBX
+
+						POP		FS
 						RETF
 
 
 INTERRUPT32:
-						TSUGARU_DEBUG
+						PUSH	FS
+						PUSH	EAX
+
+						LFS		EAX,CS:[REQ_HEADER]
+						MOV		AH,FS:[EAX+2]
+						; 0C1H	; Wake Up
+						; 0C0H	; Sleep
+
+						; Main body should be in TGBIOS.BIN
+
+						POP		EAX
+						POP		FS
 						RETF
 
 
@@ -177,13 +195,50 @@ INT8E_C207_REGIST_CALL32PROC:
 ;       Inherits the DOS Device-Driver structure.
 INT8E_C103_GET_NSD:
 						TSUGARU_STATE
+						JCXZ	INT8E_C103_GET_NSD_ZERO
+
+INT8E_C103_GET_NSD_NOT_ZERO:
 						MOV		AH,0FFH ; Return AH=non_zero to tell drive ID=CX does not exist.
+						PUSH	BP
+						MOV		BP,SP
+						OR		BYTE [BP+6],1
+						POP		BP
 						IRET
 
+INT8E_C103_GET_NSD_ZERO:
+						PUSH	EAX
 
+						MOV		CX,1
+						MOV		BX,PROT_SELECTOR_CS
+						MOV		DX,PROT_SELECTOR_DS
 
+						MOV		AX,CS
+						MOVZX	EAX,AX
+						SHL		EAX,4
+						MOV		[DI+2],EAX
+
+						MOV		WORD [DI],END_OF_FAKENSDD_DRIVER
+						MOV		BYTE [DI+5],9AH	; Present, DPL=0, Type=1AH
+						MOV		BYTE [DI+6],40H	; Granularity=bytes, 32-bit operand size, Limit upper byte=0
+						MOV		BYTE [DI+7],0
+
+						MOV		WORD [DI+8],END_OF_FAKENSDD_DRIVER
+						MOV		[DI+10],EAX
+						MOV		BYTE [DI+13],92H	; Present, DPL=0, Type=12H
+						MOV		BYTE [DI+14],40H	; Granularity=bytes, 32-bit operand size, Limit upper byte=0
+						MOV		BYTE [DI+15],0
+
+						POP		EAX
+
+						XOR		AH,AH	; Should I clear CF?
+						PUSH	BP
+						MOV		BP,SP
+						AND		BYTE [BP+6],0FEH
+						POP		BP
+						IRET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+FAKENSDD_LOGO:			DB		"FAKE FORRBIOS.NSD Driver by CaptainYS (http://www.ysflight.com)",0Dh,0Ah,'$',0
 
 END_OF_FAKENSDD_DRIVER:
 
@@ -227,7 +282,5 @@ INTERRUPT16:
 INTERRUPT_EXIT:
 						RESTORE_WORLD
 						RETF
-
-FAKENSDD_LOGO:			DB		"FAKE FORRBIOS.NSD Driver by CaptainYS (http://www.ysflight.com)",0Dh,0Ah,'$',0
 
 END_OF_MINVCPI:			DB		"FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
