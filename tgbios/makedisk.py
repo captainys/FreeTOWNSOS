@@ -102,7 +102,9 @@ def Run(argv):
 		"-i",		"../resources/FD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
-		"-i",		"../iosys/MINVCPI.SYS",
+		"-i",		"../resources/MINVCPI.SYS",
+		"-i",		"../resources/FAKENSDD.SYS",
+		"-i",		"../resources/SYSXXXX0.COM",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 		"-i",		"TGBIOS.SYS",
@@ -123,7 +125,9 @@ def Run(argv):
 		"-i",		"../resources/SUCCESS.EXE",
 		"-i",		"../resources/FAIL.EXE",
 		"-i",		"../resources/TGDRV.COM",
-		"-i",		"../iosys/MINVCPI.SYS",
+		"-i",		"../resources/MINVCPI.SYS",
+		"-i",		"../resources/FAKENSDD.SYS",
+		"-i",		"../resources/SYSXXXX0.COM",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 		"-i",		"TGBIOS.SYS",
@@ -147,7 +151,9 @@ def Run(argv):
 		"-i",		"0",	"../resources/HD/AUTOEXEC.BAT",
 		"-i",		"0",	"../resources/TGDRV.COM",
 		"-i",		"0",	"../resources/TEST.EXP",
-		"-i",		"0",	"../iosys/MINVCPI.SYS",
+		"-i",		"0",	"../resources/MINVCPI.SYS",
+		"-i",		"0",	"../resources/FAKENSDD.SYS",
+		"-i",		"0",	"../resources/SYSXXXX0.COM",
 		"-i",		"0",	"../externals/ORICON/ORICON.COM",
 		"-i",		"0",	"../externals/Free386/free386.com",
 		"-i",		"0",	"TGBIOS.SYS",
@@ -171,8 +177,9 @@ def Run(argv):
 		"-F",		"../resources/CD/CONFIG.SYS",
 		"-F",		"../resources/CD/AUTOEXEC.BAT",
 		"-F",		"../resources/TGDRV.COM",
-		"-F",		"../iosys/MINVCPI.SYS",
-		"-F",		"../iosys/FAKENSDD.SYS",
+		"-F",		"../resources/MINVCPI.SYS",
+		"-F",		"../resources/FAKENSDD.SYS",
+		"-F",		"../resources/SYSXXXX0.COM",
 		"-F",		"../externals/ORICON/ORICON.COM",
 		"-F",		"../externals/Free386/free386.com",
 		"-F",		"TGBIOS.SYS",
@@ -184,7 +191,6 @@ def Run(argv):
 		print("Error building CDIMG.ISO")
 		PrintOutput()
 		quit()
-
 
 	CopyToResources("TGBIOS.SYS")
 	CopyToResources("TGBIOS.BIN")

@@ -31,12 +31,14 @@ def Run(argv):
 		"INTFDH",
 		"DOSLOAD",
 		"MINVCPI",
-		"FAKENSDD"
+		"FAKENSDD",
+		"SYSXXXX0"
 	]
 
 	rename=[
 		["MINVCPI.bin","MINVCPI.SYS"],
 		["FAKENSDD.bin","FAKENSDD.SYS"],
+		["SYSXXXX0.bin","SYSXXXX0.COM"],
 	]
 
 	for src in srcs:
@@ -60,6 +62,9 @@ def Run(argv):
 		quit(1)
 
 	CopyToResources("FD_IPL.bin");
+	CopyToResources("FAKENSDD.SYS");
+	CopyToResources("MINVCPI.SYS");
+	CopyToResources("SYSXXXX0.COM");
 
 	subprocess.Popen(["./assemble"])
 

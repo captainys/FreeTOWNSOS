@@ -1,0 +1,40 @@
+; Fake SYSXXXX0 driver.  Functionality unknown.  Looks to be a part of SYSINIT.SYS.
+; VIPS2 checks presence of this driver.
+
+							BITS 	16
+							ORG		0100H
+
+							JMP		SHORT MAIN        ;+00h
+							DW		0                 ;+02h
+							DW		FAKE_STRATEGY     ;+04h
+							DW		FAKE_INTERRUPT    ;+06h
+							DW		0                 ;+08h
+							DB		"SYSXXXX0"        ;+0Ah
+							DB		6 dup(0)          ;+12h
+							DB		"TOWNS   "        ;+18h
+
+SYSINIT_TABLE_LINEAR_ADDR:	DD		0,0,0             ;+20h
+
+FAKE_STRATEGY:
+FAKE_INTERRUPT:
+							RETF
+
+SYSINIT_TABLE:				DD		0					; Looks like number of modules staying resident.
+
+END_OF_TSR:
+
+MAIN:
+							XOR		EAX,EAX
+							MOV		CS:[0],EAX
+
+							MOV		AX,CX
+							SHL		EAX,4
+							ADD		EAX,SYSINIT_TABLE
+							MOV		CS:[SYSINIT_TABLE_LINEAR_ADDR],EAX
+
+							MOV		DX,END_OF_TSR
+							ADD		DX,0FH
+							SHR		DX,4
+
+							MOV		AH,31H
+							INT		21H

@@ -15,6 +15,9 @@ def Copy(file):
 def Run(argv):
 	files=[
 		"IO.SYS",
+		"FAKENSDD.SYS",
+		"MINVCPI.SYS",
+		"SYSXXXX0.COM",
 		"TGBIOS.SYS",
 		"TGBIOS.BIN",
 		"FD_IPL.BIN",

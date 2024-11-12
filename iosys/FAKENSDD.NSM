@@ -171,7 +171,25 @@ INT8E_INTERCEPT:
 						CMP		AX,0C103H
 						JE		INT8E_C103_GET_NSD
 
+						CMP		AX,0CF00H
+						JE		INT8E_CF00_UNKNOWN
+						CMP		AX,0C109H
+						JE		INT8E_C109_UNKNOWN
+
 						JMP		FAR [CS:CASCADE_INT8E]
+
+
+; VIPS2 uses these two functions.  Meaning is unknown.  Just pretend to be ok.
+INT8E_CF00_UNKNOWN:
+INT8E_C109_UNKNOWN:
+						; Clear CF
+						PUSH	BP
+						MOV		BP,SP	; [BP+0]=BP  [BP+2]=ReturnIP  [BP+4]=ReturnCS  [BP+6]=FLAGS
+						AND		BYTE [BP+6],0FEH
+						POP		BP
+						XOR		AH,AH
+						IRET
+
 
 
 ;   AX=C000H Installation Check
