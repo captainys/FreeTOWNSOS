@@ -39,6 +39,7 @@
 
 						%INCLUDE "UTIL.NSM"
 						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
 
 
 						DD      0FFFFFFFFh                  ; SYSDEV_NEXT
@@ -151,11 +152,75 @@ FORRBIOS_SUTDOWN:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_INTERCEPT:
+						CMP		AX,53C0H
+						JE		INT93H_53C0H
+						CMP		AX,54C0H
+						JE		INT93H_54C0H
+
 						JMP		FAR [CS:ORIGINAL_INT93H_HANDLER]
 
+INT93H_53C0H:
+						MOV		AH,2	; At least prevent destruction of DS:DI
+						IRET
+
+INT93H_54C0H:
+						MOV		AH,2	; At least prevent destruction of DS:DI
+						IRET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT97H_INTERCEPT:
+						AND		AH,AH
+						JE		INT97H_00H_REGISTER_TIMER
+
 						JMP		FAR [CS:ORIGINAL_INT97H_HANDLER]
+
+; 32-bit version of register timer
+;  DS:EDI    BYTE  Timer Mode
+;  DS:EDI+1  BYTE  Unused
+;  DS:EDI+2  DWORD EIP of the callback
+;  DS:EDI+6  WORD  CS of the callback
+;  DS:EDI+8  WORD  Timer Interval High
+;  DS:EDI+10 WORD  Timer Interval Low
+INT97H_00H_REGISTER_TIMER:
+						SAVE_WORLD
+
+						MOV		AX,[EDI+6]
+						SHL		EAX,16
+						MOV		AH,TIMERBIOS_CMD_070H_YS_REGISTER_TIMER32
+						MOV		AL,[EDI]
+
+						MOV		EBX,[EDI+2]
+
+						MOV		ECX,[EDI+8]
+						ROL		ECX,16
+
+						MOV		EDX,CS:[CALL32PROC]
+
+						MOV		SI,DS
+						SHL		ESI,16
+						MOV		SI,ES
+
+						MOV		DI,FS
+						SHL		EDI,16
+						MOV		DI,GS
+
+						; INT 97H Extension
+						; AH=70H
+						; AL=Timer Mode
+						; (HIWORD EAX):EBX=Protected-mode INT proc.
+						; ECX=Interval
+						; EDX=Real-Mode Call Back Proc CS|IP
+						; ESI=ES|DS
+						; EDI=GS|FS
+
+						INT		97H
+						; Free386 checks INT Num by CS:[EIP-1] where CS:EIP is return addr.
+						; Only way to correctly call INT 97H is recursive INT.
+
+						RESTORE_WORLD
+
+						IRET
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
