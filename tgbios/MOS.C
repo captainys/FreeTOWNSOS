@@ -847,7 +847,13 @@ void MOS_0BH_ENTSUB(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	unsigned short DX=EDX;
+	// VIPS2 calls this function with DX=0, means no condition for mouse event call-back.
+	if(0!=DX)
+	{
+		TSUGARU_BREAK
+	}
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_0CH_PULSE(
