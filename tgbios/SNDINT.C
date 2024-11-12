@@ -26,7 +26,7 @@ void __SET_PVECT(int INTNum,_Far void (*func)(void));
 #endif // MY_RESPONSIBILITY
 
 void CALL_SNDINT_HANDLER(_Far void *SSESP,_Far void (*CSEIP)(void),unsigned int DS,unsigned int ES,unsigned int FS,unsigned int GS);
-
+void NEAR_CALL_WITH_STACK(_Far void *SSESP,void (*func)(void));
 
 
 #define SNDINT_USING_TIMERB_MOUSE 1
@@ -122,7 +122,7 @@ _Handler Handle_INT4DH(void)
 
 			if(context->flags&SNDINT_USING_TIMERB_MOUSE) // FM TOWNS TECHNICAL DATABOOK p.379.  Call this function every 20ms.
 			{
-				MOS_INTERVAL();
+				NEAR_CALL_WITH_STACK(context->mouseINTStack,MOS_INTERVAL);
 			}
 			++context->timerBCounter;
 		}
@@ -429,7 +429,7 @@ void SNDINT_01H_REGISTER_MOUSE_INT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	SNDINT_Internal_Start_Mouse(EDX,DS);
+	SNDINT_Internal_Start_Mouse(DS,EDX);
 }
 void SNDINT_02H_UNREGISTER_MOUSE_INT(
 	unsigned int EDI,
