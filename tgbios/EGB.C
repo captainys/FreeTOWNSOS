@@ -3266,7 +3266,110 @@ void EGB_40H_PSET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	int i;
+	unsigned char flags=EAX;
+	_Far struct EGB_BlockInfo *blkInfo;
+	_FP_SEG(blkInfo)=DS;
+	_FP_OFF(blkInfo)=ESI;
+
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+
+	struct POINTW min=ptrSet.page->viewport[0];
+	struct POINTW max=ptrSet.page->viewport[1];
+
+	_Far unsigned short *points;
+	_FP_SEG(points)=DS;
+	_FP_OFF(points)=ESI;
+	unsigned int count=*points;
+	unsigned int color=GetExpandedColor(work->color[EGB_FOREGROUND_COLOR],ptrSet.mode->bitsPerPixel);
+
+	++points;
+	while(count!=0)
+	{
+		struct POINTW p;
+		unsigned int vramAddr;
+
+		p.x=points[0];
+		p.y=points[1];
+
+		EGB_CalcVRAMAddr(&vramAddr,p.x,p.y,ptrSet.mode);
+
+		if(min.x<=p.x && p.x<=max.x && min.y<=p.y && p.y<=max.y)
+		{
+			switch(ptrSet.mode->bitsPerPixel)
+			{
+			case 4:
+				switch(work->drawingMode)
+				{
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_OPAQUE:
+				case EGB_FUNC_MATTE:
+					if(p.x&1)
+					{
+						ptrSet.vram[vramAddr]&=0x0F;
+						ptrSet.vram[vramAddr]|=(color&0xF0);
+					}
+					else
+					{
+						ptrSet.vram[vramAddr]&=0xF0;
+						ptrSet.vram[vramAddr]|=(color&0x0F);
+					}
+					break;
+				case EGB_FUNC_XOR:
+					if(p.x&1)
+					{
+						ptrSet.vram[vramAddr]^=(color&0xF0);
+					}
+					else
+					{
+						ptrSet.vram[vramAddr]^=(color&0x0F);
+					}
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
+				}
+				break;
+			case 8:
+				switch(work->drawingMode)
+				{
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_OPAQUE:
+				case EGB_FUNC_MATTE:
+					ptrSet.vram[vramAddr]=color;
+					break;
+				case EGB_FUNC_XOR:
+					ptrSet.vram[vramAddr]^=color;
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
+				}
+				break;
+			case 16:
+				switch(work->drawingMode)
+				{
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_OPAQUE:
+				case EGB_FUNC_MATTE:
+					*((unsigned short *)(ptrSet.vram+vramAddr))=color;
+					break;
+				case EGB_FUNC_XOR:
+					*((unsigned short *)(ptrSet.vram+vramAddr))^=color;
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
+				}
+				break;
+			}
+		}
+		points+=2;
+		--count;
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
