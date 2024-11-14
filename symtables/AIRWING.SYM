@@ -1,0 +1,1246 @@
+/begin0
+T 1
+* 0000000C:00044670
+# 
+R 
+L YGC_init
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004469C
+# 
+R 
+L YGC_view
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000446D8
+# 
+R 
+L YGC_color
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000446EE
+# 
+R 
+L YGC_resolutionUser
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00044708
+# 
+R 
+L YGC_resolutionReal
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00044833
+# 
+R 
+L YGC_cls
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004C300
+# 
+R 
+L (Prob)YS_ground
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004C870
+# 
+R 
+L (Prob)YS_backGrand
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004CDE1
+# 
+R 
+L YS_wSolid
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004CF0E
+# Here.
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004D115
+# 
+R 
+L clock
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004D948
+# 
+R 
+L main
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004DA97
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:0004DB00
+# 
+R 
+L while(mn!=3)
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004DB3D
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004DE18
+# 
+R 
+L AW_egbinit
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004DEF4
+# 
+R 
+L AW_menu
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004E25C
+# 
+R 
+L AW_game
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:0004E2A8
+# 
+R 
+L while(player.ext>0
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E2B8
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E2C8
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E2D2
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E2DA
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E2E7
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 2
+* 0000000C:0004E2FC
+# 
+R 
+L case 0
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:0004E324
+# 
+R 
+L case 1
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E4BC
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E4C6
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E547
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E594
+# Crash in here
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004E898
+# 
+R 
+L AW_comLine
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004FDE4
+# 
+R 
+L AW_makeDisplay
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004FEA0
+# 
+R 
+L (Prob)AW_dispBullet
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00050030
+# 
+R 
+L (Prob)AW_dispMissile
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000501A0
+# 
+R 
+L (Prob)AW_dispEnemy
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00050410
+# 
+R 
+L (Prob)AW_bgobj
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00050594
+# 
+R 
+L (Prob)AW_dispObjects
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:000505A4
+# 
+R 
+L for(i=0; i<dispidxs; i++)
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 4
+* 0000000C:000505D4
+# 
+R 
+L JumpTable
+P 
+% 20
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:000505E8
+# 
+R 
+L case 0
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:00050684
+# 
+R 
+L case 1
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:0005086C
+# 
+R 
+L case 2
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:000508BC
+# 
+R 
+L case 3
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0005091C
+# General Protection Fault Inside
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:00050924
+# 
+R 
+L case 4
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00050CD8
+# 
+R 
+L AW_makeDisplay2
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00050DD8
+# 
+R 
+L AW_radarReset
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000519F8
+# 
+R 
+L AW_radarScan
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000532DC
+# 
+R 
+L AW_fmInstSet
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000534AC
+# 
+R 
+L AW_fmReset
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000534D4
+# 
+R 
+L AW_playCD
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000536E8
+# 
+R 
+L AW_stopCD
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00053844
+# 
+R 
+L AW_setStage
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000539A0
+# 
+R 
+L AWS_jetOn
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000539C4
+# 
+R 
+L AW_main
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00053A74
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:00053A8C
+# if((pad&128)!=0){stg++;continue;}
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00053A98
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 2
+* 0000000C:00053AE0
+# 
+R 
+L for(i=0; i<S_MXFMB; i++)
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00053AF1
+# FMsound[i].on=0;
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00053AF7
+# FMsound[i].tim=0;
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00053B00
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 1
+* 0000000C:00053CB4
+# 
+R 
+L JS_analyg2ctrl
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000543A8
+# 
+R 
+L AW_startInfo
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000554F0
+# 
+R 
+L AW_openingDemo
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00055BD0
+# 
+R 
+L AW_takeOff
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056834
+# 
+R 
+L JS_mos2ctrl
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056850
+# 
+R 
+L SND_elevol_set
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056868
+# 
+R 
+L SND_elevol_mute
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000568BC
+# 
+R 
+L SND_init
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056B04
+# 
+R 
+L SND_pan_set
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056B94
+# 
+R 
+L EGB_init
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056C2C
+# 
+R 
+L EGB_writePage
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056D10
+# 
+R 
+L EGB_partClearScreen
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00056E00
+# 
+R 
+L MOS_start
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000570A4
+# 
+R 
+L MOS_disp
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00057104
+# 
+R 
+L MOS_setpos
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000571E8
+# 
+R 
+L MOS_resolution
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00057228
+# 
+R 
+L MOS_color
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00004064
+# 
+R 
+L YGC_work
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:0003D66C
+# 
+R 
+L ctrl
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00041ABC
+# 
+R 
+L (Prob)lockon
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00041AC0
+# 
+R 
+L (Prob)target
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00041ACC
+# 
+R 
+L boom.num
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00041AE8
+# 
+R 
+L player.ext
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:000425B0
+# 
+R 
+L dispidxs
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:000439A8
+# 
+R 
+L bgmflg
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00043B44
+# 
+R 
+L testMode
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00043B4C
+# 
+R 
+L takeOffMode
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end

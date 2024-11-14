@@ -1,0 +1,308 @@
+/begin0
+T 1
+* 0000000C:00000000
+# 
+R 
+L 0000A6A8
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000002EC
+# 
+R 
+L (Prob)InitSwapPage
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000003D0
+# 
+R 
+L (Prob)DefineLabelTable()
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000008E8
+# 
+R 
+L (Prob)LoadBombSld
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00000AB4
+# 
+R 
+L (Prob)LoadCharactorStatics
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00000AC0
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:00000AC5
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:00000AD4
+# 
+R 
+L while(fgets(ln,LINE_MAX,fp)!=NULL)
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00001470
+# 
+R 
+L (Prob)LoadPcmBank
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00009420
+# 
+R 
+L main
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:00009436
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 1
+X 
+/end
+/begin0
+T 1
+* 0000000C:00009690
+# 
+R 
+L InitEgb
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0000978C
+# 
+R 
+L InitSnd
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000097AC
+# 
+R 
+L (Prob)InitMos
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0000A630
+# 
+R 
+L GetBestPlayerInfo
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0000A6A8
+# 
+R 
+L LoadBestPlayerTables
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0000ABD0
+# 
+R 
+L (Prob)LoadModelTable
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0001240C
+# 
+R 
+L fgets()
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00014224
+# 
+R 
+L fopen
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00018EFE
+# 
+R 
+L r
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00018F00
+# 
+R 
+L CHARACTOR.DEF
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00018FC0
+# 
+R 
+L GATTACK.NAM
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
