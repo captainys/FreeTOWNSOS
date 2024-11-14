@@ -3354,10 +3354,10 @@ void EGB_40H_PSET(
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
 				case EGB_FUNC_MATTE:
-					*((unsigned short *)(ptrSet.vram+vramAddr))=color;
+					*((_Far unsigned short *)(ptrSet.vram+vramAddr))=color;
 					break;
 				case EGB_FUNC_XOR:
-					*((unsigned short *)(ptrSet.vram+vramAddr))^=color;
+					*((_Far unsigned short *)(ptrSet.vram+vramAddr))^=color;
 					break;
 				default:
 					TSUGARU_BREAK;

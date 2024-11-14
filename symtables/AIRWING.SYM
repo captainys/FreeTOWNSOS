@@ -434,6 +434,174 @@ X
 /end
 /begin0
 T 1
+* 0000000C:0004E970
+# 
+R 
+L (Prob)AW_fsize
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004E9A4
+# 
+R 
+L AW_errorEnd
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:0004E9D8
+# 
+R 
+L AW_loadSolid
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E9E8
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004E9FE
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 2
+* 0000000C:0004EA0C
+# 
+R 
+L while(  fgets(line,80,ifp) != NULL  )
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004EA8E
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004EA9C
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004EABD
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004EAD5
+# file size
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004EAE5
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 1
+A 0
+O 1
+X 
+/end
+/begin0
+T 0
+* 0000000C:0004EAF0
+# 
+R 
+L 
+P 
+% 0
+M 0
+B 0
+A 0
+O 1
+X 
+/end
+/begin0
+T 1
 * 0000000C:0004FDE4
 # 
 R 
@@ -1106,6 +1274,76 @@ X
 /end
 /begin0
 T 1
+* 0000000C:0005781C
+# 
+R 
+L (Prob)fgets
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00057958
+# 
+R 
+L (Prob)fclose
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00057CDC
+# 
+R 
+L (Prob)malloc
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:000582A0
+# 
+R 
+L fopen
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 0000000C:00058EAC
+# 
+R 
+L fread
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
 * 00000014:00004064
 # 
 R 
@@ -1194,6 +1432,90 @@ T 1
 # 
 R 
 L dispidxs
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:000426E8
+# 
+R 
+L SOLID.TAW
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:000426F4
+# 
+R 
+L Can't Open SOLID.TAW
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:0004270C
+# 
+R 
+L Read Error SOLID.TAW
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00042728
+# 
+R 
+L Can't Open Solid File.
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:000432A0
+# 
+R 
+L fp
+P 
+% 0
+M 0
+B 0
+A 0
+O 0
+X 
+/end
+/begin0
+T 1
+* 00000014:00043764
+# 
+R 
+L solids
 P 
 % 0
 M 0
