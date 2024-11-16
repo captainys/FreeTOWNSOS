@@ -1919,22 +1919,20 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 							switch(drawingMode)
 							{
 							case EGB_FUNC_OPAQUE:
-								*vram&=ANDPtn;
 								if(bits&0x80)
 								{
-									*vram|=fgCol;
+									*vram=((*vram)&ANDPtn)|fgCol;
 								}
 								else
 								{
-									*vram|=bgCol;
+									*vram=((*vram)&ANDPtn)|bgCol;
 								}
 								break;
 							case EGB_FUNC_PSET:
 							case EGB_FUNC_MATTE:
 								if(bits&0x80)
 								{
-									*vram&=ANDPtn;
-									*vram|=fgCol;
+									*vram=((*vram)&ANDPtn)|fgCol;
 								}
 								break;
 							case EGB_FUNC_AND:
@@ -1980,12 +1978,11 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				break;
 			case 8:
 				{
+					unsigned char fgCol=color[EGB_FOREGROUND_COLOR];
+					unsigned char bgCol=color[EGB_BACKGROUND_COLOR];
+					unsigned char bitCount,bits;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						unsigned char fgCol=color[EGB_FOREGROUND_COLOR];
-						unsigned char bgCol=color[EGB_BACKGROUND_COLOR];
-						unsigned char bitCount=0,bits;
-
 						nextVram=vram+scrnMode->bytesPerLine;
 						bits=*src;
 						bitCount=0;
@@ -2040,12 +2037,11 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				break;
 			case 16:
 				{
+					unsigned short fgCol=color[EGB_FOREGROUND_COLOR];
+					unsigned short bgCol=color[EGB_BACKGROUND_COLOR];
+					unsigned char bitCount,bits;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						unsigned short fgCol=color[EGB_FOREGROUND_COLOR];
-						unsigned short bgCol=color[EGB_BACKGROUND_COLOR];
-						unsigned char bitCount=0,bits;
-
 						nextVram=vram+scrnMode->bytesPerLine;
 						bits=*src;
 						bitCount=0;
@@ -2174,22 +2170,20 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 							switch(drawingMode)
 							{
 							case EGB_FUNC_OPAQUE:
-								*vram&=ANDPtn;
 								if(bits&0x80)
 								{
-									*vram|=fgCol;
+									*vram=((*vram)&ANDPtn)|fgCol;
 								}
 								else
 								{
-									*vram|=bgCol;
+									*vram=((*vram)&ANDPtn)|bgCol;
 								}
 								break;
 							case EGB_FUNC_PSET:
 							case EGB_FUNC_MATTE:
 								if(bits&0x80)
 								{
-									*vram&=ANDPtn;
-									*vram|=fgCol;
+									*vram=((*vram)&ANDPtn)|fgCol;
 								}
 								break;
 							case EGB_FUNC_AND:
@@ -2236,11 +2230,11 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				break;
 			case 8:
 				{
+					unsigned char fgCol=color[EGB_FOREGROUND_COLOR];
+					unsigned char bgCol=color[EGB_BACKGROUND_COLOR];
+					unsigned char bitCount,bits;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						unsigned char fgCol=color[EGB_FOREGROUND_COLOR];
-						unsigned char bgCol=color[EGB_BACKGROUND_COLOR];
-						unsigned char bitCount=0,bits;
 						_Far unsigned char *nextSrc=src+srcBytesPerLine;
 
 						nextVram=vram+scrnMode->bytesPerLine;
@@ -2300,11 +2294,11 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				break;
 			case 16:
 				{
+					unsigned short fgCol=color[EGB_FOREGROUND_COLOR];
+					unsigned short bgCol=color[EGB_BACKGROUND_COLOR];
+					unsigned char bitCount,bits;
 					for(y=p0.y; y<=p1.y; ++y)
 					{
-						unsigned short fgCol=color[EGB_FOREGROUND_COLOR];
-						unsigned short bgCol=color[EGB_BACKGROUND_COLOR];
-						unsigned char bitCount=0,bits;
 						_Far unsigned char *nextSrc=src+srcBytesPerLine;
 
 						nextVram=vram+scrnMode->bytesPerLine;
@@ -2553,8 +2547,7 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 				{
 					if(4==dstShift && 4==srcShift)
 					{
-						(*dst)&=0x0F;
-						(*dst)|=(*vram)&0xF0;
+						(*dst)=((*dst)&0x0F)|((*vram)&0xF0);
 						++dst;
 						++vram;
 						++x;
@@ -2581,16 +2574,14 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 					{
 						if(dstShift)
 						{
-							(*dst)&=0x0F;
-							(*dst)|=((*vram)<<4);
+							(*dst)=((*dst)&0x0F)|((*vram)<<4);
 							++dst;
 							dstShift=0;
 							srcShift=4;
 						}
 						else
 						{
-							(*dst)&=0xF0;
-							(*dst)|=((*vram)>>4);
+							(*dst)=((*dst)&0xF0)|((*vram)>>4);
 							++vram;
 							dstShift=4;
 							srcShift=0;
@@ -2870,8 +2861,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 							unsigned short srcColor;
 							srcColor=((*srcPtr)>>srcShift)&0x0F;
 
-							*dstPtr&=dstAndPtn;
-							*dstPtr|=(srcColor<<dstShift);
+							*dstPtr=((*dstPtr)&dstAndPtn)|(srcColor<<dstShift);
 
 							dstAndPtn=~dstAndPtn;
 							dstShift=4-dstShift;
@@ -2950,8 +2940,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 
 								if(srcColor!=transparentColor)
 								{
-									*dstPtr&=dstAndPtn;
-									*dstPtr|=(srcColor<<dstShift);
+									*dstPtr=((*dstPtr)&dstAndPtn)|(srcColor<<dstShift);
 								}
 
 								dstAndPtn=~dstAndPtn;
