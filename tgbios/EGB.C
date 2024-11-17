@@ -1816,6 +1816,36 @@ void EGB_22H_GETBLOCK1BIT(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
+#define EGB_PUTBLOCK_BW_8BIT_INLINE(operator) \
+{\
+	unsigned char fgCol=color[EGB_FOREGROUND_COLOR];\
+	unsigned char bgCol=color[EGB_BACKGROUND_COLOR];\
+	unsigned char bitCount,bits;\
+	for(y=p0.y; y<=p1.y; ++y)\
+	{\
+		nextVram=vram+scrnMode->bytesPerLine;\
+		bits=*src;\
+		bitCount=0;\
+		for(x=p0.x; x<=p1.x; ++x)\
+		{\
+			{operator;}\
+			++vram;\
+			bits<<=1;\
+			++bitCount;\
+			if(8==bitCount)\
+			{\
+				bitCount=0;\
+				bits=*(++src);\
+			}\
+		}\
+		if(0!=bitCount)\
+		{\
+			++src;\
+		}\
+		vram=nextVram;\
+	}\
+}
+
 unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	_Far struct EGB_ScreenMode *scrnMode,
 	_Far struct EGB_BlockInfo *blkInfo,
@@ -1977,62 +2007,43 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				}
 				break;
 			case 8:
+				switch(drawingMode)
 				{
-					unsigned char fgCol=color[EGB_FOREGROUND_COLOR];
-					unsigned char bgCol=color[EGB_BACKGROUND_COLOR];
-					unsigned char bitCount,bits;
-					for(y=p0.y; y<=p1.y; ++y)
+				case EGB_FUNC_OPAQUE:
+					EGB_PUTBLOCK_BW_8BIT_INLINE(
 					{
-						nextVram=vram+scrnMode->bytesPerLine;
-						bits=*src;
-						bitCount=0;
-						for(x=p0.x; x<=p1.x; ++x)
+						if(bits&0x80)
 						{
-							switch(drawingMode)
-							{
-							case EGB_FUNC_OPAQUE:
-								if(bits&0x80)
-								{
-									*vram=fgCol;
-								}
-								else
-								{
-									*vram=bgCol;
-								}
-								break;
-							case EGB_FUNC_PSET:
-							case EGB_FUNC_MATTE:
-								if(bits&0x80)
-								{
-									*vram=fgCol;
-								}
-								break;
-							case EGB_FUNC_AND:
-								if(!(bits&0x80))
-								{
-									*vram=0;
-								}
-								break;
-							default:
-								TSUGARU_BREAK;
-								break;
-							}
-							++vram;
-
-							bits<<=1;
-							++bitCount;
-							if(8==bitCount)
-							{
-								bitCount=0;
-								bits=*(++src);
-							}
+							*vram=fgCol;
 						}
-						if(0!=bitCount)
+						else
 						{
-							++src;
+							*vram=bgCol;
 						}
-						vram=nextVram;
-					}
+					});
+					break;
+				case EGB_FUNC_PSET:
+				case EGB_FUNC_MATTE:
+					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					{
+						if(bits&0x80)
+						{
+							*vram=fgCol;
+						}
+					});
+					break;
+				case EGB_FUNC_AND:
+					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					{
+						if(!(bits&0x80))
+						{
+							*vram=0;
+						}
+					});
+					break;
+				default:
+					TSUGARU_BREAK;
+					break;
 				}
 				break;
 			case 16:
@@ -2414,6 +2425,14 @@ void EGB_23H_PUTBLOCK1BIT(
 			work->drawingMode));
 }
 
+extern void EGB_GETBLOCK_EASY(
+	_Far unsigned char *dstPtr,
+	_Far unsigned char *srcPtr,
+	unsigned int tfrBytesPerLine,
+	unsigned int yCount,
+	unsigned int dstBytesPerLine,
+	unsigned int srcBytesPerLine);
+
 unsigned char EGB_GETBLOCK_INTERNAL(
 	_Far struct EGB_ScreenMode *scrnMode,
 	_Far struct EGB_BlockInfo *blkInfo,
@@ -2608,12 +2627,7 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 		}
 		else if(0<=p0.x && p1.x<scrnMode->size.x)
 		{
-			for(y=p0.y; y<=p1.y; ++y)
-			{
-				MEMCPY_FAR(dst,vram,transferBytesPerLine);
-				dst+=dstBytesPerLine;
-				vram+=scrnMode->bytesPerLine;
-			}
+			EGB_GETBLOCK_EASY(dst,vram,transferBytesPerLine,p1.y+1-p0.y,dstBytesPerLine,scrnMode->bytesPerLine);
 		}
 		else if(8==scrnMode->bitsPerPixel)
 		{

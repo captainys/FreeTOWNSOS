@@ -3,6 +3,8 @@
 						PUBLIC		EGB_PUTBLOCK_16_MATTE
 						PUBLIC		EGB_PUTBLOCK_16_PSET
 
+						PUBLIC		EGB_GETBLOCK_EASY
+
 						ASSUME CS:CODE
 
 CODE					SEGMENT
@@ -189,6 +191,93 @@ EGB_PUTBLOCK_16_MATTE_NEXTY:
 						POP		DS
 						RET
 EGB_PUTBLOCK_16_MATTE	ENDP
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;			 void EGB_GETBLOCK_EASY(dst,vram,tfrBytesPerLine,yCount,dstBytesPerLine,srcBytesPerLine);
+;				_Far unsigned char *dstPtr,
+;				_Far unsigned char *srcPtr,
+;				unsigned int tfrBytesPerLine,
+;				unsigned int yCount,
+;				unsigned int dstBytesPerLine,
+;				unsigned int srcBytesPerLine);
+
+;			 for(y=p0.y; y<=p1.y; ++y)
+;			 {
+;			 	MEMCPY_FAR(dst,vram,transferBytesPerLine);
+;			 	dst+=dstBytesPerLine;
+;			 	vram+=scrnMode->bytesPerLine;
+;			 }
+
+EGB_GETBLOCK_EASY		PROC
+
+						PUSH	EBP
+						MOV		EBP,ESP
+						PUSH	EBX
+						PUSH	ECX
+						PUSH	EDX
+						PUSH	ESI
+						PUSH	EDI
+						PUSH	ES
+						PUSH	DS
+
+;						EBP+24H  srcBytesPerLine
+;						EBP+20H  dstBytesPerLine
+;						EBP+1CH  yCount
+;						EBP+18H  xCount(transferBytesPerLine)
+;						EBP+10H  Far srcPtr
+;						EBP+08H  Far dstPtr
+;						EBP+04H  Return EIP
+;						EBP+00H  EBP
+
+						MOV		EAX,[EBP+18H]  ; xCount
+						TEST	EAX,EAX
+						JE		EGB_GETBLOCK_EASY_EXIT
+
+						MOV		EDX,[EBP+1CH]  ; yCount
+						TEST	EDX,EDX
+						JE		EGB_GETBLOCK_EASY_EXIT
+
+						CLD
+
+						LES		EDI,[EBP+08H]  ;dstPtr
+						LDS		ESI,[EBP+10H]  ;srcPtr
+
+						SUB		[EBP+20H],EAX  ; dstBytesPerLine
+						SUB		[EBP+24H],EAX  ; srcBytesPerLine
+
+						MOV		EBX,EAX
+						SHR		EAX,2
+						AND		EBX,3
+; All-in
+EGB_GETBLOCK_EASY_SIMPLE_LOOP:
+						MOV		ECX,EAX  ; xCount>>2
+						REP		MOVSD
+						MOV		ECX,EBX  ; xCount&3
+						REP		MOVSB
+
+						ADD		ESI,[EBP+24H]  ; srcBytesPerLine
+						ADD		EDI,[EBP+20H]  ; dstBytesPerLine
+
+						DEC		EDX
+						JNE		EGB_GETBLOCK_EASY_SIMPLE_LOOP
+
+
+EGB_GETBLOCK_EASY_EXIT:
+						POP		DS
+						POP		ES
+						POP		EDI
+						POP		ESI
+						POP		EDX
+						POP		ECX
+						POP		EBX
+						POP		EBP
+						RET
+
+
+EGB_GETBLOCK_EASY		ENDP
+
 
 
 CODE					ENDS
