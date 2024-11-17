@@ -2107,8 +2107,8 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 
 		if(p0.x<viewport[0].x)
 		{
-			xSkip_div8=viewport[0].x-p0.x/8;
-			xSkip_rem8=viewport[0].x-p0.x%8;
+			xSkip_div8=(viewport[0].x-p0.x)/8;
+			xSkip_rem8=(viewport[0].x-p0.x)%8;
 			p0.x=viewport[0].x;
 		}
 		if(p0.y<viewport[0].y)
