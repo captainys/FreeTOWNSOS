@@ -2099,7 +2099,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	}
 	else
 	{
-		unsigned int xSkip=0,ySkip=0;
+		unsigned int xSkip_div8=0,xSkip_rem8=0,ySkip=0;
 		unsigned int srcWid;
 		unsigned int srcBytesPerLine;
 		srcWid=p1.x-p0.x+1;
@@ -2107,7 +2107,8 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 
 		if(p0.x<viewport[0].x)
 		{
-			xSkip=viewport[0].x-p0.x;
+			xSkip_div8=(viewport[0].x-p0.x)/8;
+			xSkip_rem8=(viewport[0].x-p0.x)%8;
 			p0.x=viewport[0].x;
 		}
 		if(p0.y<viewport[0].y)
@@ -2161,9 +2162,9 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 						}
 
 						nextVram=vram+scrnMode->bytesPerLine;
-						src+=(xSkip/8);
+						src+=xSkip_div8;
 						bits=*src;
-						bitCount=xSkip%8;
+						bitCount=xSkip_rem8;
 						bits<<=bitCount;
 						for(x=p0.x; x<=p1.x; ++x)
 						{
@@ -2238,9 +2239,9 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 						_Far unsigned char *nextSrc=src+srcBytesPerLine;
 
 						nextVram=vram+scrnMode->bytesPerLine;
-						src+=(xSkip/8);
+						src+=xSkip_div8;
 						bits=*src;
-						bitCount=xSkip%8;
+						bitCount=xSkip_rem8;
 						bits<<=bitCount;
 						for(x=p0.x; x<=p1.x; ++x)
 						{
@@ -2302,9 +2303,9 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 						_Far unsigned char *nextSrc=src+srcBytesPerLine;
 
 						nextVram=vram+scrnMode->bytesPerLine;
-						src+=(xSkip/8);
+						src+=xSkip_div8;
 						bits=*src;
-						bitCount=xSkip%8;
+						bitCount=xSkip_rem8;
 						bits<<=bitCount;
 						for(x=p0.x; x<=p1.x; ++x)
 						{
