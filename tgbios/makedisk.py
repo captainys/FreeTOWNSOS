@@ -84,6 +84,7 @@ def Run(argv):
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../resources/FAKENSDD.SYS",
+		"-i",		"../resources/SYSXXXX0.COM",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 		"-i",		"TGBIOS.SYS",
@@ -104,8 +105,8 @@ def Run(argv):
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../resources/MINVCPI.SYS",
-		"-i",		"../resources/FAKENSDD.SYS",
-		"-i",		"../resources/SYSXXXX0.COM",
+		"-i",		"../resources/FAKENSDD.SYS",	# Needed for running VIPS2 (and probably programs developed using High-C Multimedia Kit)
+		"-i",		"../resources/SYSXXXX0.COM",	# Needed for running VIPS2 (and probably programs developed using High-C Multimedia Kit)
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 		"-i",		"TGBIOS.SYS",
