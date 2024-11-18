@@ -199,6 +199,7 @@ def Run(argv):
 	CopyToResources("FDIMG.BIN")
 	CopyToResources("FDIMG_USEROM.BIN")
 	CopyToResources("HDIMG.h0")
+	CopyToResources("CDIMG.ISO")
 
 	PrintOutput()
 
