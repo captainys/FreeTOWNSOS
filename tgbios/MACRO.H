@@ -18,6 +18,15 @@
 #define _POP_GS  _inline(0x0F,0xA9);
 
 #define _WAIT1US _inline(0xE6,0x6C);
-#define _WAITxUS(x) {int i;for(i=0; i<(x); ++i){_inline(0xE6,0x6C);}}
+
+#define _WAITxUS(x) _inline(0x51,0xB9,x,0,0,0,0xE6,0x6C,0xE2,0xFC,0x59)
+// 00000000  51                            			PUSH	ECX
+// 00000001  B9 00000050                   			MOV	ECX,80
+// 00000006                                LP:
+// 00000006  E6 6C                         			OUT	6CH,AL
+// 00000008  E2 FC                         			LOOP	LP
+// 0000000A  59                            			POP	ECX
+
+
 
 #endif
