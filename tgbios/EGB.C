@@ -1821,29 +1821,31 @@ void EGB_22H_GETBLOCK1BIT(
 	unsigned char fgCol=color[EGB_FOREGROUND_COLOR];\
 	unsigned char bgCol=color[EGB_BACKGROUND_COLOR];\
 	unsigned char bitCount,bits;\
+	unsigned int xCount,xCount0=p1.x+1-p0.x;\
 	for(y=p0.y; y<=p1.y; ++y)\
 	{\
 		nextVram=vram+scrnMode->bytesPerLine;\
 		bits=*src;\
-		bitCount=0;\
-		for(x=p0.x; x<=p1.x; ++x)\
+		bitCount=8;\
+		for(xCount=xCount0; 0!=xCount; --xCount)\
 		{\
 			{operator;}\
 			++vram;\
 			bits<<=1;\
-			++bitCount;\
-			if(8==bitCount)\
+			if(0==(--bitCount))\
 			{\
-				bitCount=0;\
+				bitCount=8;\
 				bits=*(++src);\
 			}\
 		}\
-		if(0!=bitCount)\
+		if(8!=bitCount)\
 		{\
 			++src;\
 		}\
 		vram=nextVram;\
 	}\
+	fgCol;\
+	bgCol;\
 }
 
 unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
@@ -1906,12 +1908,6 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	if(0==(flags&1))
 	{
 		unsigned int vramOffset=EGB_CoordToVRAMOffset(scrnMode,p0.x,p0.y);
-		if(1==scrnMode->bitsPerPixel)
-		{
-			// I'll come back when someone do it.
-			TSUGARU_BREAK;
-		}
-		else
 		{
 			int x,y;
 			_Far unsigned char *src=blkInfo->data;
@@ -2136,12 +2132,6 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 		}
 
 		unsigned int vramOffset=EGB_CoordToVRAMOffset(scrnMode,p0.x,p0.y);
-		if(1==scrnMode->bitsPerPixel)
-		{
-			// I'll come back when someone do it.
-			TSUGARU_BREAK;
-		}
-		else
 		{
 			int x,y;
 			_Far unsigned char *src=blkInfo->data+ySkip*srcBytesPerLine;
@@ -3716,7 +3706,7 @@ void EGB_RECTANGLE(
 		unsigned int yMin=_max(p0.y,ptrSet.page->viewport[0].y);
 		unsigned int yMax=_min(p1.y,ptrSet.page->viewport[1].y);
 
-		EGB_CalcVRAMAddr(&vramAddr,p0.x,p0.y,ptrSet.mode);
+		EGB_CalcVRAMAddr(&vramAddr,xMin,yMin,ptrSet.mode);
 		for(int y=yMin; y<=yMax; ++y)
 		{
 			unsigned int nextVramAddr=vramAddr+ptrSet.mode->bytesPerLine;
