@@ -20,4 +20,6 @@ unsigned int MUL_SHR(unsigned a,unsigned b,unsigned int right_shift);
 
 void WAIT_MICROSEC(unsigned int count);
 
+unsigned int GET_SS(void);
+
 #endif

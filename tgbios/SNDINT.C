@@ -122,7 +122,10 @@ _Handler Handle_INT4DH(void)
 
 			if(context->flags&SNDINT_USING_TIMERB_MOUSE) // FM TOWNS TECHNICAL DATABOOK p.379.  Call this function every 20ms.
 			{
-				NEAR_CALL_WITH_STACK(context->mouseINTStack,MOS_INTERVAL);
+				// DS may be reset to 0014H in CALL_SNDINT_HANDLER.
+				_PUSH_SS; // High-C assumes DS=SS.
+				_POP_DS;
+				MOS_INTERVAL();
 			}
 			++context->timerBCounter;
 		}

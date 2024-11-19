@@ -91,7 +91,13 @@ void MOS_SaveVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		blkInfo.p1.x+=mos->cursorSize.x-1;
 		blkInfo.p1.y+=mos->cursorSize.y-1;
 
-		EGB_GETBLOCK_INTERNAL(scrnMode,&blkInfo,vram);
+		// SS may be 0060H.  High-C automatically use 0014H selector when casting a near pointer to a far pointer.
+		// Need to explicit far pointer using SS.
+		_Far struct EGB_BlockInfo *blkInfoFar;
+		_FP_SEG(blkInfoFar)=GET_SS();
+		_FP_OFF(blkInfoFar)=(unsigned int)&blkInfo;
+
+		EGB_GETBLOCK_INTERNAL(scrnMode,blkInfoFar,vram);
 	}
 }
 
@@ -121,17 +127,23 @@ void MOS_DrawCursor(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		viewport[1].x--;
 		viewport[1].y--;
 
+		// SS may be 0060H.  High-C automatically use 0014H selector when casting a near pointer to a far pointer.
+		// Need to explicit far pointer using SS.
+		_Far struct EGB_BlockInfo *blkInfoFar;
+		_FP_SEG(blkInfoFar)=GET_SS();
+		_FP_OFF(blkInfoFar)=(unsigned int)&blkInfo;
+
 		unsigned char viewportFlag=1;
-		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_AND);
+		EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,blkInfoFar,vram,color,viewport,viewportFlag,EGB_FUNC_AND);
 
 		blkInfo.data=mos->PSETPtn;
 		if(2!=mos->cursorType)
 		{
-			EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
+			EGB_PUTBLOCK1BIT_INTERNAL(scrnMode,blkInfoFar,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
 		}
 		else
 		{
-			EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_MATTE);
+			EGB_PUTBLOCK_INTERNAL(scrnMode,blkInfoFar,vram,color,viewport,viewportFlag,EGB_FUNC_MATTE);
 		}
 	}
 }
@@ -161,8 +173,14 @@ void MOS_RestoreVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		viewport[1].x--;
 		viewport[1].y--;
 
+		// SS may be 0060H.  High-C automatically use 0014H selector when casting a near pointer to a far pointer.
+		// Need to explicit far pointer using SS.
+		_Far struct EGB_BlockInfo *blkInfoFar;
+		_FP_SEG(blkInfoFar)=GET_SS();
+		_FP_OFF(blkInfoFar)=(unsigned int)&blkInfo;
+
 		unsigned char viewportFlag=1;
-		EGB_PUTBLOCK_INTERNAL(scrnMode,&blkInfo,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
+		EGB_PUTBLOCK_INTERNAL(scrnMode,blkInfoFar,vram,color,viewport,viewportFlag,EGB_FUNC_PSET);
 	}
 }
 
@@ -1088,6 +1106,12 @@ void MOS_14H_ACCELERATION(
 
 void MOS_INTERVAL(void)
 {
+	// SS may be 0060H instead of 0014H if called from INT 4DH raised during FORRBIOS interrupt handler.
+	// High-C assumes SS=DS.
+	_PUSH_DS
+	_PUSH_SS
+	_POP_DS
+
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	short dx,dy,DX=0,DY=0;
 
@@ -1177,6 +1201,8 @@ void MOS_INTERVAL(void)
 	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.y);
 	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.y>>8);
 	_outb(TOWNSIO_VM_HOST_IF_CMD_STATUS,TOWNS_VMIF_CMD_NOTIFY_MOUSE);
+
+	_POP_DS
 }
 
 

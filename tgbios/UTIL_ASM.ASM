@@ -19,11 +19,13 @@
 						PUBLIC	__SET_PVECT
 
 						PUBLIC	CALL_SNDINT_HANDLER
-						PUBLIC	NEAR_CALL_WITH_STACK
+						; PUBLIC	NEAR_CALL_WITH_STACK
 
 						PUBLIC	MULDIV
 						PUBLIC	IMULDIV
 						PUBLIC	MUL_SHR
+
+						PUBLIC	GET_SS
 
 						PUBLIC	WAIT_MICROSEC
 
@@ -481,44 +483,45 @@ CALL_SNDINT_HANDLER		ENDP
 
 
 
-; void NEAR_CALL_WITH_STACK(_Far void *SSESP,void (*func)(void));
-; Used for calling mouse interval function.
-; ESP+18h   ProcEIP
-; ESP+14h   newSS
-; ESP+10h   newESP
-; ESP+0Ch   Return EIP
-; ESP+08h   DS
-; ESP+04h   EDX
-; ESP       EBP
-
-NEAR_CALL_WITH_STACK	PROC
-
-						; Can destroy EAX.  Who cares about the return value if there is no return value.
-						PUSH	DS
-						PUSH	EDX
-						PUSH	EBP
-
-						MOV		EDX,[ESP+18h]	; EIP
-
-						MOV		EBP,ESP
-						MOV		AX,SS
-
-						MOV		DS,[ESP+14h]	; Hack.  High-C assumes DS=SS
-						LSS		ESP,[ESP+10h]
-
-						PUSH	EAX
-						PUSH	EBP	; Do LSS ESP,[ESP] to return to the previous SS:ESP
-
-						CALL	EDX
-
-						LSS		ESP,[ESP]
-
-						POP		EBP
-						POP		EDX
-						POP		DS
-						RET
-
-NEAR_CALL_WITH_STACK	ENDP
+; This trick worked, but not quite good performance.
+; ; void NEAR_CALL_WITH_STACK(_Far void *SSESP,void (*func)(void));
+; ; Used for calling mouse interval function.
+; ; ESP+18h   ProcEIP
+; ; ESP+14h   newSS
+; ; ESP+10h   newESP
+; ; ESP+0Ch   Return EIP
+; ; ESP+08h   DS
+; ; ESP+04h   EDX
+; ; ESP       EBP
+; 
+; NEAR_CALL_WITH_STACK	PROC
+; 
+; 						; Can destroy EAX.  Who cares about the return value if there is no return value.
+; 						PUSH	DS
+; 						PUSH	EDX
+; 						PUSH	EBP
+; 
+; 						MOV		EDX,[ESP+18h]	; EIP
+; 
+; 						MOV		EBP,ESP
+; 						MOV		AX,SS
+; 
+; 						MOV		DS,[ESP+14h]	; Hack.  High-C assumes DS=SS
+; 						LSS		ESP,[ESP+10h]
+; 
+; 						PUSH	EAX
+; 						PUSH	EBP	; Do LSS ESP,[ESP] to return to the previous SS:ESP
+; 
+; 						CALL	EDX
+; 
+; 						LSS		ESP,[ESP]
+; 
+; 						POP		EBP
+; 						POP		EDX
+; 						POP		DS
+; 						RET
+; 
+; NEAR_CALL_WITH_STACK	ENDP
 
 
 
@@ -738,6 +741,17 @@ WAIT_MICROSEC			ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+GET_SS					PROC
+						MOV		AX,SS
+						RET
+GET_SS					ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 
 
 CODE					ENDS
