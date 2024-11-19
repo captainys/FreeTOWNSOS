@@ -2706,6 +2706,15 @@ void EGB_24H_GETBLOCK(
 			ptrSet.vram));
 }
 
+extern void EGB_PUTBLOCK_8_MATTE(
+	_Far unsigned char *dstPtr,
+	_Far unsigned char *srcPtr,
+	unsigned int xCount,
+	unsigned int yCount,
+	unsigned int dstBytesPerLine,
+	unsigned int srcBytesPerLine,
+	unsigned char transparentColor);
+
 extern void EGB_PUTBLOCK_16_PSET(
 	_Far unsigned char *dstPtr,
 	_Far unsigned char *srcPtr,
@@ -2967,23 +2976,24 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 					case 8:
 						transparentColor&=255;
 						src+=xSkip;
-						for(y=p0.y; y<=p1.y; ++y)
-						{
-							register _Far unsigned char *srcPtr,*dstPtr;
-							srcPtr=src;
-							dstPtr=vram;
-							for(count=xCount; 0<count; --count)
-							{
-								if(*srcPtr!=transparentColor)
-								{
-									*dstPtr=*srcPtr;
-								}
-								++dstPtr;
-								++srcPtr;
-							}
-							src+=srcBytesPerLine;
-							vram+=scrnMode->bytesPerLine;
-						}
+						EGB_PUTBLOCK_8_MATTE(vram,src,xCount,p1.y+1-p0.y,scrnMode->bytesPerLine,srcBytesPerLine,transparentColor);
+						// for(y=p0.y; y<=p1.y; ++y)
+						// {
+						// 	register _Far unsigned char *srcPtr,*dstPtr;
+						// 	srcPtr=src;
+						// 	dstPtr=vram;
+						// 	for(count=xCount; 0<count; --count)
+						// 	{
+						// 		if(*srcPtr!=transparentColor)
+						// 		{
+						// 			*dstPtr=*srcPtr;
+						// 		}
+						// 		++dstPtr;
+						// 		++srcPtr;
+						// 	}
+						// 	src+=srcBytesPerLine;
+						// 	vram+=scrnMode->bytesPerLine;
+						// }
 						break;
 					case 16:
 						transparentColor&=0x7FFF;

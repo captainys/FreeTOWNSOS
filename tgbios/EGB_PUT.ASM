@@ -1,5 +1,7 @@
 						.386p
 
+						PUBLIC		EGB_PUTBLOCK_8_MATTE
+
 						PUBLIC		EGB_PUTBLOCK_16_MATTE
 						PUBLIC		EGB_PUTBLOCK_16_PSET
 
@@ -8,6 +10,111 @@
 						ASSUME CS:CODE
 
 CODE					SEGMENT
+
+
+
+; extern void EGB_PUTBLOCK_8_MATTE(
+; 	_Far unsigned char *dstPtr,
+; 	_Far unsigned char *srcPtr,
+; 	unsigned int xCount,
+; 	unsigned int yCount,
+; 	unsigned int dstBytesPerLine,
+; 	unsigned int srcBytesPerLine,
+; 	unsigned char transparentColor)
+
+; for(y=p0.y; y<=p1.y; ++y)
+; {
+; 	register _Far unsigned char *srcPtr,*dstPtr;
+; 	srcPtr=src;
+; 	dstPtr=vram;
+; 	for(count=xCount; 0<count; --count)
+; 	{
+; 		if(*srcPtr!=transparentColor)
+; 		{
+; 			*dstPtr=*srcPtr;
+; 		}
+; 		++dstPtr;
+; 		++srcPtr;
+; 	}
+; 	src+=srcBytesPerLine;
+; 	vram+=scrnMode->bytesPerLine;
+; }
+; ESP+48H	transparentColor
+; ESP+44H	srcBytesPerLine
+; ESP+40H	dstBytesPerLine
+; ESP+3CH	yCount
+; ESP+38H	xCount
+; ESP+30H	_Far srcPtr
+; ESP+28H	_Far dstPtr
+; ESP+24H	Return EIP
+; ESP+20H	DS
+; ESP+1CH	ES
+; ESP+18H	ESI
+; ESP+14H	EDI
+; ESP+10H	EDX
+; ESP+0CH	ECX
+; ESP+08H	EBX
+; ESP+04H	EBP
+; ESP+00H	EFLAGS
+
+EGB_PUTBLOCK_8_MATTE	PROC
+						PUSH	DS
+						PUSH	ES
+						PUSH	ESI
+						PUSH	EDI
+						PUSh	EDX
+						PUSH	ECX
+						PUSH	EBX
+						PUSH	EBP
+						PUSHFD
+
+						LES		EDI,[ESP+28H] ; dstPtr
+						LDS		ESI,[ESP+30H] ; srcPtr
+
+						MOV		BL,[ESP+48H] ; transparentColor
+
+						MOV		EBP,[ESP+38H] ; xCount
+						MOV		EDX,[ESP+3CH] ; yCount
+						CLD
+
+						SUB		[ESP+40H],EBP	; =dstBytesPerLine-xCount
+						SUB		[ESP+44H],EBP	; =srcBytesPerLine-xCount
+
+EGB_PUTBLOCK_8_MATTE_YLOOP:
+						MOV		ECX,EBP
+
+EGB_PUTBLOCK_8_MATTE_XLOOP:
+						LODSB
+						CMP		AL,BL
+						JE		EGB_PUTBLOCK_8_MATTE_TRANS
+						STOSB
+						LOOP	EGB_PUTBLOCK_8_MATTE_XLOOP
+						JMP		EGB_PUTBLOCK_8_MATTE_NEXTY
+
+EGB_PUTBLOCK_8_MATTE_TRANS:
+						INC		EDI
+						LOOP	EGB_PUTBLOCK_8_MATTE_XLOOP
+
+EGB_PUTBLOCK_8_MATTE_NEXTY:
+						ADD		EDI,[ESP+40H]
+						ADD		ESI,[ESP+44H]
+
+						DEC		EDX
+						JNE		EGB_PUTBLOCK_8_MATTE_YLOOP
+
+						POPFD
+						POP		EBP
+						POP		EBX
+						POP		ECX
+						POP		EDX
+						POP		EDI
+						POP		ESI
+						POP		ES
+						POP		DS
+						RET
+EGB_PUTBLOCK_8_MATTE	ENDP
+
+
 
 
 
