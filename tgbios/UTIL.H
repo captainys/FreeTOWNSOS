@@ -18,4 +18,6 @@ unsigned int MULDIV(unsigned int a,unsigned int b,unsigned int c);
 int IMULDIV(int a,int b,int c);
 unsigned int MUL_SHR(unsigned a,unsigned b,unsigned int right_shift);
 
+void WAIT_MICROSEC(unsigned int count);
+
 #endif

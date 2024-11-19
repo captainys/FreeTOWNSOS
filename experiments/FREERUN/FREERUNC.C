@@ -11,7 +11,7 @@ int main(void)
 	{
 		printf("%d\n",COUNT20000());
 	}
-	printf("Press Enter>");
+	printf("V4 Press Enter>");
 	getchar();
 	return 0;
 }

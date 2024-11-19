@@ -206,36 +206,36 @@ unsigned int MOS_ReadRaw(int port)
 
 	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOn);
 
-	_WAITxUS(80);	// min TCS1=80us FM TOWNS Technical Databook p.241
+	WAIT_MICROSEC(80);	// min TCS1=80us FM TOWNS Technical Databook p.241
 
 	rawRead=_inb(IOinput);
 
-	_WAITxUS(20);	// Another 20us before clearing COM
+	WAIT_MICROSEC(20);	// Another 20us before clearing COM
 
 
 	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOff);
 
-	_WAITxUS(40);	// min TCS2 is 40us.
+	WAIT_MICROSEC(40);	// min TCS2 is 40us.
 
 	rawRead<<=8;
 	rawRead|=_inb(IOinput);
 
-	_WAITxUS(10);	// Another 10us before setting COM
+	WAIT_MICROSEC(10);	// Another 10us before setting COM
 
 
 	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOn);
 
-	_WAITxUS(40);	// min TCS3 is 40us.
+	WAIT_MICROSEC(40);	// min TCS3 is 40us.
 
 	rawRead<<=8;
 	rawRead|=_inb(IOinput);
 
-	_WAITxUS(10);	// Another 10us before clearing COM
+	WAIT_MICROSEC(10);	// Another 10us before clearing COM
 
 
 	_outb(TOWNSIO_GAMEPORT_OUTPUT,COMOff);
 
-	_WAITxUS(40);	// min TCS3 is 40us.
+	WAIT_MICROSEC(40);	// min TCS3 is 40us.
 
 	rawRead<<=8;
 	rawRead|=_inb(IOinput);

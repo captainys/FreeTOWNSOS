@@ -25,6 +25,8 @@
 						PUBLIC	IMULDIV
 						PUBLIC	MUL_SHR
 
+						PUBLIC	WAIT_MICROSEC
+
 
 TSUGARU_BREAK			MACRO
 						OUT		0EAH,AL
@@ -589,6 +591,150 @@ MUL_SHR					PROC
 						POP		EDX
 						RET
 MUL_SHR					ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; WAIT_MICROSEC(num)
+;
+;
+;ESP+8		Count
+;ESP+4		Return EIP
+;ESP		EFLAGS
+
+WAIT_MICROSEC			PROC
+						PUSHFD
+						CLI
+
+						IN		AL,031H
+						MOV		AH,AL
+						IN		AL,030H
+						CMP		AX,600H
+						JAE		WAIT_MICROSEC_UG
+						CMP		AX,300H
+						JAE		WAIT_MICROSEC_20F
+
+						; Assume 80386DX 16MHz = 16 clocks for 1us.
+WAIT_MICROSEC_1ST_GEN:
+						DEC		DWORD PTR [ESP+8]			; 6 clocks
+						NOP								; 3 clocks
+						JNE		WAIT_MICROSEC_1ST_GEN	; 7+m clocks
+
+						POPFD
+						RET
+
+
+
+WAIT_MICROSEC_UG:
+						PUSH	ECX
+						PUSH	EDX
+
+						MOV		EDX,[ESP+16]
+						IN		AX,0026H	; Free-run Timer.  Valid after FM TOWNS II UG.
+						MOV		CX,AX
+WAIT_MICROSEC_UG_LOOP:
+						IN		AX,0026H
+						SUB		AX,CX
+						CMP		AX,DX
+						JBE		WAIT_MICROSEC_UG_LOOP
+
+						POP		EDX
+						POP		ECX
+						POPFD
+						RET
+
+
+
+WAIT_MICROSEC_20F:
+						MOV		EAX,[ESP+8]
+						AND		EAX,63
+						NEG		EAX
+						ADD		EAX,64
+						LEA		EAX,[EAX*2+WAIT_MICROSEC_20F_LOOP]
+						JMP		EAX
+
+WAIT_MICROSEC_20F_LOOP:
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+						OUT		6CH,AL
+
+						SUB		DWORD PTR [ESP+8],64
+						JA		WAIT_MICROSEC_20F_LOOP
+
+						POPFD
+						RET
+
+WAIT_MICROSEC			ENDP
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

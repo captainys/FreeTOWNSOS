@@ -15,12 +15,51 @@ COUNT20000				PROC
 						PUSH	ECX
 						PUSH	EDX
 
-						MOV		ECX,20000
+						MOV		ECX,500
 
 						IN		AX,0026H	; Free-Run Timer since UG
 						MOV		DX,AX
 
 WAIT_20000US:			OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
+						OUT		06CH,AL		; Wait 1us since 20F
 						LOOP	WAIT_20000US
 
 						IN		AX,0026H	; Free-Run Timer since UG
