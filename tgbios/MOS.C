@@ -25,7 +25,7 @@ struct MOS_Status
 	unsigned char port;
 	unsigned short color;
 	unsigned char btn; // Last known button state.
-	struct POINTW pos,pulseLeftOver;
+	struct POINTW pos,dispPos,pulseLeftOver;
 	struct POINTW minPos,maxPos;
 	struct POINTUW pulsePerPixel;
 	struct POINTUW cursorSize,cursorCenter;
@@ -86,8 +86,8 @@ void MOS_SaveVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		_Far unsigned char *vram=EGB_GetVRAMPointer(egb,mos->dispPage&1);
 		struct EGB_BlockInfo blkInfo;
 		blkInfo.data=mos->VRAMBackup;
-		blkInfo.p0=mos->pos;
-		blkInfo.p1=mos->pos;
+		blkInfo.p0=mos->dispPos;
+		blkInfo.p1=mos->dispPos;
 		blkInfo.p1.x+=mos->cursorSize.x-1;
 		blkInfo.p1.y+=mos->cursorSize.y-1;
 
@@ -111,8 +111,8 @@ void MOS_DrawCursor(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 
 		struct EGB_BlockInfo blkInfo;
 		blkInfo.data=mos->ANDPtn;
-		blkInfo.p0=mos->pos;
-		blkInfo.p1=mos->pos;
+		blkInfo.p0=mos->dispPos;
+		blkInfo.p1=mos->dispPos;
 		blkInfo.p1.x+=mos->cursorSize.x-1;
 		blkInfo.p1.y+=mos->cursorSize.y-1;
 
@@ -157,8 +157,8 @@ void MOS_RestoreVRAM(_Far struct MOS_Status *mos,_Far struct EGB_Work *egb)
 		_Far unsigned char *vram=EGB_GetVRAMPointer(egb,mos->dispPage&1);
 		struct EGB_BlockInfo blkInfo;
 		blkInfo.data=mos->VRAMBackup;
-		blkInfo.p0=mos->pos;
-		blkInfo.p1=mos->pos;
+		blkInfo.p0=mos->dispPos;
+		blkInfo.p1=mos->dispPos;
 		blkInfo.p1.x+=mos->cursorSize.x-1;
 		blkInfo.p1.y+=mos->cursorSize.y-1;
 
@@ -523,6 +523,7 @@ void MOS_04H_SETPOS(
 	stat->pos.y=BX;
 	stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
 	stat->pos.x=_max(stat->minPos.x,stat->pos.x);
+	stat->dispPos=stat->pos;
 	if(0!=stat->showLevel)
 	{
 		MOS_SaveVRAM(stat,egb);
@@ -1111,6 +1112,7 @@ void MOS_INTERVAL(void)
 	_PUSH_DS
 	_PUSH_SS
 	_POP_DS
+	_PUSHFD
 
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	short dx,dy,DX=0,DY=0;
@@ -1165,7 +1167,17 @@ void MOS_INTERVAL(void)
 		stat->pulseLeftOver.y-=DY*stat->pulsePerPixel.y;
 	}
 
-	if(DX || DY)
+	stat->pos.x+=DX;
+	stat->pos.y+=DY;
+
+	stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
+	stat->pos.y=_min(stat->maxPos.y,stat->pos.y);
+
+	stat->pos.x=_max(stat->minPos.x,stat->pos.x);
+	stat->pos.y=_max(stat->minPos.y,stat->pos.y);
+
+
+	if(stat->pos.x!=stat->dispPos.x || stat->pos.y!=stat->dispPos.y)
 	{
 		_PUSHFD
 
@@ -1175,16 +1187,8 @@ void MOS_INTERVAL(void)
 			_CLI
 			MOS_RestoreVRAM(stat,egb);
 		}
-		stat->pos.x+=DX;
-		stat->pos.y+=DY;
 
-
-		stat->pos.x=_min(stat->maxPos.x,stat->pos.x);
-		stat->pos.y=_min(stat->maxPos.y,stat->pos.y);
-
-		stat->pos.x=_max(stat->minPos.x,stat->pos.x);
-		stat->pos.y=_max(stat->minPos.y,stat->pos.y);
-
+		stat->dispPos=stat->pos;
 
 		if(0!=stat->showLevel)
 		{
@@ -1202,6 +1206,7 @@ void MOS_INTERVAL(void)
 	_outb(TOWNSIO_VM_HOST_IF_DATA,stat->pos.y>>8);
 	_outb(TOWNSIO_VM_HOST_IF_CMD_STATUS,TOWNS_VMIF_CMD_NOTIFY_MOUSE);
 
+	_POPFD
 	_POP_DS
 }
 
