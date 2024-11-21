@@ -25,6 +25,7 @@ struct MOS_Status
 	unsigned char port;
 	unsigned short color;
 	unsigned char btn; // Last known button state.
+	unsigned char intervalReenterCount;
 	struct POINTW pos,dispPos,pulseLeftOver;
 	struct POINTW minPos,maxPos;
 	struct POINTUW pulsePerPixel;
@@ -1114,13 +1115,18 @@ void MOS_INTERVAL(void)
 	_POP_DS
 	_PUSHFD
 
+	_STI
+
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	short dx,dy,DX=0,DY=0;
 
 	unsigned int dxdybtn=MOS_ReadBtnDXDY(stat->port);
 	dx=dxdybtn&255;
 	dy=(dxdybtn>>8)&255;
+
+	_CLI
 	stat->btn=(dxdybtn>>16)&255;
+	_STI
 
 	// High-C doesn't sign-extend if I copy char to short.  WTF?
 	if(128<=dx)
@@ -1153,9 +1159,9 @@ void MOS_INTERVAL(void)
 		}
 	}
 
+	_CLI
 	stat->pulseLeftOver.x-=dx;
 	stat->pulseLeftOver.y-=dy;
-
 	if(0!=stat->pulsePerPixel.x)
 	{
 		DX=stat->pulseLeftOver.x/stat->pulsePerPixel.x;
@@ -1175,28 +1181,37 @@ void MOS_INTERVAL(void)
 
 	stat->pos.x=_max(stat->minPos.x,stat->pos.x);
 	stat->pos.y=_max(stat->minPos.y,stat->pos.y);
+	_STI
 
 
 	if(stat->pos.x!=stat->dispPos.x || stat->pos.y!=stat->dispPos.y)
 	{
-		_PUSHFD
-
-		_Far struct EGB_Work *egb=EGB_GetWork();
-		if(0!=stat->showLevel)
+		_CLI
+		if(0==stat->intervalReenterCount)
 		{
+			stat->intervalReenterCount=1;
+			_STI
+
+			_Far struct EGB_Work *egb=EGB_GetWork();
+			if(0!=stat->showLevel)
+			{
+				MOS_RestoreVRAM(stat,egb);
+			}
+
 			_CLI
-			MOS_RestoreVRAM(stat,egb);
+			stat->dispPos=stat->pos;
+			_STI
+
+			if(0!=stat->showLevel)
+			{
+				MOS_SaveVRAM(stat,egb);
+				MOS_DrawCursor(stat,egb);
+			}
+
+			_CLI	// Prob unnecessary.
+			stat->intervalReenterCount=0;
 		}
-
-		stat->dispPos=stat->pos;
-
-		if(0!=stat->showLevel)
-		{
-			MOS_SaveVRAM(stat,egb);
-			MOS_DrawCursor(stat,egb);
-		}
-
-		_POPFD
+		_STI
 	}
 
 	// Notify mouse to Tsugaru.
