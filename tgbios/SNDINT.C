@@ -62,18 +62,15 @@ struct SoundInterruptBIOSContext
 
 static _Far struct SoundInterruptBIOSContext *SNDINT_GetContext(void);
 
-#pragma Calling_convention(_INTERRUPT|_CALLING_CONVENTION);
-_Handler Handle_INT4DH(void)
+extern void HANDLE_INT4DH(void);// In SNDINTA.ASM
+
+void Handle_INT4DH_Main(void)	// Called from HANDLE_INT4D in SNDINTA.ASM
 {
 	// DOS-Extender intercepts INT 46H in its own handler, then redirect to this handler by CALLF.
 	// Must return by RETF.
 	// _Far is the keyword in High-C.
 	unsigned char INTReason=_inb(TOWNSIO_SOUND_INT_REASON);
 	unsigned char callTimerAPost=0;
-
-	_PUSH_FS;
-	_PUSH_GS;
-	_PUSH_DS;
 
 	_PUSH_SS; // High-C assumes DS=SS.
 	_POP_DS;
@@ -161,12 +158,8 @@ _Handler Handle_INT4DH(void)
 		context->reentCount=0;
 	}
 
-	_POP_DS;
-	_POP_GS;
-	_POP_FS;
-	return 0;
+	return;
 }
-#pragma Calling_convention();
 
 
 
@@ -185,7 +178,7 @@ void Unmask_PIC_INT4D(_Far struct SoundInterruptBIOSContext *context)
 	if(0==(context->flags&SNDINT_PIC_ENABLED))
 	{
 		_Handler newINT4D;
-		newINT4D=Handle_INT4DH;
+		newINT4D=HANDLE_INT4DH;
 		_FP_SEG(newINT4D)=SEG_TGBIOS_CODE;
 		context->save_INT4DProt=__GET_PVECT(0x4D);
 		context->save_INT4DReal=__GET_RVECT(0x4D);

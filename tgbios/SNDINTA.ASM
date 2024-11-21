@@ -1,0 +1,72 @@
+						.386p
+
+						PUBLIC	HANDLE_INT4DH
+
+						EXTRN	Handle_INT4DH_Main:NEAR
+
+TGBIOS_DS				EQU		118H
+MAX_REENT_COUNT			EQU		4		; Free386's max is 4.  No point to make it greater.
+STACK_SIZE				EQU		1024
+STACK_SIZE_SHIFT		EQU		10
+
+						ASSUME CS:CODE
+
+CODE					SEGMENT
+
+REENT_COUNT				DB		4	; Count down
+						ALIGN	4
+LOCAL_STACK				DB		(STACK_SIZE*MAX_REENT_COUNT) dup (0)
+
+
+HANDLE_INT4DH			PROC
+						PUSH	EAX
+						PUSH	DS
+
+						MOV		AX,TGBIOS_DS
+						MOV		DS,AX
+
+						MOVZX	EAX,BYTE PTR [REENT_COUNT]
+						SHL		EAX,STACK_SIZE_SHIFT
+
+						DEC		BYTE PTR DS:[REENT_COUNT]
+HANDLE_INT4D_END_OF_THE_WORLD:
+						JE		HANDLE_INT4D_END_OF_THE_WORLD
+
+						LEA		EAX,[EAX+LOCAL_STACK-8]
+						MOV		[EAX+4],SS
+						MOV		[EAX],ESP
+
+						PUSH	DS
+						POP		SS
+						MOV		ESP,EAX
+
+						PUSHAD
+						PUSH	ES
+						PUSH	FS
+						PUSH	GS
+						CALL	Handle_INT4DH_Main
+						POP		GS
+						POP		FS
+						POP		ES
+						POPAD
+
+						CLI
+
+						MOV		AX,TGBIOS_DS
+						MOV		DS,AX
+
+						INC		BYTE PTR DS:[REENT_COUNT]
+
+						MOVZX	EAX,BYTE PTR [REENT_COUNT]
+						SHL		EAX,STACK_SIZE_SHIFT
+
+						LEA		EAX,[EAX+LOCAL_STACK-8]
+						LSS		ESP,[EAX]
+
+						POP		DS
+						POP		EAX
+						IRETD
+HANDLE_INT4DH			ENDP
+
+CODE					ENDS
+						END
