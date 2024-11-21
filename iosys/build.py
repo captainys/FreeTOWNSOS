@@ -26,6 +26,7 @@ def Run(argv):
 		"INT96H",
 		"INT97H",
 		"INT9BH",
+		"INT9EH",
 		"INTAEH",
 		"INTAFH",
 		"INTFDH",

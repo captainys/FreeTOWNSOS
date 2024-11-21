@@ -19,7 +19,7 @@ const unsigned int SEG_INT96H=0x10;// Reserved for FM-R Calendar BIOS
 const unsigned int SEG_INT97H=0x12;//
 const unsigned int SEG_INT98H=0x14;// Reserved for FM-R Mouse BIOS
 const unsigned int SEG_INT9BH=0x16;//
-const unsigned int SEG_INT9EH=0x18;// Reserved for FM-R Buzzer BIOS
+const unsigned int SEG_INT9EH=0x18;//
 const unsigned int SEG_INTAEH=0x1A;//
 const unsigned int SEG_INTAFH=0x1C;//
 const unsigned int SEG_INTECH=0x1E;// Reserved for FM-R OAK BIOS
@@ -92,7 +92,7 @@ int main(void)
 	INTtoOFFSET[0x97]=0x12;//
 	INTtoOFFSET[0x98]=0x14;// Reserved for FM-R Mouse BIOS
 	INTtoOFFSET[0x9B]=0x16;//
-	INTtoOFFSET[0x9E]=0x18;// Reserved for FM-R Buzzer BIOS
+	INTtoOFFSET[0x9E]=0x18;//
 	INTtoOFFSET[0xAE]=0x1A;//
 	INTtoOFFSET[0xAF]=0x1C;//
 	INTtoOFFSET[0xEC]=0x1E;// Reserved for FM-R OAK BIOS
@@ -111,6 +111,7 @@ int main(void)
 		File("INT96H.bin",  0x96),
 		File("INT97H.bin",  0x97),
 		File("INT9BH.bin",  0x9B),
+		File("INT9EH.bin",  0x9E),
 		File("INTAEH.bin",  0xAE),
 		File("INTAFH.bin",  0xAF),
 		File("INTFDH.bin",  0xFD),

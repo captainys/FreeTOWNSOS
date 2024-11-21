@@ -1,0 +1,36 @@
+; INT 9EH Beep BIOS
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
+
+
+CODE					SEGMENT USE16
+
+INT9EH:
+						SAVE_WORLD
+						MOV		BP,SP
+
+						OUT		0EBH,AL	; Show status.
+
+INT9EH_EXIT:
+						RESTORE_WORLD
+
+						CLI
+						XCHG	SP,BP
+						AND		BYTE [BP+4],0FEH
+
+						MOV		AH,CS:[INT9EH_ERROR_CODE]
+						AND		AH,AH
+						JE		INT9EH_IRET
+
+						OR		BYTE [BP+4],01H
+INT9EH_IRET:
+						XCHG	SP,BP
+						IRET
+
+INT9EH_ERROR_CODE:		DB		0
