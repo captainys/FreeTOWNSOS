@@ -698,7 +698,7 @@ void MOS_09H_TYPE(
 	stat->cursorOrigin.y=DL;
 	if(128<=DH)
 	{
-		stat->cursorOrigin.y-=256;
+		stat->cursorOrigin.x-=256;
 	}
 	if(128<=DL)
 	{
