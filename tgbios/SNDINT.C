@@ -71,6 +71,7 @@ void Handle_INT4DH_Main(void)	// Called from HANDLE_INT4D in SNDINTA.ASM
 	// _Far is the keyword in High-C.
 	unsigned char INTReason=_inb(TOWNSIO_SOUND_INT_REASON);
 	unsigned char callTimerAPost=0;
+	unsigned char callMouseInterval=0;
 
 	_PUSH_SS; // High-C assumes DS=SS.
 	_POP_DS;
@@ -119,10 +120,7 @@ void Handle_INT4DH_Main(void)	// Called from HANDLE_INT4D in SNDINTA.ASM
 
 			if(context->flags&SNDINT_USING_TIMERB_MOUSE) // FM TOWNS TECHNICAL DATABOOK p.379.  Call this function every 20ms.
 			{
-				// DS may be reset to 0014H in CALL_SNDINT_HANDLER.
-				_PUSH_SS; // High-C assumes DS=SS.
-				_POP_DS;
-				MOS_INTERVAL();
+				callMouseInterval=1;
 			}
 			++context->timerBCounter;
 		}
@@ -156,6 +154,14 @@ void Handle_INT4DH_Main(void)	// Called from HANDLE_INT4D in SNDINTA.ASM
 			context->timerAPostEOICallback.FS,
 			context->timerAPostEOICallback.GS);
 		context->reentCount=0;
+	}
+
+	if(0!=callMouseInterval)
+	{
+		// DS may be reset to 0014H in CALL_SNDINT_HANDLER.
+		_PUSH_SS; // High-C assumes DS=SS.
+		_POP_DS;
+		MOS_INTERVAL();
 	}
 
 	return;
