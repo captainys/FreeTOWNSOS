@@ -331,13 +331,12 @@ void EGB_PUTX16BW_NOCHECK(
 	}
 }
 
-void EGB_PUTX16BW(
+void EGB_PUT_BW(
 	_Far struct EGB_Work *work,
 	struct EGB_PagePointerSet *ptrSet, // Should be in the SS.
 	int x0,int y1,struct POINTUW fontSize,
-	_Far unsigned char *ptnBase,int srcw,unsigned short lineAtY)
+	_Far unsigned char *ptnBase,int srcw,int srch,unsigned short lineAtY)
 {
-	const int srch=16;
 	unsigned int vramAddr;
 	int x1,y0;
 	int X,srcX,Y,srcY;
@@ -848,16 +847,23 @@ static unsigned int DrawText(_Far struct EGB_Work *work,int xx,int yy,int len,_F
 				unsigned int ptnAddr;
 				SJISPointerToROMAddress(str+i,ptnAddr);
 
-				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->kanjiZoom,fontROM+ptnAddr,16,lineAtY);
+				EGB_PUT_BW(work,&ptrSet,sx,sy,work->kanjiZoom,fontROM+ptnAddr,16,16,lineAtY);
 
 				sx+=work->kanjiZoom.x;
 				i+=2;
 			}
 			else
 			{
-				unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)str[i])*16;
-
-				EGB_PUTX16BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8,lineAtY);
+				if(ankDim.y<16)
+				{
+					unsigned int ptnAddr=ANK8_FONT_ADDR_BASE+((unsigned short)str[i])*8;
+					EGB_PUT_BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8,8,lineAtY);
+				}
+				else
+				{
+					unsigned int ptnAddr=ANK16_FONT_ADDR_BASE+((unsigned short)str[i])*16;
+					EGB_PUT_BW(work,&ptrSet,sx,sy,work->ankZoom,fontROM+ptnAddr,8,16,lineAtY);
+				}
 
 				sx+=work->ankZoom.x;
 				++i;
