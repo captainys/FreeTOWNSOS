@@ -242,8 +242,10 @@ void SPR_SETPOSITION(
 		for(x1 = 0; x1 < x3; x1++)
 		{
 			*spr_ram = x2;
+			(*spr_ram)&=511;
 			spr_ram++;
 			*spr_ram = y2;
+			(*spr_ram)&=511;
 			spr_ram += 3;
 			x2 += x_add;
 		}
@@ -328,8 +330,10 @@ void SPR_SETMOTION(
 	for(i = 0; i < y; i++)
 	{
 		*spr_ram += (ESI & 0xffff);
+		(*spr_ram)&=511; // Iron Fist (or F-BASIC386?) assumes x coord is 0 to 511.
 		spr_ram++;
 		*spr_ram += (EDI & 0xffff);
+		(*spr_ram)&=511; // Probably safe to keep it 0 to 511.
 		spr_ram += 3;
 	}
 
