@@ -1724,7 +1724,6 @@ unsigned char EGB_GETBLOCK1BIT_INTERNAL(
 								++dst;
 							}
 							++vram;
-							++dst;
 						}
 						vram=nextVram;
 						dst=nextDst;
@@ -1764,7 +1763,6 @@ unsigned char EGB_GETBLOCK1BIT_INTERNAL(
 								++dst;
 							}
 							vram+=2;
-							dst+=2;
 						}
 
 						vram=nextVram;
