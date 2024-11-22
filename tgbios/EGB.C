@@ -1967,6 +1967,12 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 									*vram&=ANDPtn;
 								}
 								break;
+							case EGB_FUNC_OR:
+								if(bits&0x80)
+								{
+									*vram|=fgCol;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -2037,6 +2043,15 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 						}
 					});
 					break;
+				case EGB_FUNC_OR:
+					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					{
+						if(bits&0x80)
+						{
+							*vram|=fgCol;
+						}
+					});
+					break;
 				default:
 					TSUGARU_BREAK;
 					break;
@@ -2077,6 +2092,12 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 								if(!(bits&0x80))
 								{
 									*((_Far unsigned short *)vram)=0;
+								}
+								break;
+							case EGB_FUNC_OR:
+								if(bits&0x80)
+								{
+									*((_Far unsigned short *)vram)|=fgCol;
 								}
 								break;
 							default:
@@ -2194,6 +2215,12 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 									*vram&=ANDPtn;
 								}
 								break;
+							case EGB_FUNC_OR:
+								if(bits&0x80)
+								{
+									*vram|=fgCol;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -2271,6 +2298,12 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 									*vram=0;
 								}
 								break;
+							case EGB_FUNC_OR:
+								if(bits&0x80)
+								{
+									*vram|=fgCol;
+								}
+								break;
 							default:
 								TSUGARU_BREAK;
 								break;
@@ -2333,6 +2366,12 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 								if(!(bits&0x80))
 								{
 									*((_Far unsigned short *)vram)=0;
+								}
+								break;
+							case EGB_FUNC_OR:
+								if(bits&0x80)
+								{
+									*((_Far unsigned short *)vram)|=fgCol;
 								}
 								break;
 							default:
