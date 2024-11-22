@@ -444,6 +444,8 @@ INT93H_CD_52H_CDDA_STOP_LOOP:
 						OUT		IO_1US_WAIT,AL
 						CALL	CDC_GET_STATUS	; This command may return 00 0D 00 00.  The meaning unknown.  I just want to clear status queue.
 
+						MOV		BYTE CS:[ERROR_CODE],00H
+
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
