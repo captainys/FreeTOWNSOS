@@ -159,13 +159,57 @@ INT93H_INTERCEPT:
 
 						JMP		FAR [CS:ORIGINAL_INT93H_HANDLER]
 
-INT93H_53C0H:
-						MOV		AH,2	; At least prevent destruction of DS:DI
+
+INT93H_INTERCEPT_RETURN:
+						AND		BYTE [ESP+RETURN_32FLAGS],0FEH
+						JNC		INT93H_INTERCEPT_RETURN_NOERR
+						OR		BYTE [ESP+RETURN_32FLAGS],1
+INT93H_INTERCEPT_RETURN_NOERR:
+
+						RESTORE_WORLD
+
 						IRET
+
+
+
+INT93H_53C0H:
+						SAVE_WORLD
+
+						MOV		EDI,CS:[CALLBUF_PTR]	; EDI=DX|DI in the real mode.
+						ADD		AH,30H					; Make it 83H
+
+						TSUGARU_DEBUG
+						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
+						TSUGARU_DEBUG
+
+						MOV		[ESP+SAVED_EAX32],AX
+
+						PUSHFD	; Do not change CF
+						CLD
+
+						MOV		ESI,CS:[CALLBUF_PTR]
+						XOR		SI,SI
+						SHR		ESI,12
+						MOVZX	EDI,WORD CS:[CALLBUF_PTR]
+						ADD		ESI,EDI
+						MOV		DI,SELECTOR_DOSMEM
+						MOV		DS,DI
+
+						MOV		EDI,[ESP+SAVED_EDI32]
+						MOV		ES,[ESP+SAVED_DS32]
+
+						MOV		ECX,5
+						REP		MOVSW
+
+						POPFD  	; Do not change CF
+
+						JMP		INT93H_INTERCEPT_RETURN
+
 
 INT93H_54C0H:
 						MOV		AH,2	; At least prevent destruction of DS:DI
 						IRET
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
