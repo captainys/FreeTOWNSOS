@@ -126,7 +126,7 @@ unsigned short EGB_SJIS2JIS(unsigned short sjis)
 	unsigned s1=sjis>>8;
 	unsigned s2=sjis&0xff;
 
-	unsigned k,t;
+	unsigned k,t,jis;
 
 	if(224<=s1)
 	{
@@ -151,7 +151,12 @@ unsigned short EGB_SJIS2JIS(unsigned short sjis)
 		++k;
 	}
 
-	return ((k+0x20)<<8)|(t+0x20);
+	jis=((k+0x20)<<8)|(t+0x20);
+	if(0x7521<=jis) // 0x7521 and above are Fujitsu original font.
+	{
+		jis=0x2221;
+	}
+	return jis;
 }
 
 unsigned short EGB_JIS2SJIS(unsigned short jis)
