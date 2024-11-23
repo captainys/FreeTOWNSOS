@@ -3,9 +3,97 @@
 #include "TGBIOS.H"
 #include "UTIL.H"
 #include "SND.H"
+#include "EGB.H"
 
 void SYSINFO_NOP(void)
 {
+}
+
+void SYSINFO_05H_GET_PALETTE(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	_Far struct EGB_Work *work=EGB_GetWork();
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+	int numPalettes=0,i;
+
+	unsigned char page=EAX;
+	_Far unsigned int *returnPtr;
+	_FP_SEG(returnPtr)=DS;
+	_FP_OFF(returnPtr)=EDX;
+
+	if(1<page ||
+	   EGB_INVALID_SCRNMODE==work->perPage[page].screenMode)
+	{
+		SET_DWORD(&EAX,-1);
+		return;
+	}
+
+	_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[page].screenMode);
+	if(NULL==scrnModeProp)
+	{
+		SET_DWORD(&EAX,-1);
+		return;
+	}
+
+	if(8==scrnModeProp->bitsPerPixel)
+	{
+		numPalettes=256;
+		work->sifter[1]|=0x30;
+	}
+	else if(4==scrnModeProp->bitsPerPixel)
+	{
+		numPalettes=16;
+		if(0==page)
+		{
+			work->sifter[1]&=0x0F;
+		}
+		else
+		{
+			work->sifter[1]&=0x0F;
+			work->sifter[1]|=0x20;
+		}
+	}
+	else
+	{
+		SET_DWORD(&EAX,-1);
+		return;
+	}
+
+	_outb(TOWNSIO_VIDEO_OUT_CTRL_ADDRESS,1);
+	_outb(TOWNSIO_VIDEO_OUT_CTRL_DATA,work->sifter[1]);
+
+	returnPtr[0]=numPalettes;
+	for(i=0; i<numPalettes; ++i)
+	{
+		unsigned char g,r,b;
+		_outb(TOWNSIO_ANALOGPALETTE_CODE,i);
+		b=_inb(TOWNSIO_ANALOGPALETTE_BLUE);
+		r=_inb(TOWNSIO_ANALOGPALETTE_RED);
+		g=_inb(TOWNSIO_ANALOGPALETTE_GREEN);
+
+		unsigned rgb0;
+		rgb0=g;
+		rgb0<<=8;
+		rgb0|=r;
+		rgb0<<=8;
+		rgb0|=b;
+
+		returnPtr[1+i*2]=i;
+		returnPtr[2+i*2]=rgb0;
+	}
+
+	SET_DWORD(&EAX,0);
 }
 
 void SYSINFO_22H_GET_ELEVOL_MUTE(
