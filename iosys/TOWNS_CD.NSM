@@ -100,7 +100,20 @@ TOWNSCD_IOCTL_READ_DEVICE_STATUS:
 
 TOWNSCD_IOCTL_READ_MEDIA_CHANGED:
 						; TOWNS_CD is using an unpublished function INT 93H AX=0FC0H to check media change.
-						MOV		WORD [DI+1],MSCDEX_MEDIA_DID_NOT_CHANGE ; Make it no change for the time being.
+
+						MOV		AX,0FC0H	; Unpublished function check media change.
+						INT		93H
+
+						MOV		AX,MSCDEX_MEDIA_DID_NOT_CHANGE
+						AND		DL,DL
+						JE		TOWNSCD_IOCTL_READ_MEDIA_DID_NOT_CHANGE
+
+						MOV		AX,MSCDEX_MEDIA_CHANGED
+
+TOWNSCD_IOCTL_READ_MEDIA_DID_NOT_CHANGE:
+
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						MOV		WORD [DI+1],AX
 						JMP		TOWNSCD_INTERRUPT_EXIT
 
 
