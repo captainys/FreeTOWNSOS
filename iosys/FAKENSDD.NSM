@@ -152,11 +152,16 @@ FORRBIOS_SUTDOWN:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_INTERCEPT:
+						SAVE_WORLD
+
 						CMP		AX,53C0H
 						JE		INT93H_53C0H
 						CMP		AX,54C0H
 						JE		INT93H_54C0H
 
+						; Not by FORRBIOS.  Just jump to the default INT handler.
+						; CALL will make a problem because the default handler identifes the INTNum by looking at the return CS:EIP-1, but JMP is ok.
+						RESTORE_WORLD
 						JMP		FAR [CS:ORIGINAL_INT93H_HANDLER]
 
 
@@ -173,8 +178,6 @@ INT93H_INTERCEPT_RETURN_NOERR:
 
 
 INT93H_53C0H:
-						SAVE_WORLD
-
 						MOV		EDI,CS:[CALLBUF_PTR]	; EDI=DX|DI in the real mode.
 						ADD		AH,30H					; Make it 83H
 
@@ -205,8 +208,44 @@ INT93H_53C0H:
 
 
 INT93H_54C0H:
-						MOV		AH,2	; At least prevent destruction of DS:DI
-						IRET
+						MOV		EDI,CS:[CALLBUF_PTR]	; EDI=DX|DI in the real mode.
+						ADD		AH,30H					; Make it 83H
+
+						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
+
+						MOV		[ESP+SAVED_EAX32],AX
+
+						PUSHFD	; Do not change CF
+
+						AND		AH,AH
+						JNE		INT93H_54C0H_ERROR
+
+						CLD
+
+						MOV		ESI,CS:[CALLBUF_PTR]
+						XOR		SI,SI
+						SHR		ESI,12
+						MOVZX	EDI,WORD CS:[CALLBUF_PTR]
+						ADD		ESI,EDI
+						MOV		DI,SELECTOR_DOSMEM
+						MOV		DS,DI
+
+						MOV		EDI,[ESP+SAVED_EDI32]
+						MOV		ES,[ESP+SAVED_DS32]
+
+						MOV		AL,DS:[ESI+2]
+						INC		AL
+						SUB		AL,DS:[ESI+1]
+
+						MOVZX	EAX,AL
+						LEA		ECX,[EAX+EAX*2+6]
+
+						REP		MOVSB
+
+INT93H_54C0H_ERROR:
+						POPFD
+
+						JMP		INT93H_INTERCEPT_RETURN
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 32-bit Process ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
