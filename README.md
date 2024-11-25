@@ -96,6 +96,29 @@ YAMAND.COM and YSDOS.SYS are from my project https://github.com/captainys/TOWNSR
 
 
 
+# FORRBIOS.NSD
+
+TOWNS OS V2.1 added a new device-driver mechanism called NSDD, which stands for (probably) Native System Device Driver.  The driver is a straight-forward extension of MS-DOS device driver, it has entry point for Strategy and Interrupt.
+
+This mechanism is built on top of COCO memory-management, which is largely undocumented and in the dark.
+
+However, the programs compiled by F-BASIC 386 Compiler, and High-C Multimedia Kit require one of such NSDDs called FORRBIOS.
+
+Tsugaru OS includes a driver that fakes COCO and FORRBIOS.
+
+nabe@abk did a very detailed research on COCO memory-management API functions, and is available from:
+
+https://github.com/nabe-abk/free386/blob/main/doc-ja/dosext/coco_nsd.txt
+
+FAKENSDD.SYS, included in the Tsugaru OS implements only minimum functions of COCO.
+
+FAKENSDD.SYS also loads a minimum version of FORRBIOS.  FORRBIOS is not really using Strategy and Interrupt, but it expands the real-mode device drivers.
+
+For example, CD-ROM BIOS INT 93H AH=54H, Read TOC, takes DS:DI as the data buffer pointer.  However, if the same INT is issued in the protected mode, the data buffer pointer is DS:EDI.
+
+
+
+
 
 # History
 10/04/2024  Thanks to the great contribution from BCC and Ryu Takegami, VSGP and PANIC BALL 2 and Sky Duel are playable on the TSUGARU OS.

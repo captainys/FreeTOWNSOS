@@ -14,7 +14,15 @@ int main(void)
 	printf("Disk Time %02d:%02d:%02d\n",disktime.min,disktime.sec,disktime.frame);
 	for(i=0; i<endtrack+1-starttrack; ++i)
 	{
-		printf("Track %02d:%02d:%02d\n",tracktime[i].min,tracktime[i].sec,tracktime[i].frame);
+		if(tracktime[i].min&0x80)
+		{
+			printf("DATA  ");
+		}
+		else
+		{
+			printf("AUDIO ");
+		}
+		printf("Track %02d:%02d:%02d\n",tracktime[i].min&0x7F,tracktime[i].sec,tracktime[i].frame);
 	}
 	return 0;
 }

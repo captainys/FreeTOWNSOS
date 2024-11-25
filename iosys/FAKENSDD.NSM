@@ -154,6 +154,8 @@ FORRBIOS_SUTDOWN:
 INT93H_INTERCEPT:
 						SAVE_WORLD
 
+						CMP		AX,50C0H
+						JE		INT93H_50C0H
 						CMP		AX,53C0H
 						JE		INT93H_53C0H
 						CMP		AX,54C0H
@@ -176,6 +178,21 @@ INT93H_INTERCEPT_RETURN_NOERR:
 						IRET
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_50C0H:
+						MOV		BX,DS:[EDI]
+						MOV		CX,DS:[EDI+2]
+						MOV		DX,DS:[EDI+4]
+						MOV		AH,71H	; CD BIOS Extension.  Play CDDA with regsiter interface.
+						INT		93H
+						MOV		[ESP+SAVED_EAX32],AX
+
+						; CF should be preserved.
+
+						JMP		INT93H_INTERCEPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_53C0H:
 						MOV		EDI,CS:[CALLBUF_PTR]	; EDI=DX|DI in the real mode.
@@ -183,6 +200,7 @@ INT93H_53C0H:
 
 						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
 
+						MOV		EBP,ESP
 						MOV		[ESP+SAVED_EAX32],AX
 
 						PUSHFD	; Do not change CF
@@ -196,8 +214,8 @@ INT93H_53C0H:
 						MOV		DI,SELECTOR_DOSMEM
 						MOV		DS,DI
 
-						MOV		EDI,[ESP+SAVED_EDI32]
-						MOV		ES,[ESP+SAVED_DS32]
+						MOV		EDI,[EBP+SAVED_EDI32]
+						MOV		ES,[EBP+SAVED_DS32]
 
 						MOV		ECX,5
 						REP		MOVSW
@@ -213,7 +231,8 @@ INT93H_54C0H:
 
 						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
 
-						MOV		[ESP+SAVED_EAX32],AX
+						MOV		EBP,ESP
+						MOV		[EBP+SAVED_EAX32],AX
 
 						PUSHFD	; Do not change CF
 
@@ -230,8 +249,8 @@ INT93H_54C0H:
 						MOV		DI,SELECTOR_DOSMEM
 						MOV		DS,DI
 
-						MOV		EDI,[ESP+SAVED_EDI32]
-						MOV		ES,[ESP+SAVED_DS32]
+						MOV		EDI,[EBP+SAVED_EDI32]
+						MOV		ES,[EBP+SAVED_DS32]
 
 						MOV		AL,DS:[ESI+2]
 						INC		AL
@@ -241,6 +260,8 @@ INT93H_54C0H:
 						LEA		ECX,[EAX+EAX*2+6]
 
 						REP		MOVSB
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_54C0H_ERROR:
 						POPFD

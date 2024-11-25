@@ -62,6 +62,9 @@ INT93H_CD:
 						CMP		AH,DISKBIOS_CMD_EXT_GET_TOC
 						JNE		INT93H_CD_CONTINUE
 
+						MOV		DS,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+
 ; Function 8xH will be converted to 5xH, but EDI is taken as DS|DI.
 INT93H_DISKBIOS_CD_EXT_8xH:
 						ROL		EDI,16
@@ -570,8 +573,9 @@ CDDA_GET_STATUS_PLAYING:
 						CMP		CL,20H
 						JE		INT93H_EXIT_NO_ERROR
 
-						MOV		DS,[BP+SAVED_DS]
-						MOV		DI,[BP+SAVED_EDI]
+						; Do not re-read DS:DI.  It is set in the above (to support AH=83H and 84H)
+						; MOV		DS,[BP+SAVED_DS]
+						; MOV		DI,[BP+SAVED_EDI]
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
 						CDC_ZERO_PARAMETER		; It destroys EAX
@@ -671,8 +675,9 @@ INT93H_CD_54H_CDDA_GET_CDINFO:
 						MOV		AL,CDCCMD_TOCREAD+CDCCMD_IRQ+CDCCMD_STATUSREQ
 						OUT		DX,AL
 
-						MOV		DS,[BP+SAVED_DS]
-						MOV		DI,[BP+SAVED_EDI]
+						; Do not re-read DS:DI.  It is set in the above (to support AH=83H and 84H)
+						; MOV		DS,[BP+SAVED_DS]
+						; MOV		DI,[BP+SAVED_EDI]
 						MOV		BYTE DS:[DI],0
 
 CDC_TOCREAD_LOOP:
@@ -834,32 +839,10 @@ INT93H_CD_71H_EXT_CDDA_PLAY:
 ;     CH Ending time M (In BCD if AH=72H)
 ;     DL Ending time S (In BCD if AH=72H)
 ;     DH Ending time F (In BCD if AH=72H)
-						MOV		AL,[BP+SAVED_EBX]
-						CALL	BIN2BCD_AL
-						MOV		BL,AL
-
-						MOV		AL,[BP+SAVED_EBX+1]
-						CALL	BIN2BCD_AL
-						MOV		BH,AL
-
-						MOV		AL,[BP+SAVED_ECX]
-						CALL	BIN2BCD_AL
-						MOV		CL,AL
-
-						MOV		AL,[BP+SAVED_ECX+1]
-						CALL	BIN2BCD_AL
-						MOV		CH,AL
-
-						MOV		AL,[BP+SAVED_EDX]
-						CALL	BIN2BCD_AL
-						MOV		DL,AL
-
-						MOV		AL,[BP+SAVED_EBX+1]
-						CALL	BIN2BCD_AL
-						MOV		DH,AL
-
-						XOR		AL,AL	; Repeat flag.  To be prepared.
-
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+						XOR		AX,AX	; Repeat flag.  To be prepared.
 						JMP		INT93H_PLAY_CDDA_REGISTER_IO
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -871,11 +854,32 @@ INT93H_CD_72H_EXT_CDDA_PLAY_BCD:
 ;     CH Ending time M (In BCD if AH=72H)
 ;     DL Ending time S (In BCD if AH=72H)
 ;     DH Ending time F (In BCD if AH=72H)
+						MOV		AL,[BP+SAVED_EBX]
+						CALL	BCD2BIN_AL
+						MOV		BL,AL
 
-						MOV		BX,[BP+SAVED_EBX]
-						MOV		CX,[BP+SAVED_ECX]
-						MOV		DX,[BP+SAVED_EDX]
-						XOR		AL,AL	; Repeat flag.  To be prepared.
+						MOV		AL,[BP+SAVED_EBX+1]
+						CALL	BCD2BIN_AL
+						MOV		BH,AL
+
+						MOV		AL,[BP+SAVED_ECX]
+						CALL	BCD2BIN_AL
+						MOV		CL,AL
+
+						MOV		AL,[BP+SAVED_ECX+1]
+						CALL	BCD2BIN_AL
+						MOV		CH,AL
+
+						MOV		AL,[BP+SAVED_EDX]
+						CALL	BCD2BIN_AL
+						MOV		DL,AL
+
+						MOV		AL,[BP+SAVED_EBX+1]
+						CALL	BCD2BIN_AL
+						MOV		DH,AL
+
+						XOR		AX,AX	; Repeat flag.  To be prepared.
+
 						JMP		INT93H_PLAY_CDDA_REGISTER_IO
 
 
@@ -886,11 +890,10 @@ INT93H_PLAY_CDDA_REGISTER_IO:
 ;     CH Ending time M (In BCD)
 ;     DL Ending time S (In BCD)
 ;     DH Ending time F (In BCD)
-;     AL 1->Repeat  0->No repeat
+;     AX 1->Repeat  0->No repeat
 
 						CLI
 
-						XOR		AH,AH
 						MOV		CS:[CDC_PARAM  ],BX
 						MOV		CS:[CDC_PARAM+2],CX
 						MOV		CS:[CDC_PARAM+4],DX
