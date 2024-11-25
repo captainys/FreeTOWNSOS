@@ -1000,19 +1000,78 @@ INT93H_CD_EMU_05H_READ_LBA:
 						CMP		CH,0FFH
 						JE		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
 
-						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
-						AND		CL,7
-						JMP		INT93H_HD_05H_READ_FOR_CD_EMULATION
+						MOVZX	EAX,WORD [BP+SAVED_DS]
+						SHL		EAX,4
+						MOVZX	EDI,WORD [BP+SAVED_EDI]
+						ADD		EDI,EAX
+
+						JMP		INT93H_CD_EMU_05H_READ_LBA_CONTINUE
 
 INT93H_CD_EMU_05H_READ_LBA_SPECIAL:
-						TSUGARU_DEBUG
-						JMP		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
+						; Special mode SI|DI is the physical address.
+						MOV		DI,WORD [BP+SAVED_ESI]
+						SHL		EDI,16
+						MOV		DI,WORD [BP+SAVED_EDI]
+
+INT93H_CD_EMU_05H_READ_LBA_CONTINUE:
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+
+						MOV		DX,[BP+SAVED_ECX]
+						SHL		EDX,16
+						MOV		DX,[BP+SAVED_EDX]
+
+						MOV		BX,[BP+SAVED_EBX]
+
+						PUSH	CS
+						POP		DS
+
+						MOV		BYTE CS:[ERROR_CODE],0
+
+						; Input
+						;   CL    SCSI ID
+						;   EDX   Starting Sector
+						;   BX    Number of Sectors
+						;   EDI   Data Buffer Physical Address
+						;   DS=CS
+						; Output
+						;   CF    Set if error
+						CALL	SCSI_READ_SECTOR
+						JNC		INT93H_EXIT
+
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
+						MOV		BYTE CS:[ERROR_CODE],80h
+						MOV		BYTE CS:[ERROR_DETAIL],1
+						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_0FH_CHECK_DISC_CHANGE:
-						TSUGARU_DEBUG
+						XOR		DL,DL
+						XCHG	DL,CS:[DISC_CHANGE_FLAG_CACHE]	; Load DISC_CHANGE_FLAG_CACHE to DL, and clear DISC_CHANGE_FLAG_CACHE
+						MOV		[BP+SAVED_EDX],DL				; Tentative.
+
+						MOV		BYTE CS:[ERROR_CODE],00H
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_TEST_UNIT_READY
+
+						AND		AH,AH
+						JE		INT93H_EXIT
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_SENSE
+
+						; Take any error as drive not ready.
+						MOV		BYTE [BP+SAVED_EDX],1
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		WORD CS:[ERROR_DETAIL],1
+
 						JMP		INT93H_EXIT
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
