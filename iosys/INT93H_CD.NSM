@@ -8,6 +8,11 @@
 CD_EMULATION_SCSI_EN	DB		0	; SCSI-CD Emulation enabled.
 CD_EMULATION_SCSI_DEV	DB		0	; BIOS Device CODE.  0B?H for SCSI ID ?.
 
+; Disc Change should be cached because the disc-change status code may be consumed by any of the BIOS function,
+; such as CDDA functions.  If the disc-change status code is consumed before MSCDEX checks the disc change,
+; it will not have a way to know the disc has changed unless the flag is cached.
+DISC_CHANGE_FLAG_CACHE	DB		0
+
 
 CDC_PARAM				DB		0,0,0,0,0,0,0,0
 CDC_STATUS				DB		0,0,0,0
@@ -178,11 +183,13 @@ INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT:
 INT93H_CD_CDC_DRIVE_NOT_READY:
 						MOV		BYTE CS:[ERROR_CODE],80H
 						MOV		WORD CS:[ERROR_DETAIL],1
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 						JMP		INT93H_EXIT
 
 INT93H_CD_CDC_MEDIA_CHANGED:
 						MOV		BYTE CS:[ERROR_CODE],80H
 						MOV		WORD CS:[ERROR_DETAIL],1
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 						JMP		INT93H_EXIT
 
 
@@ -362,15 +369,20 @@ INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS:
 						JE		INT93H_CD_0FH_DISC_DID_CHANGE
 
 						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
-						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+						JE		INT93H_CD_0FH_DISC_DID_CHANGE	; Take it as a media change.
+
 						CMP		AL,21H
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 
+						XOR		DL,DL
+						XCHG	DL,CS:[DISC_CHANGE_FLAG_CACHE]
+
 						MOV		BYTE CS:[ERROR_CODE],0
-						MOV		BYTE [BP+SAVED_EDX],0
+						MOV		BYTE [BP+SAVED_EDX],DL
 						JMP		INT93H_EXIT
 
 INT93H_CD_0FH_DISC_DID_CHANGE:
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],0
 						MOV		BYTE CS:[ERROR_CODE],0
 						MOV		BYTE [BP+SAVED_EDX],1
 						JMP		INT93H_EXIT
