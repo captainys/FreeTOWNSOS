@@ -167,14 +167,27 @@ INT93H_INTERCEPT:
 						JMP		FAR [CS:ORIGINAL_INT93H_HANDLER]
 
 
+; Returned CF, AX, and CX must be preserved.
+; High-C CDRFRB functions returns CX if AH is 80h.  Therefore, CX must be correctly transferred back.
 INT93H_INTERCEPT_RETURN:
+						MOV		[ESP+SAVED_EAX32+1],AH
+						JC		INT93H_INTERCEPT_RETURN_ERR
 						AND		BYTE [ESP+RETURN_32FLAGS],0FEH
-						JNC		INT93H_INTERCEPT_RETURN_NOERR
+						JMP		INT93H_INTERCEPT_RETURN_IRET
+
+
+INT93H_INTERCEPT_RETURN_ERR:
 						OR		BYTE [ESP+RETURN_32FLAGS],1
-INT93H_INTERCEPT_RETURN_NOERR:
 
+						CMP		AH,80H
+						JNE		INT93H_INTERCEPT_RETURN_IRET
+
+						MOVZX	ECX,CX
+						MOV		[ESP+SAVED_ECX32],ECX
+
+
+INT93H_INTERCEPT_RETURN_IRET:
 						RESTORE_WORLD
-
 						IRET
 
 
@@ -186,9 +199,8 @@ INT93H_50C0H:
 						MOV		DX,DS:[EDI+4]
 						MOV		AH,71H	; CD BIOS Extension.  Play CDDA with regsiter interface.
 						INT		93H
-						MOV		[ESP+SAVED_EAX32],AX
 
-						; CF should be preserved.
+						; CF,AX,CX needs to be preserved.
 
 						JMP		INT93H_INTERCEPT_RETURN
 
@@ -201,9 +213,9 @@ INT93H_53C0H:
 						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
 
 						MOV		EBP,ESP
-						MOV		[ESP+SAVED_EAX32],AX
 
-						PUSHFD	; Do not change CF
+						PUSHFD	; CF,AX,CX needs to be preserved.
+
 						CLD
 
 						MOV		ESI,CS:[CALLBUF_PTR]
@@ -217,10 +229,11 @@ INT93H_53C0H:
 						MOV		EDI,[EBP+SAVED_EDI32]
 						MOV		ES,[EBP+SAVED_DS32]
 
-						MOV		ECX,5
-						REP		MOVSW
+						MOVSD
+						MOVSD
+						MOVSW
 
-						POPFD  	; Do not change CF
+						POPFD  	; CF,AX,CX needs to be preserved.
 
 						JMP		INT93H_INTERCEPT_RETURN
 
@@ -232,9 +245,9 @@ INT93H_54C0H:
 						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
 
 						MOV		EBP,ESP
-						MOV		[EBP+SAVED_EAX32],AX
 
-						PUSHFD	; Do not change CF
+						PUSHFD	; CF,AX,CX needs to be preserved.
+						PUSH	ECX
 
 						AND		AH,AH
 						JNE		INT93H_54C0H_ERROR
@@ -252,19 +265,20 @@ INT93H_54C0H:
 						MOV		EDI,[EBP+SAVED_EDI32]
 						MOV		ES,[EBP+SAVED_DS32]
 
-						MOV		AL,DS:[ESI+2]
-						INC		AL
-						SUB		AL,DS:[ESI+1]
+						MOV		DL,DS:[ESI+2]
+						INC		DL
+						SUB		DL,DS:[ESI+1]
 
-						MOVZX	EAX,AL
-						LEA		ECX,[EAX+EAX*2+6]
+						MOVZX	EDX,DL
+						LEA		ECX,[EDX+EDX*2+6]
 
 						REP		MOVSB
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_54C0H_ERROR:
-						POPFD
+						POP		ECX
+						POPFD	; CF,AX,CX needs to be preserved.
 
 						JMP		INT93H_INTERCEPT_RETURN
 

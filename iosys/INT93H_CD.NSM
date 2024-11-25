@@ -364,11 +364,7 @@ INT93H_CD_READ_ERROR:
 INT93H_CD_0FH_CHECK_DISC_CHANGE:
 						CLI
 
-
-INT93H_CD_0FH_CHECK_DISC_CHANGE_CLEAR_STATUS:
-						CALL	CDC_GET_STATUS
-						JNC		INT93H_CD_0FH_CHECK_DISC_CHANGE_CLEAR_STATUS
-
+						CALL	CDC_CLEAR_STATUS_QUEUE
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
 						CDC_ZERO_PARAMETER		; It destroys EAX
@@ -665,6 +661,8 @@ CDDA_GET_STATUS_NOT_PLAYING:
 
 INT93H_CD_54H_CDDA_GET_CDINFO:
 						CLI
+
+						CALL	CDC_CLEAR_STATUS_QUEUE
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
 
@@ -1041,6 +1039,17 @@ CDC_WAIT_DMAE:
 						AND		AL,40H
 						JE		CDC_WAIT_DMAE
 						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CDC_CLEAR_STATUS_QUEUE:
+						PUSH	EAX
+						CALL	CDC_GET_STATUS
+						POP		EAX
+						JNC		CDC_CLEAR_STATUS_QUEUE
+						RET
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
