@@ -26,7 +26,7 @@ INT49H_CD_INT_HANDLER:
 ; YSSCSI.SYS Extension
 ; AX=73C0H  BX=0  CX=0  YSSCSICD installation check.
 ;   Returns BX=7711H CX=6809H if YSSCSICD is installed already.
-;   TGBIOS should return BX=7710H CX=6809H if CD to SCSI redirection is enabled.
+;   TGBIOS returns BX=7711H CX=6809H so that YSSCSICD.SYS will not be installed.  The functionality is already in IO.SYS.
 ;
 ; AX=71C0H Play CDDA
 ; AX=72C0H Play CDDA BCD
@@ -57,11 +57,6 @@ INT93H_CD:
 						CMP		BYTE CS:[CD_EMULATION_SCSI_EN],0
 						JNE		INT93H_CD_EMU_BY_SCSI
 
-						CMP		AH,DISKBIOS_CMD_EXT_ENABLE_SCSI_REDIR
-						JE		INT93H_CD_ENABLE_EMULATION
-						CMP		AH,DISKBIOS_CMD_EXT_DISABLE_SCSI_REDIR
-						JE		INT93H_CD_DISABLE_EMULATION
-
 						CMP		AH,DISKBIOS_CMD_EXT_GET_CDDA_STATE
 						JE		INT93H_DISKBIOS_CD_EXT_8xH
 						CMP		AH,DISKBIOS_CMD_EXT_GET_TOC
@@ -90,6 +85,11 @@ INT93H_CD_CONTINUE:
 						MOV		SI,INT93H_CD_JUMPTABLE_CDDA
 						SUB		BX,50H
 						CMP		BX,06H
+						JBE		INT93H_CD_JUMP_TO_FUNCTION
+
+						MOV		SI,INT93H_CD_JUMPTABLE_YSSCSICD
+						SUB		BX,20H
+						CMP		BX,05H
 						JBE		INT93H_CD_JUMP_TO_FUNCTION
 
 						JMP		INT93H_EXIT
@@ -143,7 +143,13 @@ INT93H_CD_JUMPTABLE_CDDA:
 						DW		INT93H_CD_55H_CDDA_PAUSE
 						DW		INT93H_CD_56H_CDDA_RESUME
 
-
+INT93H_CD_JUMPTABLE_YSSCSICD:
+						DW		INT93H_CD_70H_NOP
+						DW		INT93H_CD_71H_EXT_CDDA_PLAY
+						DW		INT93H_CD_72H_EXT_CDDA_PLAY_BCD
+						DW		INT93H_CD_73H_YSSCSICD_INST_CHECK
+						DW		INT93H_CD_ENABLE_EMULATION
+						DW		INT93H_CD_DISABLE_EMULATION
 
 INT93H_CD_EMU_JUMPTABLE:
 						DW		INT93H_CD_00H_SET_DRVMODE	; Do nothing
@@ -164,6 +170,14 @@ INT93H_CD_EMU_JUMPTABLE_CDDA:
 						DW		INT93H_CD_EMU_54H_CDDA_GET_CDINFO
 						DW		INT93H_CD_EMU_55H_CDDA_PAUSE
 						DW		INT93H_CD_EMU_56H_CDDA_RESUME
+
+INT93H_CD_EMU_JUMPTABLE_YSSCSICD:
+						DW		INT93H_CD_EMU_70H_NOP
+						DW		INT93H_CD_EMU_71H_EXT_CDDA_PLAY
+						DW		INT93H_CD_EMU_72H_EXT_CDDA_PLAY_BCD
+						DW		INT93H_CD_73H_YSSCSICD_INST_CHECK
+						DW		INT93H_CD_ENABLE_EMULATION
+						DW		INT93H_CD_DISABLE_EMULATION
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -443,6 +457,9 @@ CDDA_PLAY_CH_CHECKED:
 CDDA_PLAY_NO_REPEAT:
 						MOV		CS:[CDC_PARAM+6],AX
 
+
+; This label will also be called from function 71H and 72H.
+CDDA_PLAY_ISSUE_CDC_COMMAND:
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
 						CALL	CDC_PUSH_PARAMETERS_BCD
 
@@ -800,6 +817,108 @@ INT93H_CD_56H_CDDA_RESUME:
 						TSUGARU_DEBUG
 						JMP		INT93H_EXIT
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_70H_NOP:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_71H_EXT_CDDA_PLAY:
+;     BL Starting time M (In BCD if AH=72H)
+;     BH Starting time S (In BCD if AH=72H)
+;     CL Starting time F (In BCD if AH=72H)
+;     CH Ending time M (In BCD if AH=72H)
+;     DL Ending time S (In BCD if AH=72H)
+;     DH Ending time F (In BCD if AH=72H)
+						MOV		AL,[BP+SAVED_EBX]
+						CALL	BIN2BCD_AL
+						MOV		BL,AL
+
+						MOV		AL,[BP+SAVED_EBX+1]
+						CALL	BIN2BCD_AL
+						MOV		BH,AL
+
+						MOV		AL,[BP+SAVED_ECX]
+						CALL	BIN2BCD_AL
+						MOV		CL,AL
+
+						MOV		AL,[BP+SAVED_ECX+1]
+						CALL	BIN2BCD_AL
+						MOV		CH,AL
+
+						MOV		AL,[BP+SAVED_EDX]
+						CALL	BIN2BCD_AL
+						MOV		DL,AL
+
+						MOV		AL,[BP+SAVED_EBX+1]
+						CALL	BIN2BCD_AL
+						MOV		DH,AL
+
+						XOR		AL,AL	; Repeat flag.  To be prepared.
+
+						JMP		INT93H_PLAY_CDDA_REGISTER_IO
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_72H_EXT_CDDA_PLAY_BCD:
+;     BL Starting time M (In BCD if AH=72H)
+;     BH Starting time S (In BCD if AH=72H)
+;     CL Starting time F (In BCD if AH=72H)
+;     CH Ending time M (In BCD if AH=72H)
+;     DL Ending time S (In BCD if AH=72H)
+;     DH Ending time F (In BCD if AH=72H)
+
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+						XOR		AL,AL	; Repeat flag.  To be prepared.
+						JMP		INT93H_PLAY_CDDA_REGISTER_IO
+
+
+INT93H_PLAY_CDDA_REGISTER_IO:
+;     BL Starting time M (In BCD)
+;     BH Starting time S (In BCD)
+;     CL Starting time F (In BCD)
+;     CH Ending time M (In BCD)
+;     DL Ending time S (In BCD)
+;     DH Ending time F (In BCD)
+;     AL 1->Repeat  0->No repeat
+
+						CLI
+
+						XOR		AH,AH
+						MOV		CS:[CDC_PARAM  ],BX
+						MOV		CS:[CDC_PARAM+2],CX
+						MOV		CS:[CDC_PARAM+4],DX
+						MOV		CS:[CDC_PARAM+6],AX
+
+						JMP		CDDA_PLAY_ISSUE_CDC_COMMAND
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_73H_YSSCSICD_INST_CHECK:
+						MOV		WORD [BP+SAVED_EBX],7711H 
+						MOV		WORD [BP+SAVED_ECX],6809H
+						MOV		BYTE [ERROR_CODE],00H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_74H_ENABLE_REDIR:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_75H_DISABLE_REDIR:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1265,6 +1384,41 @@ INT93H_CD_EMU_56H_CDDA_RESUME:
 						JMP		INT93H_EXIT
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_70H_NOP:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_71H_EXT_CDDA_PLAY:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_72H_EXT_CDDA_PLAY_BCD:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_74H_ENABLE_REDIR:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_75H_DISABLE_REDIR:
+						TSUGARU_DEBUG
+						MOV		BYTE [BP+SAVED_EAX+1],80H
+						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; HSG=60*MIN+75*SEC+FRM  ->  60 seconds/min,   75 frames/sec   -> 60*75 frames/min
