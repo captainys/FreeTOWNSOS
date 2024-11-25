@@ -104,13 +104,16 @@ TOWNSCD_IOCTL_READ_MEDIA_CHANGED:
 						MOV		AX,0FC0H	; Unpublished function check media change.
 						INT		93H
 
-						MOV		AX,MSCDEX_MEDIA_DID_NOT_CHANGE
-						AND		DL,DL
-						JE		TOWNSCD_IOCTL_READ_MEDIA_DID_NOT_CHANGE
-
 						MOV		AX,MSCDEX_MEDIA_CHANGED
 
-TOWNSCD_IOCTL_READ_MEDIA_DID_NOT_CHANGE:
+						JB		TOWNSCD_IOCTL_READ_MEDIA_DID_CHANGE	; If error, just pretend media changed.
+
+						AND		DL,DL
+						JNE		TOWNSCD_IOCTL_READ_MEDIA_DID_CHANGE
+
+						MOV		AX,MSCDEX_MEDIA_DID_NOT_CHANGE
+
+TOWNSCD_IOCTL_READ_MEDIA_DID_CHANGE:
 
 						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
 						MOV		WORD [DI+1],AX
@@ -163,9 +166,14 @@ TOWNSCD_READ_SECTORS:
 						MOV		BX,ES:[BX+12H]	; Do it last.  ES:BX is destroyed.
 
 						INT		93H
+						JNC		TOWNSCD_INTERRUPT_EXIT
+
+						CALL	TOWNSCD_BIOS_ERROR_TO_MSCDEX_ERROR
+
+						LES		BX,CS:[TOWNSCD_REQHDR_PTR]
+						MOV		ES:[BX+REQ_STATUS],AX
 
 						JMP		TOWNSCD_INTERRUPT_EXIT
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -173,3 +181,24 @@ TOWNSCD_NAZO_FUNCTION_82H:
 						; TOWNS OS V2.1 L20's TOWNS_CD just returns status code 8103H.
 						MOV		WORD ES:[BX+REQ_STATUS],8103H
 						JMP		TOWNSCD_INTERRUPT_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TOWNSCD_BIOS_ERROR_TO_MSCDEX_ERROR:
+						CMP		AH,080H
+						JNE		TOWNSCD_BIOS_ERROR_UNKNOWN	; Unknown error
+
+						CMP		CX,DISKBIOS_HARDERROR_DRIVE_NOT_READY
+						JE		TOWNSCD_BIOS_ERROR_DRIVE_NOT_READY
+
+						MOV		AX,800BH	; Read fault
+						RET
+
+TOWNSCD_BIOS_ERROR_UNKNOWN:
+						MOV		AX,800BH	; Read fault or 800CH General Fault?
+						RET
+
+TOWNSCD_BIOS_ERROR_DRIVE_NOT_READY:
+						MOV		AX,8002H	; Drive Not Ready
+						RET
+
