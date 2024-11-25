@@ -59,6 +59,7 @@ INT93H_CD:
 						CMP		AH,DISKBIOS_CMD_EXT_GET_TOC
 						JNE		INT93H_CD_CONTINUE
 
+; Function 8xH will be converted to 5xH, but EDI is taken as DS|DI.
 INT93H_DISKBIOS_CD_EXT_8xH:
 						ROL		EDI,16
 						MOV		DS,DI
@@ -67,6 +68,8 @@ INT93H_DISKBIOS_CD_EXT_8xH:
 
 INT93H_CD_CONTINUE:
 						MOVZX	BX,AH
+						CMP		BX,0FH
+						JE		INT93H_CD_0FH_CHECK_DISC_CHANGE
 						CMP		BX,14H
 						JE		INT93H_CD_14H_SEEK_MSF
 						CMP		BX,15H
@@ -85,7 +88,9 @@ INT93H_CD_CONTINUE:
 
 
 INT93H_CD_EMU_BY_SCSI:
-						MOVZX	BX,[BP+SAVED_EAX+1]
+						MOVZX	BX,BYTE [BP+SAVED_EAX+1]
+						CMP		BX,0FH
+						JE		INT93H_CD_EMU_0FH_CHECK_DISC_CHANGE
 						CMP		BX,14H
 						JE		INT93H_CD_EMU_14H_SEEK_MSF
 						CMP		BX,15H
@@ -99,6 +104,8 @@ INT93H_CD_EMU_BY_SCSI:
 						SUB		BX,50H
 						CMP		BX,06H
 						JBE		INT93H_CD_JUMP_TO_FUNCTION
+
+						TSUGARU_DEBUG
 
 						JMP		INT93H_EXIT
 
@@ -324,6 +331,13 @@ INT93H_CD_READ_READ_DONE:
 
 INT93H_CD_READ_ERROR:
 						JMP		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_0FH_CHECK_DISC_CHANGE:
+						TSUGARU_DEBUG
+						MOV		BYTE CS:[ERROR_CODE],0
+						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -928,6 +942,12 @@ INT93H_CD_EMU_05H_READ_LBA:
 INT93H_CD_EMU_05H_READ_LBA_SPECIAL:
 						TSUGARU_DEBUG
 						JMP		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_CD_EMU_0FH_CHECK_DISC_CHANGE
+						TSUGARU_DEBUG
+						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
