@@ -16,6 +16,8 @@ def PrintOutput():
 		print(line)
 	fp.close()
 
+def IsTestFile(fn):
+	return fn=="EGB_PAI.BIN" or fn=="EGB_PUT.BIN" or fn.endswith(".EXP") or fn.endswith(".SND") or fn.endswith(".FMB") or fn.endswith(".PMB") or fn.endswith(".SND")
 
 def Run(argv):
 	os.chdir(THISDIR)
@@ -171,12 +173,12 @@ def Run(argv):
 
 	isoparam=[]
 	for fn in os.listdir("../tests/tgbios/build"):
-		if fn.endswith(".EXP") or fn.endswith(".SND"):
+		if IsTestFile(fn):
 			isoparam.append("-FF")
 			isoparam.append("../tests/tgbios/build/"+fn)
 			isoparam.append("TESTS/"+fn)
 	for fn in os.listdir("../tests/tgbios"):
-		if fn.endswith(".EXP") or fn.endswith(".SND"):
+		if IsTestFile(fn):
 			isoparam.append("-FF")
 			isoparam.append("../tests/tgbios/"+fn)
 			isoparam.append("TESTS/"+fn)
