@@ -168,6 +168,19 @@ def Run(argv):
 		quit()
 
 
+
+	isoparam=[]
+	for fn in os.listdir("../tests/tgbios/build"):
+		if fn.endswith(".EXP") or fn.endswith(".SND"):
+			isoparam.append("-FF")
+			isoparam.append("../tests/tgbios/build/"+fn)
+			isoparam.append("TESTS/"+fn)
+	for fn in os.listdir("../tests/tgbios"):
+		if fn.endswith(".EXP") or fn.endswith(".SND"):
+			isoparam.append("-FF")
+			isoparam.append("../tests/tgbios/"+fn)
+			isoparam.append("TESTS/"+fn)
+
 	proc=subprocess.Popen(["./geniso",
 		"-o",		"CDIMG.ISO",
 		"-VOL",		"TSUGARU_OS",	# Volume Label
@@ -187,7 +200,7 @@ def Run(argv):
 		"-F",		"TGBIOS.SYS",
 		"-F",		"TGBIOS.BIN",
 		"-VERBOSE",
-	])
+	]+isoparam)
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building CDIMG.ISO")
