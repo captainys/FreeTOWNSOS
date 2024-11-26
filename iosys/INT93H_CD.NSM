@@ -52,27 +52,28 @@ INT93H_CD:
 						CMP		AL,0C0H
 						JNE		INT93H_EXIT	; Device ID error
 
-						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
 
-						CMP		BYTE CS:[CD_EMULATION_SCSI_EN],0
-						JNE		INT93H_CD_EMU_BY_SCSI
+						MOV		DS,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
 
 						CMP		AH,DISKBIOS_CMD_EXT_GET_CDDA_STATE
 						JE		INT93H_DISKBIOS_CD_EXT_8xH
 						CMP		AH,DISKBIOS_CMD_EXT_GET_TOC
 						JNE		INT93H_CD_CONTINUE
-
-						MOV		DS,[BP+SAVED_DS]
-						MOV		DI,[BP+SAVED_EDI]
-
 ; Function 8xH will be converted to 5xH, but EDI is taken as DS|DI.
 INT93H_DISKBIOS_CD_EXT_8xH:
 						ROL		EDI,16
 						MOV		DS,DI
 						ROL		EDI,16
 						SUB		AH,30H	; Make it 53H or 54H
-
 INT93H_CD_CONTINUE:
+
+
+						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
+
+						CMP		BYTE CS:[CD_EMULATION_SCSI_EN],0
+						JNE		INT93H_CD_EMU_BY_SCSI
+
 						MOVZX	BX,AH
 						CMP		BX,0FH
 						JE		INT93H_CD_0FH_CHECK_DISC_CHANGE
@@ -99,7 +100,7 @@ INT93H_CD_CONTINUE:
 
 
 INT93H_CD_EMU_BY_SCSI:
-						MOVZX	BX,BYTE [BP+SAVED_EAX+1]
+						MOVZX	BX,AH
 						CMP		BX,0FH
 						JE		INT93H_CD_EMU_0FH_CHECK_DISC_CHANGE
 						CMP		BX,14H
@@ -1247,7 +1248,11 @@ INT93H_CD_EMU_54H_CDDA_GET_CDINFO:
 
 						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
 						AND		CL,7
+						PUSH	DS
+						PUSH	DI
 						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						POP		DI
+						POP		DS
 						JNC		SHORT INT93H_CD_EMU_54H_NOT_HARD_ERROR
 						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
 						JMP		INT93H_EXIT
@@ -1262,7 +1267,11 @@ INT93H_CD_EMU_54H_NOT_HARD_ERROR:
 INT93H_CD_EMU_54H_NOT_ALREADY_PLAYING:
 						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
 						MOV		CH,0AAH		; Get min-max track
+						PUSH	DS
+						PUSH	DI
 						CALL	SCSI_READTOC
+						POP		DI
+						POP		DS
 						JNC		INT93H_CD_EMU_54H_HAVE_MIN_MAX_TRACK
 						MOV		BYTE CS:[ERROR_CODE],80H	; Tentative Hard Error
 						JMP		INT93H_EXIT
@@ -1271,8 +1280,9 @@ INT93H_CD_EMU_54H_HAVE_MIN_MAX_TRACK:
 						MOV		CL,CS:[SCSI_DATABUF+2]	; First track
 						MOV		CH,CS:[SCSI_DATABUF+3]	; Last track
 
-						MOV		ES,[BP+SAVED_DS]
-						MOV		SI,[BP+SAVED_EDI]
+						PUSH	DS
+						POP		ES
+						MOV		SI,DI
 
 						MOV		BYTE ES:[SI],0		; Tentatively no data/no audio
 						MOV		ES:[SI+1],CX			; First/Last track
