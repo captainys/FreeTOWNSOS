@@ -35,6 +35,12 @@ READ_ERROR:
 						RETF
 
 
+; Fujitsu IPL uses dword at offset +20H as IO.SYS location (LBA if HDD, CHR if FDD), and +24H as number of sectors.
+						PLACE	0020H
+IOSYS_LBA				DD		0
+IOSYS_LEN				DD		0
+
+
 BOOT_FROM_SCSI_CD:
 						MOV		BL,BOOTDEV_SCSICD
 						MOV		CS:[BOOT_DEVICE],BX
@@ -119,5 +125,3 @@ IOSYS_FILENAME			DB		"IO.SYS",0
 
 BOOT_DEVICE				DW		0
 DISKBIOS_DEVICE_CODE	DB		0h
-IOSYS_LBA				DD		0
-IOSYS_LEN				DD		0
