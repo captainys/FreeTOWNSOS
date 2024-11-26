@@ -985,49 +985,80 @@ public:
 	std::string output;
 	bool verbose=false;
 	bool RecognizeCommandParameter(ISOImage &iso,int ac,char *av[]);
+	bool RecognizeCommandParameter(ISOImage &iso,std::vector <std::string> argv);
+	static void PrintHelp(void);
 };
+
+void CommandParameterInfo::PrintHelp(void)
+{
+	std::cout << "-F filename\n";
+	std::cout << "Add a file in the root dir.\n";
+	std::cout << "-FF src_filename filename_in_ISO\n";
+	std::cout << "Add a file that can be in the sub-directory\n";
+	std::cout << "-VOL volume_label\n";
+	std::cout << "Specify volume label.\n";
+	std::cout << "-SYS system_label\n";
+	std::cout << "Specify system label.\n";
+	std::cout << "-IPL ipl_sector\n";
+	std::cout << "Specify IPL-sector binary.\n";
+	std::cout << "-VERBOSE\n";
+	std::cout << "Verbose mode.\n";
+	std::cout << "-O filename.ISO\n";
+	std::cout << "Specify output ISO file name.\n";
+	std::cout << "-CMD filename.CMD\n";
+	std::cout << "Specify command-parameter file.  The file is a text file that has one argument per line.\n";
+}
 
 bool CommandParameterInfo::RecognizeCommandParameter(ISOImage &iso,int ac,char *av[])
 {
 	std::vector <std::string> argv;
-	for(int i=1; i<ac; ++i)
+	for(int i=0; i<ac; ++i)
 	{
-		std::string opt=av[i];
+		argv.push_back(av[i]);
+	}
+	return RecognizeCommandParameter(iso,argv);
+}
+
+bool CommandParameterInfo::RecognizeCommandParameter(ISOImage &iso,std::vector <std::string> argv)
+{
+	for(size_t i=1; i<argv.size(); ++i)
+	{
+		std::string opt=argv[i];
 		for(auto &c : opt)
 		{
 			c=toupper(c);
 		}
-		if("-F"==opt && i+1<ac) // Simple file.  File added to the root dir.
+		if("-F"==opt && i+1<argv.size()) // Simple file.  File added to the root dir.
 		{
-			if(true!=iso.AddFileSimple(av[i+1]))
+			if(true!=iso.AddFileSimple(argv[i+1]))
 			{
 				std::cout << "Error while adding a file.\n";
 				return false;
 			}
 			++i;
 		}
-		else if("-FF"==opt && i+2<ac) // Not so simple file.  Input file name, and the name in the ISO image.
+		else if("-FF"==opt && i+2<argv.size()) // Not so simple file.  Input file name, and the name in the ISO image.
 		{
-			if(true!=iso.AddFile(av[i+1],av[i+2]))
+			if(true!=iso.AddFile(argv[i+1],argv[i+2]))
 			{
 				std::cout << "Error while adding a file.\n";
 				return false;
 			}
 			i+=2;
 		}
-		else if("-VOL"==opt && i+1<ac) // Volume Label
+		else if("-VOL"==opt && i+1<argv.size()) // Volume Label
 		{
-			iso.volumeLabel=av[i+1];
+			iso.volumeLabel=argv[i+1];
 			++i;
 		}
-		else if("-SYS"==opt && i+1<ac) // System Label
+		else if("-SYS"==opt && i+1<argv.size()) // System Label
 		{
-			iso.systemLabel=av[i+1];
+			iso.systemLabel=argv[i+1];
 			++i;
 		}
-		else if("-IPL"==opt && i+1<ac)
+		else if("-IPL"==opt && i+1<argv.size())
 		{
-			if(true!=iso.LoadIPL(av[i+1]))
+			if(true!=iso.LoadIPL(argv[i+1]))
 			{
 				std::cout << "Error while loading the IPL sector.\n";
 				return false;
@@ -1038,9 +1069,30 @@ bool CommandParameterInfo::RecognizeCommandParameter(ISOImage &iso,int ac,char *
 		{
 			verbose=true;
 		}
-		else if("-O"==opt && i+1<ac)
+		else if("-O"==opt && i+1<argv.size())
 		{
-			output=av[i+1];
+			output=argv[i+1];
+			++i;
+		}
+		else if("-CMD"==opt && i+1<argv.size())
+		{
+			std::ifstream ifp(argv[i+1]);
+			if(true==ifp.is_open())
+			{
+				std::vector <std::string> newArgs;
+				while(true!=ifp.eof())
+				{
+					std::string str;
+					std::getline(ifp,str);
+					newArgs.push_back(str);
+				}
+				argv.insert(argv.begin()+i+2,newArgs.begin(),newArgs.end());
+			}
+			else
+			{
+				std::cout << "Error opening the command-parameter file.\n";
+				return false;
+			}
 			++i;
 		}
 		else
@@ -1089,6 +1141,7 @@ int main(int ac,char *av[])
 	ISOImage iso;
 	if(true!=cpi.RecognizeCommandParameter(iso,ac,av))
 	{
+		CommandParameterInfo::PrintHelp();
 		return 1;
 	}
 
