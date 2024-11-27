@@ -23,6 +23,10 @@ XMS_MEMORY_START		EQU		0C0000H
 XMS_START_HIWORD		EQU		(XMS_MEMORY_START/010000H)
 XMS_START_LOWORD		EQU		(XMS_MEMORY_START&0FFFFH)
 
+VCPI_CS					EQU		68H	; I don't know why 68H, but free386 is assuming it is.
+VCPI_DS					EQU		70H
+VCPI_SS					EQU		78H
+
 
 REQ_HEADER				DD		0
 CASCADE_INT2F			DD		0
@@ -36,8 +40,6 @@ FROM_PM_DS				DW		0
 FROM_PM_FS				DW		0
 FROM_PM_GS				DW		0
 FROM_PM_EDX				DD		0
-
-HOMECOMING_CS_IP		DD		0
 
 SAVE_IO_404H			DB		0
 SAVE_IO_480H			DB		0
@@ -57,6 +59,8 @@ INTERRUPT:
 						MOV		AL,ES:[BX+REQ_COMMAND]
 						CMP		AL,DEVREQ_CMD_INIT
 						JNE		INTERRUPT_EXIT
+
+						MOV		CS:[HOMECOMING_CS],CS
 
 						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
 
@@ -203,7 +207,7 @@ INT_67H_DE01H_LOOP:		STOSD
 INT_67H_DE0CH:
 						CALL	SAVE_SYSROM_FMRVRAM_STATE_AND_UNMAP
 
-						MOV		CS:[HOMECOMING_CS_IP+2],CS
+						MOV		CS:[HOMECOMING_CS],CS ; Just in case
 
 						MOV		EAX,ESI
 						SHR		EAX,4
@@ -227,16 +231,45 @@ INT_67H_DE0CH:
 						AND		EAX,0Fh
 						LIDT	ES:[EAX]
 
-						LLDT	[SI+0CH]
-						LTR		[SI+0EH]
+						MOV		EAX,[SI+10H]
+						MOV		CS:[INT_67H_DEC0H_32BIT_CSEIP],EAX
+						MOV		AX,[SI+14H]
+						MOV		CS:[INT_67H_DEC0H_32BIT_CSEIP+4],AX
+
+						MOV		AX,[SI+0CH]
+						MOV		CS:[INT_67H_DEC0H_32BIT_LDT],AX
+						MOV		AX,[SI+0EH]
+						MOV		CS:[INT_67H_DEC0H_32BIT_TR],AX
 
 						MOV		EAX,CR0
 						OR		EAX,80000001H
 						MOV		CR0,EAX
 
-						JMP		FAR DWORD [SI+10H]
+						; JMPF	0068:INT_67H_DE0CH_32ENT
+						DB		0EAH ; JMPF
+						DW		INT_67H_DE0CH_32ENT
+						DW		VCPI_CS
+
+INT_67H_DE0CH_32ENT:
+						; LLDT and LTR are not available in the Real Mode.
+						LLDT	CS:[INT_67H_DEC0H_32BIT_LDT]
+
+						; In the real<->protected context, task register is not used.
+						; According to i386 Programmer's Reference Manual 1986,
+						; "The loaded task state segment is marked busy.  A task switch does not occur."
+						; "#GP(0) if the object named by the source selector is not a TSS or is already busy.;"
+						; If I load TR here, the first real->protected switching, TR is marked as busy, and then
+						; the second time, GP because TR is marked as busy.
+						; LTR		CS:[INT_67H_DEC0H_32BIT_TR]
+						JMP		FAR DWORD [CS:INT_67H_DEC0H_32BIT_CSEIP]
 
 						HLT
+
+INT_67H_DEC0H_32BIT_LDT:	DW		0
+INT_67H_DEC0H_32BIT_TR:		DW		0
+INT_67H_DEC0H_32BIT_CSEIP:
+						DD		0
+						DW		0
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -382,13 +415,17 @@ PROTECTED_MODE_ENTRY_DE0CH:
 						POP		EDX
 						MOV		GS:[FROM_PM_EFLAGS],EDX
 
-						MOV		WORD GS:[HOMECOMING_CS_IP],HOMECOMING_IP
-
 						MOV		EDX,CR0
 						AND		EDX,7FFFFFFEh	; Clear PM and PG
 						MOV		CR0,EDX
 
-						JMP		FAR WORD [GS:HOMECOMING_CS_IP]
+
+						; MOV		WORD GS:[HOMECOMING_CS_IP],HOMECOMING_IP
+						; JMP		FAR WORD [GS:HOMECOMING_CS_IP] <- This doesn't work in the real hardware?
+						DB		0EAH ; JMPF
+						DW		HOMECOMING_IP
+HOMECOMING_CS:			DW		0
+
 
 HOMECOMING_IP:			; OK, it resets CS.
 						MOV		DS,CS:[FROM_PM_DS]
