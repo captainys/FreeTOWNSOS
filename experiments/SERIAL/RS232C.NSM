@@ -1,0 +1,206 @@
+RS232C_INIT:
+						PUSH	AX
+						PUSH	DX
+
+						; RS232C=INT 2
+						IN		AL,0002H	; Primary-PIC Mask Register
+						OR		AL,4
+						OUT		0002H,AL
+
+						; Timer #4 must be set to Async 1/16 for 19200bps
+						; Timer #4 mode must be 2 "Rate Generator"
+						; RS232C BIOS is using mode 3 "Rectangular Rate Generator"
+						MOV		AL,076H  ; Valule based on BIOS disassembly
+						OUT		056H,AL
+
+						; RS232C BIOS Disassembly showed it writes two bytes in 0052H in a sequence.
+						MOV		AL,02H	; 04H->19200bps  02H->38400bps
+						OUT		052H,AL
+						MOV		AL,00H
+						OUT		052H,AL
+
+						MOV		DX,0A02H
+						XOR		AL,AL
+
+						CALL	RS232C_UNIT_DELAY
+						OUT		DX,AL
+						CALL	RS232C_UNIT_DELAY
+						OUT		DX,AL
+						CALL	RS232C_UNIT_DELAY
+						OUT		DX,AL
+						CALL	RS232C_UNIT_DELAY
+
+						MOV		AL,040H		; Internal reset
+						OUT		DX,AL
+						CALL	RS232C_UNIT_DELAY
+
+
+						; 04EH
+						; S2 S1 Ep PN L2 L1 B2 B1
+						;  0  1  0  0  1  1  1  0
+						; S2=0, S1=1 -> 1 stop bit
+						; PN=0       -> No parity
+						; L2=1, L1=1 -> 8 bit
+						; B2=1, B1=0 -> 1/16 scalar
+						MOV		AL,4EH
+						OUT		DX,AL
+						CALL	RS232C_UNIT_DELAY
+
+
+						; 0B7H
+						; ON	Sync Char search (?), 
+						; OFF	Internal Reset,
+						; ON	RTS request
+						; ON	Clear Error Flags
+						; OFF	Break
+						; ON	RXE Receive Enable
+						; ON	DTR Treminal Ready
+						; ON	TXE Transmission Enable
+						MOV		AL,0B7H
+						OUT		DX,AL
+						CALL	RS232C_UNIT_DELAY
+
+
+						MOV		DX,0A08H
+						MOV		AL,020H  ; DTR=1, Internal Clock for Rx and Tx
+						OUT		DX,AL
+
+
+						; Make sure it is ready to transmit
+						CALL	RS232C_WAIT_TX_READY
+
+						POP		DX
+						POP		AX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_WAIT_TX_READY:
+						PUSH	AX
+						PUSH	DX
+
+						MOV		DX,0A02H
+						IN		AL,DX
+						AND		AL,03H		; Just exit if RxD.
+
+						POP		DX
+						POP		AX
+						JE		RS232C_WAIT_TX_READY
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_UNIT_DELAY:
+						PUSH	CX
+						MOV		CX,256
+RS232C_UNIT_DELAY_LOOP:
+						DEC		CX
+						JNE		RS232C_UNIT_DELAY_LOOP
+
+						POP		CX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_PUTC:
+						PUSH	DX
+
+						CALL	RS232C_WAIT_TX_READY
+						MOV		DX,0A00H
+						OUT		DX,AL
+
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; AL -> AH|AL
+RS232C_ITOX8:
+						MOV		AH,AL
+						AND		AL,0FH
+						ShR		AH,4
+
+						CMP		AL,10
+						JAE		RS232C_ITOX8_1
+						ADD		AL,'0'
+						JMP		RS232C_ITOX8_2
+RS232C_ITOX8_1:
+						ADD		AL,'A'-10
+RS232C_ITOX8_2:
+
+						CMP		AH,10
+						JAE		RS232C_ITOX8_3
+						ADD		AH,'0'
+						JMP		RS232C_ITOX8_4
+RS232C_ITOX8_3:
+						ADD		AH,'A'-10
+RS232C_ITOX8_4:
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_AL:
+						PUSH	AX
+
+						CALL	RS232C_ITOX8
+						XCHG	AL,AH
+						CALL	RS232C_PUTC
+						XCHG	AL,AH
+						CALL	RS232C_PUTC
+
+						POP		AX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_AX:
+						XCHG	AL,AH
+						CALL	RS232C_AL
+						XCHG	AL,AH
+						CALL	RS232C_AL
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_EAX:
+						ROL		EAX,16
+						CALL	RS232C_AX
+						ROL		EAX,16
+						CALL	RS232C_AX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_CRLF:
+						PUSH	AX
+						MOV		AL,0DH
+						CALL	RS232C_PUTC
+						MOV		AL,0AH
+						CALL	RS232C_PUTC
+						POP		AX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RS232C_CSTR_CSDI:
+						PUSH	DX
+						PUSH	CX
+						PUSH	AX
+
+RS232C_CSTR_CSDI_LOOP:
+						MOV		AL,CS:[DI]
+						CMP		AL,0
+						JE		RS232C_CSTR_CSDI_EXIT
+						CALL	RS232C_PUTC
+						INC		DI
+						JMP		RS232C_CSTR_CSDI_LOOP
+
+RS232C_CSTR_CSDI_EXIT:
+						POP		AX
+						POP		CX
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

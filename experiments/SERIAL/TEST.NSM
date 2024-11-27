@@ -1,0 +1,18 @@
+					BITS	16
+
+					ORG		100H
+MAIN:
+					CALL	RS232C_INIT
+
+					MOV		DI,MSG
+					CALL	RS232C_CSTR_CSDI
+
+					MOV		EAX,0ABCDEF01H
+					CALL	RS232C_EAX
+
+					MOV		AH,4CH
+					INT		21H
+
+					%include "RS232C.NSM"
+
+MSG:				DB		"RS232C Message",0
