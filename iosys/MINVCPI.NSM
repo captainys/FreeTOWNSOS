@@ -415,6 +415,15 @@ PROTECTED_MODE_ENTRY_DE0CH:
 						POP		EDX
 						MOV		GS:[FROM_PM_EFLAGS],EDX
 
+						; Do I need to clear operand-size and granurarity bits of the segment registers?
+						; Free386 does that.
+						MOV		DX,VCPI_DS
+						MOV		DS,DX
+						MOV		ES,DX
+						MOV		FS,DX
+						MOV		GS,DX
+						MOV		SS,DX	; Danger.  No call, no push, pull from this line.
+
 						MOV		EDX,CR0
 						AND		EDX,7FFFFFFEh	; Clear PM and PG
 						MOV		CR0,EDX
