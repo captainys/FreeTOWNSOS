@@ -428,6 +428,8 @@ HOMECOMING_CS:			DW		0
 
 
 HOMECOMING_IP:			; OK, it resets CS.
+						LIDT	CS:[REAL_MODE_IDT]
+
 						MOV		DS,CS:[FROM_PM_DS]
 						MOV		ES,CS:[FROM_PM_ES]
 						MOV		FS,CS:[FROM_PM_FS]
@@ -445,6 +447,8 @@ HOMECOMING_IP:			; OK, it resets CS.
 						JMP		FAR [CS:FROM_PM_CS_IP]
 
 						HLT
+
+REAL_MODE_IDT:			DW		03FFh,0,0
 
 
 
