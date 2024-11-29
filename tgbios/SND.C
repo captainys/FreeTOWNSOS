@@ -192,7 +192,6 @@ void SND_INIT(
 	_Far unsigned int *SNDWorkStore;
 	_Far struct SND_Work *work;
 
-	_PUSHFD
 	_CLI
 
 	_FP_SEG(work)=GS;
@@ -257,8 +256,6 @@ void SND_INIT(
 	_outb(TOWNSIO_SOUND_PCM_INT_MASK,0);
 
 	SND_SetError(EAX,SND_NO_ERROR);
-
-	_POPFD
 }
 void SND_KEY_ON(
 	unsigned int EDI,
@@ -384,7 +381,6 @@ void SND_KEY_ON(
 			}
 			if(NULL!=sound)
 			{
-				_PUSHFD
 				_CLI
 
 				unsigned short curVol,playVol;
@@ -461,8 +457,6 @@ void SND_KEY_ON(
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
 				stat->PCMKey&=~keyFlag;
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
-
-				_POPFD
 			}
 		}
 	}
@@ -503,7 +497,6 @@ void SND_KEY_OFF(
 		ch-=SND_PCM_CHANNEL_START;
 		if(stat->PCMCh[ch].playing)
 		{
-			_PUSHFD
 			_CLI
 			if(0==stat->PCMCh[ch].env.RR || 0==stat->PCMCh[ch].env.enabled)
 			{
@@ -526,7 +519,6 @@ void SND_KEY_OFF(
 					stat->PCMCh[ch].balance=0;
 				}
 			}
-			_POPFD
 		}
 	}
 	else
@@ -1545,13 +1537,10 @@ void SND_27H_PCM_PCM_VOICE_STOP(
 		return;
 	}
 
-	_PUSHFD
 	_CLI
 
 	stat->PCMKey|=keyFlag;
 	_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
-
-	_POPFD
 }
 
 void SND_28H_PCM_PCM_VOICE_STATUS(
@@ -1793,7 +1782,6 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 	_FP_SEG(sndData)=DS;
 	_FP_OFF(sndData)=ESI;
 
-	_PUSHFD
 	_CLI
 	{
 		info->PCMCh[ch].header=sndData;
@@ -1905,7 +1893,6 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 			_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
 		}
 	}
-	_POPFD
 
 	SND_SetError(EAX,SND_NO_ERROR);
 }
