@@ -1,8 +1,22 @@
 #include "RSDEBUG.H"
+#include "MACRO.H"
+
+#define RS232C_UNIT_DELAY \
+{ \
+	int i; \
+	for(i=16; 0<=i; --i) \
+	{ \
+		_outb(0x6C,0); \
+	} \
+}
 
 void RS232C_INIT(void)
 {
 	int i;
+	unsigned char imsk;
+
+	_CLI;
+
 	for(i=0; i<1000; ++i)// Just in case, if something is in the buffer.  Wait for at least 1ms.
 	{
 		_outb(0x6C,0);
@@ -12,7 +26,9 @@ void RS232C_INIT(void)
 	//IN		AL,0002H	; Primary-PIC Mask Register
 	//OR		AL,4
 	//OUT		0002H,AL
-	_outb(0x02,_inb(0x02)|4);
+	imsk=_inb(0x02)|4;
+	RS232C_UNIT_DELAY;
+	_outb(0x02,imsk);
 
 	//; Timer #4 must be set to Async 1/16 for 19200bps
 	//; Timer #4 mode must be 2 "Rate Generator"
@@ -39,23 +55,18 @@ void RS232C_INIT(void)
 	//CALL	RS232C_UNIT_DELAY
 	//OUT		DX,AL
 	//CALL	RS232C_UNIT_DELAY
-	_outb(0x6C,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
 	_outb(0xA02,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
+	RS232C_UNIT_DELAY;
 	_outb(0xA02,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
+	RS232C_UNIT_DELAY;
 	_outb(0xA02,0);
+	RS232C_UNIT_DELAY;
 
 	//MOV		AL,040H		; Internal reset
 	//OUT		DX,AL
 	//CALL	RS232C_UNIT_DELAY
 	_outb(0xA02,0x40);
+	RS232C_UNIT_DELAY;
 
 	//; 04EH
 	//; S2 S1 Ep PN L2 L1 B2 B1
@@ -68,9 +79,7 @@ void RS232C_INIT(void)
 	//OUT		DX,AL
 	//CALL	RS232C_UNIT_DELAY
 	_outb(0xA02,0x4E);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
+	RS232C_UNIT_DELAY;
 
 	//; 0B7H
 	//; ON	Sync Char search (?), 
@@ -85,22 +94,20 @@ void RS232C_INIT(void)
 	//OUT		DX,AL
 	//CALL	RS232C_UNIT_DELAY
 	_outb(0xA02,0xB7);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
+	RS232C_UNIT_DELAY;
 
 	//MOV		DX,0A08H
 	//MOV		AL,020H  ; DTR=1, Internal Clock for Rx and Tx
 	//OUT		DX,AL
 	_outb(0xA08,0x20);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
-	_outb(0x6C,0);
+	RS232C_UNIT_DELAY;
 
 
 	//; Make sure it is ready to transmit
 	//CALL	RS232C_WAIT_TX_READY
 	RS232C_WAIT_TX_READY();
+
+	_STI;
 }
 
 void RS232C_WAIT_TX_READY(void)
