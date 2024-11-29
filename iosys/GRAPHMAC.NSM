@@ -1,0 +1,3 @@
+%macro				TEXTLOCATION	2
+					MOV		DI,(%2)*80*16+(%1)
+%endmacro
