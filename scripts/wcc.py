@@ -23,22 +23,30 @@ def SetENV():
 
 def WatcomBuild(SRCS):
 	for src in SRCS:
-		cmd=["wcc","-ms","-3","-os","-s","-bt=DOS",src]
-		# -ms     Small memory model (supposed to be, but no effect)
-		# -3      386.  For eliminating absurd 8-bit limit for conditional jumps.  6809 did better than 8086.
-		# -os     Optimize for size.  Open Watcom C creates slightly bigger binary if I use this option though.  WTF!
-		# -s      Eliminate stack-overflow check.  This eliminates reference to mysterious __STK label.
-		# -bt=DOS DOS binary.
-		proc=subprocess.Popen(cmd)
-		proc.communicate()
-		if 0!=proc.returncode:
-			quit(1)
+		FN=src.upper()
+		EXT=os.path.splitext(FN)[1]
+		if EXT==".C" or EXT==".CPP":
+			cmd=["wcc","-ms","-3","-os","-s","-bt=DOS",src]
+			# -ms     Small memory model (supposed to be, but no effect)
+			# -3      386.  For eliminating absurd 8-bit limit for conditional jumps.  6809 did better than 8086.
+			# -os     Optimize for size.  Open Watcom C creates slightly bigger binary if I use this option though.  WTF!
+			# -s      Eliminate stack-overflow check.  This eliminates reference to mysterious __STK label.
+			# -bt=DOS DOS binary.
+			proc=subprocess.Popen(cmd)
+			proc.communicate()
+			if 0!=proc.returncode:
+				quit(1)
 
 	OBJS=""
 	for src in SRCS:
 		if 0!=len(OBJS):
 			OBJS+=","
-		OBJS+=os.path.splitext(src)[0]+".OBJ"
+		FN=src.upper()
+		EXT=os.path.splitext(FN)[1]
+		if EXT==".C" or EXT==".CPP":
+			OBJS+=os.path.splitext(src)[0]+".OBJ"
+		else:
+			OBJS+=src
 
 	cmd=["wlink",
 		"system",  "com",
@@ -60,5 +68,5 @@ def main(argv):
 
 
 if __name__=="__main__":
-	os.chdir(THISDIR)
+	# os.chdir(THISDIR)
 	main(sys.argv)
