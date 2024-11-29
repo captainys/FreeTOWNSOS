@@ -1,0 +1,32 @@
+; This hack code can be written to a part of DISK BIOS to test if the control is entering specific location.
+
+							BITS	16
+
+%macro						_outb	2
+							MOV		DX,%1
+							MOV		AL,%2
+							OUT		DX,AL
+%endmacro
+
+%macro						palette	4
+
+							_outb 	0x448,1
+							_outb 	0x44A,0x25
+							_outb 	0xFD90,%1
+							_outb 	0xFD92,%2
+							_outb 	0xFD94,%3
+							_outb 	0xFD96,%4
+							_outb 	0x448,1
+							_outb 	0x44A,0x05
+							_outb 	0xFD90,%1
+							_outb 	0xFD92,%2
+							_outb 	0xFD94,%3
+							_outb 	0xFD96,%4
+
+%endm
+
+.loop:
+							palette	7,255,0,0
+							palette	7,0,255,0
+							sti
+							jmp		.loop
