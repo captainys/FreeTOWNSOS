@@ -533,8 +533,8 @@ INT93H_FD_WAIT_INT46:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Input AL drive 0,1,2, or 3
-; Output AL Control Byte
-;        AH Speed Byte
+; Output AL Control Byte (CLKSEL, MOTOR, SIDE, DDEN, IRQMSK)
+;        AH Speed Byte (HISPD, INUSE, MODE_B, DRV_SEL)  DRV_SEL bits will be clear in this output.
 INT93H_FD_CTRL_BYTE_FROM_DRV_MODE:
 						PUSH	EBX
 
