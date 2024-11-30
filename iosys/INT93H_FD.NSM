@@ -5,7 +5,7 @@ FDMODE_NUM_HEAD_MASK	EQU		0x0000FF00
 FDMODE_NUM_SECT_MASK	EQU		0x000000FF
 
 FDC_CTL_CLKSEL 			EQU		020h
-FDC_CTL_MOTOR  			EQU		010h
+FDC_CTL_MOTOR  			EQU		050h	; FM TOWNS Technical Databook p.774 tells external drive mortor is controlled by bit 6.
 FDC_CTL_SIDE   			EQU		004h
 FDC_CTL_MFM    			EQU		002h
 FDC_CTL_IRQEN  			EQU		001h
@@ -16,6 +16,7 @@ FDC_SPD_MODE_B 			EQU		080h
 FDC_SPD_360RPM 			EQU		040h
 FDC_SPD_INUSE  			EQU		010h
 
+INT93H_FD_MOTOR_OFF_TIMEOUT		EQU		300		; Times 10ms=3000ms to turn off motors.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; FOR DEBUGGING ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -33,6 +34,8 @@ INT93_FD_CURRENT_CYL	DB		0,0,0,0
 INT93_FD_SEEK_STEP		DB		1,1,1,1
 INT93_FD_MOTOR			DB		0,0,0,0
 
+INT93_FD_MOTOR_OFF_TIMER	DW	0	; When timer counts down from 1 to 0, it will stop the motor.
+
 ; Must check FREADY flag every 1 second and set the flag if FREADY=0
 INT93_FD_DISKCHANGE		DB		0	; bit0 A drive changed  bit 1 B drive changed (detected FREADY=0)
 INT93H_FD_IS_BUSY		DB		0
@@ -41,6 +44,7 @@ INT93H_CHECK_DISKCHANGE_COUNT	DB	0		; Once every 100*10ms
 
 INT93H_FD:
 						MOV		BYTE CS:[INT93H_FD_IS_BUSY],1	; Will be reset on exit INT 93H
+						MOV		WORD CS:[INT93_FD_MOTOR_OFF_TIMER],INT93H_FD_MOTOR_OFF_TIMEOUT
 						MOV		BYTE CS:[ERROR_CODE],80H
 						MOV		WORD CS:[ERROR_DETAIL],0FFFFh
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0
@@ -49,10 +53,18 @@ INT93H_FD:
 						JE		INT93H_FD_CHECK_DISK_CHANGE
 
 						CMP		AH,0DH
-						JA		INT93H_EXIT
+						JA		INT93H_FD_EXIT
 						MOVZX	BX,AH
 						SHL		BX,1
-						JMP		[CS:BX+INT93H_FD_JUMPTABLE]
+						JMP		[CS:BX+INT93H_FD_JUMPTABLE]	; Why JMP?  Because I can save two bytes of the stack.
+
+INT93H_FD_EXIT_NO_ERROR:
+						MOV		BYTE CS:[INT93H_FD_IS_BUSY],0
+						JMP		INT93H_EXIT_NO_ERROR
+
+INT93H_FD_EXIT:
+						MOV		BYTE CS:[INT93H_FD_IS_BUSY],0
+						JMP		INT93H_EXIT
 
 INT93H_FD_JUMPTABLE:	DW		INT93H_FD_SET_DRIVE_MODE     ; 00H
 						DW		INT93H_FD_GET_DRIVE_MODE     ; 01H
@@ -62,12 +74,15 @@ INT93H_FD_JUMPTABLE:	DW		INT93H_FD_SET_DRIVE_MODE     ; 00H
 						DW		INT93H_FD_READ               ; 05H
 						DW		INT93H_FD_WRITE              ; 06H
 						DW		INT93H_FD_CHECK_SECTOR       ; 07H
-						DW		INT93H_EXIT                  ; 08H (For HDD only)
+						DW		INT93H_FD_EXIT               ; 08H (For HDD only)
 						DW		INT93H_FD_READADDR           ; 09H
 						DW		INT93H_FD_FORMAT             ; 0AH
-						DW		INT93H_EXIT                  ; 0BH
-						DW		INT93H_EXIT                  ; 0CH
+						DW		INT93H_FD_EXIT               ; 0BH
+						DW		INT93H_FD_EXIT               ; 0CH
 						DW		INT93H_FD_GET_ERROR_DETAIL   ; 0DH
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_SET_DRIVE_MODE:
@@ -75,7 +90,7 @@ INT93H_FD_SET_DRIVE_MODE:
 						MOV		AL,[BP+SAVED_EAX]
 						AND		AL,0FH
 						CMP		AL,3
-						JA		INT93H_EXIT
+						JA		INT93H_FD_EXIT
 
 						SHL		EDX,16
 						MOV		BX,DX
@@ -83,13 +98,16 @@ INT93H_FD_SET_DRIVE_MODE:
 						MOV		EBX,EDX
 						AND		EBX,FDMODE_TYPE_MASK
 						CMP		EBX,0x00300000
-						JE		INT93H_EXIT
+						JE		INT93H_FD_EXIT
 
 						SHL		AL,2
 						MOVZX	DI,AL
 						MOV		CS:[INT93_FD_MODE+DI],EDX
 
-						JMP		INT93H_EXIT_NO_ERROR
+						JMP		INT93H_FD_EXIT_NO_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_GET_DRIVE_MODE:
@@ -97,7 +115,7 @@ INT93H_FD_GET_DRIVE_MODE:
 						MOV		AL,[BP+SAVED_EAX]
 						AND		AL,0FH
 						CMP		AL,3
-						JA		INT93H_EXIT
+						JA		INT93H_FD_EXIT
 
 						SHL		AL,2
 						MOVZX	DI,AL
@@ -108,17 +126,23 @@ INT93H_FD_GET_DRIVE_MODE:
 						MOV		[BP+SAVED_EDX],DL
 
 						MOV		BYTE CS:[ERROR_CODE],0
-						JMP		INT93H_EXIT_NO_ERROR
+						JMP		INT93H_FD_EXIT_NO_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_GET_DRIVE_STATUS:
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_RESTORE:
 						MOV		AL,[BP+SAVED_EAX]
 						AND		AL,3
-						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_SELECT_DRIVE_IN_USE
 						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
 
 						XOR		DH,DH	; Side 0
@@ -140,7 +164,10 @@ INT93H_FD_RESTORE:
 						AND		BL,3
 						MOV		BYTE CS:[INT93_FD_CURRENT_CYL+BX],0
 
-						JMP		INT93H_EXIT
+						MOV		AL,[BP+SAVED_EAX]
+						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
+
+						JMP		INT93H_FD_EXIT
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -159,7 +186,7 @@ INT93H_FD_SEEK:
 						TEST	AL,080H
 						JNE		INT93H_FD_DRIVE_NOT_READY
 
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -178,7 +205,7 @@ INT93H_FD_SEEK_INTERNAL:
 
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0
 
-						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_SELECT_DRIVE_IN_USE
 						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
 						XOR		DH,DH ; Side 0
 						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
@@ -222,6 +249,8 @@ INT93H_FD_SEEK_INTERNAL:
 						MOV		CS:[INT93_FD_CURRENT_CYL+BX],AL
 
 						POP		AX
+						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
+
 						XOR		DH,DH ; Side 0
 						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
 						POP		BX
@@ -243,7 +272,7 @@ INT93H_FD_READ:
 						MOV		DX,[BP+SAVED_EDX]
 
 						AND		BX,BX
-						JE		INT93H_EXIT_NO_ERROR
+						JE		INT93H_FD_EXIT_NO_ERROR
 
 						MOV		WORD CS:[INT93H_READ_OR_WRITE],INT93H_FD_READ_INTERNAL
 						; Fall down to INT93H_FD_RW_CYLINDER_LOOP
@@ -284,7 +313,7 @@ INT93H_FD_RW_SECTOR_LOOP:
 						CALL	INT93H_FD_SECTLEN_FROM_DRV
 						ADD		DI,AX
 						DEC		BX
-						JE		INT93H_EXIT_NO_ERROR
+						JE		INT93H_FD_EXIT_NO_ERROR
 
 						INC		DL	; Next Sector
 						MOV		AL,[BP+SAVED_EAX]
@@ -323,7 +352,7 @@ INT93H_FD_READ_INTERNAL:
 
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0
 
-						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_SELECT_DRIVE_IN_USE
 						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
 
 						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
@@ -385,6 +414,7 @@ INT93H_FD_READ_INTERNAL:
 
 
 						POP		AX
+						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
 
 						MOV		DX,IO_FDC_STATUS
 						IN		AL,DX
@@ -408,7 +438,7 @@ INT93H_FD_WRITE:
 						MOV		DX,[BP+SAVED_EDX]
 
 						AND		BX,BX
-						JE		INT93H_EXIT_NO_ERROR
+						JE		INT93H_FD_EXIT_NO_ERROR
 
 						MOV		WORD CS:[INT93H_READ_OR_WRITE],INT93H_FD_WRITE_INTERNAL
 						JMP		INT93H_FD_RW_CYLINDER_LOOP
@@ -435,7 +465,7 @@ INT93H_FD_WRITE_INTERNAL:
 
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0
 
-						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_SELECT_DRIVE_IN_USE
 						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
 
 						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
@@ -481,6 +511,7 @@ INT93H_FD_WRITE_INTERNAL:
 						CALL	INT93H_DMA_MASK
 
 						POP		AX
+						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
 
 						MOV		DX,IO_FDC_STATUS
 						IN		AL,DX
@@ -495,28 +526,28 @@ INT93H_FD_WRITE_INTERNAL:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_FD_CHECK_SECTOR:
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_READADDR:
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_FORMAT:
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_FD_GET_ERROR_DETAIL:
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -654,17 +685,36 @@ INT93H_FD_WAIT_FDC_READY_LOOP:
 
 
 ; Input AL drive number
-INT93H_FD_SELECT_DRIVE:
+INT93H_FD_SELECT_DRIVE_IN_USE:
 						PUSH	AX
 						PUSH	CX
 						PUSH	DX
 
+						AND		AL,3
 						MOV		CH,1
 						MOV		CL,AL
 						SHL		CH,CL
 
 						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
+						JMP		INT93H_FD_SELECT_DRIVE_REST
 
+
+; Input AL drive number
+INT93H_FD_SELECT_DRIVE_NOT_IN_USE:
+						PUSH	AX
+						PUSH	CX
+						PUSH	DX
+
+						AND		AL,3
+						MOV		CH,1
+						MOV		CL,AL
+						SHL		CH,CL
+
+						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
+						AND		AH,(~FDC_SPD_INUSE)
+
+
+INT93H_FD_SELECT_DRIVE_REST:
 						MOV		DX,IO_FDC_DRIVE_SELECT
 						XCHG	AL,AH
 						; AL is speedByte
@@ -769,7 +819,7 @@ INT93H_FD_24H_DO_NOT_CLEAR_FLAG:
 
 						OR		CS:[INT93_FD_DISKCHANGE],AH
 						MOV		BYTE [BP+SAVED_EAX],2
-						JMP		INT93H_EXIT_NO_ERROR
+						JMP		INT93H_FD_EXIT_NO_ERROR
 
 INT93H_FD_24H_DRIVE_READY:
 						MOV		BYTE [BP+SAVED_EAX],0
@@ -779,7 +829,7 @@ INT93H_FD_24H_DRIVE_READY:
 
 INT93H_FD_24H_NO_CHANGE:
 						AND		CS:[INT93_FD_DISKCHANGE],BL
-						JMP		INT93H_EXIT_NO_ERROR
+						JMP		INT93H_FD_EXIT_NO_ERROR
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -822,6 +872,17 @@ INT93H_CHECK_FD_CHANGE_CALLBACK:
 						CMP		BYTE CS:[INT93H_FD_IS_BUSY],0
 						JNE		SHORT INT93H_CHECK_FD_CHANGE_BUSY
 
+						CMP		WORD CS:[INT93_FD_MOTOR_OFF_TIMER],0
+						JE		INT93H_FD_CHECKED_MOTOR_TIMEOUT
+
+						DEC		WORD CS:[INT93_FD_MOTOR_OFF_TIMER]
+						JNE		INT93H_FD_CHECKED_MOTOR_TIMEOUT
+
+						; MOTOR-OFF TIMER counted down to zero.
+						; No FD-BIOS activities for (INT93H_FD_MOTOR_OFF_TIMEOUT*10) ms.
+
+
+INT93H_FD_CHECKED_MOTOR_TIMEOUT:
 						CMP		BYTE CS:[INT93H_CHECK_DISKCHANGE_COUNT],100
 						JB		SHORT INT93H_CHECK_FD_CHANGE_NOTYET
 
@@ -834,7 +895,7 @@ INT93H_CHECK_FD_CHANGE_CALLBACK:
 INT93H_CHECK_FD_CHANGE_LOOP:
 						PUSH	AX
 
-						CALL	INT93H_FD_SELECT_DRIVE
+						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
 
 						MOV		DX,IO_FDC_DRIVE_STATUS
 						IN		AL,DX
@@ -901,6 +962,6 @@ INT93H_FD_UNKNOWN_ERROR:
 
 INT93H_FD_HARDERROR:
 						MOV		BYTE CS:[ERROR_CODE],080H
-						JMP		INT93H_EXIT
+						JMP		INT93H_FD_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
