@@ -16,7 +16,7 @@ FDC_SPD_MODE_B 			EQU		080h
 FDC_SPD_360RPM 			EQU		040h
 FDC_SPD_INUSE  			EQU		010h
 
-INT93H_FD_MOTOR_OFF_TIMEOUT		EQU		300		; Times 10ms=3000ms to turn off motors.
+INT93H_FD_MOTOR_OFF_TIMEOUT		EQU		1000		; Times 10ms=10000ms to turn off motors.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; FOR DEBUGGING ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,9 +39,10 @@ INT93_FD_LAST_DRV_CTRL_REG	DB		0
 INT93_FD_MOTOR_OFF_TIMER	DW	0	; When timer counts down from 1 to 0, it will stop the motor.
 
 ; Must check FREADY flag every 1 second and set the flag if FREADY=0
-INT93_FD_DISKCHANGE		DB		0	; bit0 A drive changed  bit 1 B drive changed (detected FREADY=0)
+INT93_FD_DISKCHANGE		DB		0ffh	; bit0 A drive changed  bit 1 B drive changed (detected FREADY=0)
 INT93H_FD_IS_BUSY		DB		0
 INT93H_READ_OR_WRITE:	DW		0
+INT93H_READ_OR_WRITE_ERROR_HANDLER:	DW		0
 INT93H_CHECK_DISKCHANGE_COUNT	DB	0		; Once every 100*10ms
 
 
@@ -50,7 +51,6 @@ INT93H_CHECK_DISKCHANGE_COUNT	DB	0		; Once every 100*10ms
 						MOV		DX,IO_FDC_DRIVE_CONTROL
 						OUT		DX,AL
 %endmacro
-
 
 INT93H_FD:
 						MOV		BYTE CS:[INT93H_FD_IS_BUSY],1	; Will be reset on exit INT 93H
@@ -177,7 +177,11 @@ INT93H_FD_RESTORE:
 						MOV		AL,[BP+SAVED_EAX]
 						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
 
-						JMP		INT93H_FD_EXIT
+						MOV		DX,IO_FDC_STATUS
+						IN		AL,DX
+						CALL	INT93H_FD_HANDLE_SEEK_ERROR
+
+						JMP		INT93H_FD_EXIT_NO_ERROR
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -190,13 +194,9 @@ INT93H_FD_SEEK:
 
 						MOV		DX,IO_FDC_STATUS
 						IN		AL,DX
+						CALL	INT93H_FD_HANDLE_SEEK_ERROR
 
-						TEST	AL,010H
-						JNE		INT93H_FD_SEEK_ERROR
-						TEST	AL,080H
-						JNE		INT93H_FD_DRIVE_NOT_READY
-
-						JMP		INT93H_FD_EXIT
+						JMP		INT93H_FD_EXIT_NO_ERROR
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -285,6 +285,7 @@ INT93H_FD_READ:
 						JE		INT93H_FD_EXIT_NO_ERROR
 
 						MOV		WORD CS:[INT93H_READ_OR_WRITE],INT93H_FD_READ_INTERNAL
+						MOV		WORD CS:[INT93H_READ_OR_WRITE_ERROR_HANDLER],INT93H_FD_HANDLE_READ_ERROR
 						; Fall down to INT93H_FD_RW_CYLINDER_LOOP
 
 
@@ -303,20 +304,7 @@ INT93H_FD_RW_SECTOR_LOOP:
 						POP		CX
 						POP		BX
 
-						TEST	AL,IOERR_NOT_READY
-						JNE		INT93H_FD_DRIVE_NOT_READY
-						TEST	AL,IOERR_WRITE_PROTECTED
-						JNE		INT93H_FD_WRITE_PROTECTED
-						TEST	AL,IOERR_DELETED_DATA
-						JNE		INT93H_FD_DELETED_DATA_ERROR
-						TEST	AL,IOERR_RECORD_NOT_FOUND
-						JNE		INT93H_FD_RECORD_NOT_FOUND_ERROR
-						TEST	AL,IOERR_CRC
-						JNE		INT93H_FD_CRC_ERROR
-						TEST	AL,IOERR_LOST_DATA
-						JNE		INT93H_FD_LOST_DATA
-						TEST	AL,IOERR_DATA_REQUEST+IOERR_BUSY
-						JNE		INT93H_FD_UNKNOWN_ERROR
+						CALL	[CS:INT93H_READ_OR_WRITE_ERROR_HANDLER]	; This may jump out to INT93H_FD_EXIT or INT93H_FD_EXIT_NO_ERROR
 
 						; One sector was read/written with no error.
 						MOV		AL,[BP+SAVED_EAX]
@@ -451,6 +439,7 @@ INT93H_FD_WRITE:
 						JE		INT93H_FD_EXIT_NO_ERROR
 
 						MOV		WORD CS:[INT93H_READ_OR_WRITE],INT93H_FD_WRITE_INTERNAL
+						MOV		WORD CS:[INT93H_READ_OR_WRITE_ERROR_HANDLER],INT93H_FD_HANDLE_WRITE_ERROR
 						JMP		INT93H_FD_RW_CYLINDER_LOOP
 
 
@@ -541,9 +530,65 @@ INT93H_FD_CHECK_SECTOR:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 INT93H_FD_READADDR:
-						JMP		INT93H_FD_EXIT
+						; AL Dev ID (Lost need refetch)
+						; CX Cylinder
+						; DH Head
+						; DS:DI Buffer addr
+
+						MOV		AL,[BP+SAVED_EAX]
+						MOV		CX,[BP+SAVED_ECX]
+						CALL	INT93H_FD_SEEK_INTERNAL
+
+						CALL	INT93H_FD_WAIT_FDC_READY
+						CLI
+
+						MOV		BYTE CS:[INT46H_DID_COME_IN],0
+
+						CALL	INT93H_FD_SELECT_DRIVE_IN_USE
+						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
+
+						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
+
+
+
+						MOVZX	EDX,WORD [BP+SAVED_DS]
+						SHL		EDX,4
+						MOVZX	EDI,WORD [BP+SAVED_EDI]
+						ADD		EDX,EDI
+						MOV		AL,DMA_CHANNEL_FD
+						MOV		CX,6
+						CALL	INT93H_DMA_SETUP_READ
+						; Input
+						;   AL  DMA Channel
+						;   EDX Physical Address
+						;   CX  Count
+
+						STI
+						XCHG	BX,DX		; Restore sector and side
+						CALL	INT93H_FD_DRIVE_CONTROL_IRQEN
+
+						CALL	INT93H_FD_WAIT_FDC_READY
+
+						MOV		AL,FDCCMD_READADDR
+						MOV		DX,IO_FDC_COMMAND
+						OUT		DX,AL
+
+						CALL	INT93H_FD_WAIT_INT46
+
+						CALL	INT93H_FD_DRIVE_CONTROL_IRQDIS
+
+						MOV		AL,DMA_CHANNEL_FD
+						CALL	INT93H_DMA_MASK
+
+						MOV		AL,[BP+SAVED_EAX]
+						CALL	INT93H_FD_SELECT_DRIVE_NOT_IN_USE
+
+						MOV		DX,IO_FDC_STATUS
+						IN		AL,DX
+						CALL	INT93H_FD_HANDLE_READ_ERROR	; This may jump out to INT93H_FD_EXIT or INT93H_FD_EXIT_NO_ERROR
+
+						JMP		INT93H_FD_EXIT_NO_ERROR
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -938,7 +983,68 @@ INT93H_CHECK_FD_CHANGE_NOTYET:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+INT93H_FD_HANDLE_SEEK_ERROR:
+						AND		AL,099H	; Exclude WRITE PROTECTED, HEAD ENGAGED, TRK00, and INDEX
+						JNE		INT93H_FD_DO_HANDLE_SEEK_ERROR
+						RET
 
+INT93H_FD_DO_HANDLE_SEEK_ERROR:
+						ADD		SP,2
+						TEST	AL,IOERR_NOT_READY
+						JNE		INT93H_FD_DRIVE_NOT_READY
+						TEST	AL,IOERR_SEEK_ERROR
+						JNE		INT93H_FD_SEEK_ERROR
+						TEST	AL,IOERR_CRC
+						JNE		INT93H_FD_CRC_ERROR
+						JMP		INT93H_FD_UNKNOWN_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_FD_HANDLE_READ_ERROR:
+						AND		AL,0BFh
+						JNE		INT93H_FD_DO_HANDLE_READ_ERROR
+						RET
+
+INT93H_FD_DO_HANDLE_READ_ERROR:
+						ADD		SP,2
+						TEST	AL,IOERR_NOT_READY
+						JNE		INT93H_FD_DRIVE_NOT_READY
+						TEST	AL,IOERR_DELETED_DATA
+						JNE		INT93H_FD_DELETED_DATA_ERROR
+						TEST	AL,IOERR_RECORD_NOT_FOUND
+						JNE		INT93H_FD_RECORD_NOT_FOUND_ERROR
+						TEST	AL,IOERR_CRC
+						JNE		INT93H_FD_CRC_ERROR
+						TEST	AL,IOERR_LOST_DATA
+						JNE		INT93H_FD_LOST_DATA
+						JMP		INT93H_FD_UNKNOWN_ERROR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_FD_HANDLE_WRITE_ERROR:
+						AND		AL,AL
+						JNE		INT93H_FD_DO_HANDLE_WRITE_ERROR
+						RET
+INT93H_FD_DO_HANDLE_WRITE_ERROR:
+						ADD		SP,2
+						TEST	AL,IOERR_NOT_READY
+						JNE		INT93H_FD_DRIVE_NOT_READY
+						TEST	AL,IOERR_WRITE_PROTECTED
+						JNE		INT93H_FD_WRITE_PROTECTED
+						TEST	AL,IOERR_WRITE_FAULT
+						JNE		INT93H_FD_WRITE_FAULT_ERROR
+						TEST	AL,IOERR_RECORD_NOT_FOUND
+						JNE		INT93H_FD_RECORD_NOT_FOUND_ERROR
+						TEST	AL,IOERR_CRC
+						JNE		INT93H_FD_CRC_ERROR
+						TEST	AL,IOERR_LOST_DATA
+						JNE		INT93H_FD_LOST_DATA
+						JMP		INT93H_FD_UNKNOWN_ERROR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_FD_WRITE_FAULT_ERROR:
 INT93H_FD_SEEK_ERROR:
 						MOV		WORD CS:[ERROR_DETAIL],0ffffh
 						JMP		INT93H_FD_HARDERROR

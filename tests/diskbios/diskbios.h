@@ -14,6 +14,7 @@ int DKB_rdstatus2(int devno,unsigned int *mode,long *numSect);
 int DKB_seek(int devno,int C);
 int DKB_read(int devno,int C,int H,int R,int numSect,char *buf,int *actualReadCount);
 int DKB_read2(int devno,long LBA,int numSect,char *buf,int *actualReadCount);
+int DKB_rdsecid(int devno,int C,int H,unsigned char CHRN_CRC[6]); // Difference: FMCFRB returns CHRN in DKB_SEC structure.
 int DKB_write(int devno,int C,int H,int R,int numSect,char *buf,int *actualWriteCount);
 int DKB_write2(int devno,long LBA,int numSect,char *buf,int *actualWriteCount);
 
