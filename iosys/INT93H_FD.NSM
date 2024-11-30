@@ -32,7 +32,9 @@ INT93H_FD_DMA_COUNT_AFTER	DW		0
 INT93_FD_MODE			DD		DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K
 INT93_FD_CURRENT_CYL	DB		0,0,0,0
 INT93_FD_SEEK_STEP		DB		1,1,1,1
-INT93_FD_MOTOR			DB		0,0,0,0
+INT93_FD_MOTOR			DB		0	; Looks like all motors are controlled together.
+
+INT93_FD_LAST_DRV_CTRL_REG	DB		0
 
 INT93_FD_MOTOR_OFF_TIMER	DW	0	; When timer counts down from 1 to 0, it will stop the motor.
 
@@ -41,6 +43,14 @@ INT93_FD_DISKCHANGE		DB		0	; bit0 A drive changed  bit 1 B drive changed (detect
 INT93H_FD_IS_BUSY		DB		0
 INT93H_READ_OR_WRITE:	DW		0
 INT93H_CHECK_DISKCHANGE_COUNT	DB	0		; Once every 100*10ms
+
+
+%macro					OUT_DRV_CTRL	0
+						MOV		CS:[INT93_FD_LAST_DRV_CTRL_REG],AL
+						MOV		DX,IO_FDC_DRIVE_CONTROL
+						OUT		DX,AL
+%endmacro
+
 
 INT93H_FD:
 						MOV		BYTE CS:[INT93H_FD_IS_BUSY],1	; Will be reset on exit INT 93H
@@ -738,6 +748,15 @@ INT93H_FD_SELECT_DRIVE_REST:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; DH side
+INT93H_FD_DRIVE_CONTROL_IRQDIS:
+						PUSH	AX
+						PUSH	DX
+
+						AND		DH,1
+						SHL		DH,FDC_CTL_SIDE_SHIFT
+
+						JMP		INT93H_FD_DRIVE_CONTROL_REST
 
 ; DH side
 INT93H_FD_DRIVE_CONTROL_IRQEN:
@@ -752,25 +771,12 @@ INT93H_FD_DRIVE_CONTROL_REST:
 						CALL	INT93H_FD_CTRL_BYTE_FROM_DRV_MODE
 						OR		AL,DH
 
-						MOV		DX,IO_FDC_DRIVE_CONTROL
-						OUT		DX,AL
+						OUT_DRV_CTRL	; Destroys DX
+
 						POP		DX
 						POP		AX
 
 						RET
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Input AL drive  DH side
-INT93H_FD_DRIVE_CONTROL_IRQDIS:
-						PUSH	AX
-						PUSH	DX
-
-						AND		DH,1
-						SHL		DH,FDC_CTL_SIDE_SHIFT
-
-						JMP		INT93H_FD_DRIVE_CONTROL_REST
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -839,7 +845,7 @@ INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG:
 						PUSH	EBX
 
 						MOVZX	BX,AL
-						CMP		BYTE CS:[INT93_FD_MOTOR+BX],0
+						CMP		BYTE CS:[INT93_FD_MOTOR],0
 						JNE		INT93H_FD_MOTOR_ON_WAITED
 
 						; If motor was not on, wait for at least 1000sec
@@ -850,7 +856,7 @@ INT93H_FD_MOTOR_ON_WAIT_LOOP:
 						JNE		INT93H_FD_MOTOR_ON_WAIT_LOOP
 
 						MOVZX	BX,AL
-						MOV		BYTE CS:[INT93_FD_MOTOR+BX],1
+						MOV		BYTE CS:[INT93_FD_MOTOR],1
 
 INT93H_FD_MOTOR_ON_WAITED:
 						POP		EBX
@@ -880,7 +886,12 @@ INT93H_CHECK_FD_CHANGE_CALLBACK:
 
 						; MOTOR-OFF TIMER counted down to zero.
 						; No FD-BIOS activities for (INT93H_FD_MOTOR_OFF_TIMEOUT*10) ms.
-
+						MOV		AL,CS:[INT93_FD_LAST_DRV_CTRL_REG]
+						AND		AL,~FDC_CTL_MOTOR
+						PUSH	DX
+						OUT_DRV_CTRL	; Destroys DX
+						POP		DX
+						MOV		BYTE CS:[INT93_FD_MOTOR],0
 
 INT93H_FD_CHECKED_MOTOR_TIMEOUT:
 						CMP		BYTE CS:[INT93H_CHECK_DISKCHANGE_COUNT],100
