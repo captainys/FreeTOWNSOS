@@ -100,13 +100,19 @@ CLONE_ENTRY:
 						;  This must be done first.  It sets secondary PIC Special Fully Nested Mode.
 
 						XOR		AH,AH
-						INT		90H
+						INT		90H						; Keyboard BIOS
 
-						MOV		AH,BIOSCMD_COMMON_INIT
+						MOV		AH,BIOSCMD_COMMON_INIT	; Console BIOS
+						INT		91H
+
+						MOV		AH,BIOSCMD_COMMON_INIT	; Disk BIOS
 						INT		93H
 
-						MOV		AH,BIOSCMD_COMMON_INIT
+						MOV		AH,BIOSCMD_COMMON_INIT	; Timer BIOS
 						INT		97H
+
+						MOV		AH,BIOSCMD_COMMON_INIT	; RS232C BIOS
+						INT		9BH
 
 
 						; Apparently INT 4DH should always be enabled.
