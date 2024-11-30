@@ -51,6 +51,7 @@ INT93H_EXIT:
 
 INT93H_IRET:
 						RESTORE_WORLD
+						MOV		BYTE CS:[INT93H_FD_IS_BUSY],0
 						IRET
 
 
@@ -73,6 +74,12 @@ INT46H_DID_COME_IN		DB		0
 
 
 INT93H_INIT:
+						MOV		DX,CS
+						MOV		BX,INT93H_CHECK_FD_CHANGE_CALLBACK
+						MOV		AH,TIMERBIOS_CMD_078H_YS_SET_FD_CALLBACK
+						INT		97H	; Register this absolute waste callback.
+
+
 						XOR		AX,AX
 						MOV		DS,AX
 

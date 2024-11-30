@@ -1,4 +1,4 @@
-FDMODE_FM_MFM_MASK		EQU		0x00800000
+FDMODE_FM_MFM_MASK		EQU		0x00800000 ; DL|BX on AH=00h
 FDMODE_TYPE_MASK		EQU		0x00300000
 FDMODE_SECT_LEN_MASK	EQU		0x00030000
 FDMODE_NUM_HEAD_MASK	EQU		0x0000FF00
@@ -31,13 +31,16 @@ INT93H_FD_DMA_COUNT_AFTER	DW		0
 INT93_FD_MODE			DD		DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K,DISKBIOS_FD_MODE_1232K
 INT93_FD_CURRENT_CYL	DB		0,0,0,0
 INT93_FD_SEEK_STEP		DB		1,1,1,1
+INT93_FD_MOTOR			DB		0,0,0,0
 
 ; Must check FREADY flag every 1 second and set the flag if FREADY=0
 INT93_FD_DISKCHANGE		DB		0	; bit0 A drive changed  bit 1 B drive changed (detected FREADY=0)
-
+INT93H_FD_IS_BUSY		DB		0
 INT93H_READ_OR_WRITE:	DW		0
+INT93H_CHECK_DISKCHANGE_COUNT	DB	0		; Once every 100*10ms
 
 INT93H_FD:
+						MOV		BYTE CS:[INT93H_FD_IS_BUSY],1	; Will be reset on exit INT 93H
 						MOV		BYTE CS:[ERROR_CODE],80H
 						MOV		WORD CS:[ERROR_DETAIL],0FFFFh
 						MOV		BYTE CS:[INT46H_DID_COME_IN],0
@@ -536,6 +539,16 @@ INT93H_FD_CTRL_BYTE_FROM_DRV_MODE:
 						SHL		BX,2
 						MOV		EBX,CS:[INT93_FD_MODE+BX]
 
+						; AL does not have to be the drive number at this point.
+
+
+						MOV		AL,2	; MFM mode
+						TEST	EBX,FDMODE_FM_MFM_MASK
+						JE		INT93H_FD_CTRL_BYTE_IS_MFM_MODE
+						XOR		AL,AL
+INT93H_FD_CTRL_BYTE_IS_MFM_MODE:
+
+
 						AND		EBX,FDMODE_TYPE_MASK
 						SHR		EBX,20
 
@@ -547,7 +560,7 @@ INT93H_FD_CTRL_BYTE_FROM_DRV_MODE:
 						JE		INT93H_FD_CONTROL_BYTE_2D
 
 INT93H_FD_CONTROL_BYTE_2HD:
-						MOV		AL,FDC_CTL_MOTOR;
+						OR		AL,FDC_CTL_MOTOR;
 						MOV		AH,FDC_SPD_360RPM+FDC_SPD_INUSE;
 
 						CMP		EBX,DISKBIOS_FD_MODE_1440K
@@ -557,12 +570,12 @@ INT93H_FD_CONTROL_BYTE_2HD:
 						JMP		INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT
 
 INT93H_FD_CONTROL_BYTE_2DD:
-						MOV		AL,FDC_CTL_CLKSEL+FDC_CTL_MOTOR;
+						OR		AL,FDC_CTL_CLKSEL+FDC_CTL_MOTOR;
 						MOV		AH,FDC_SPD_INUSE;
 						JMP		INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT
 
 INT93H_FD_CONTROL_BYTE_2D:
-						MOV		AL,FDC_CTL_CLKSEL+FDC_CTL_MOTOR;
+						OR		AL,FDC_CTL_CLKSEL+FDC_CTL_MOTOR;
 						MOV		AH,FDC_SPD_INUSE;
 
 INT93H_FD_CTRL_BYTE_FROM_DRV_MODE_EXIT:
@@ -636,6 +649,7 @@ INT93H_FD_WAIT_FDC_READY_LOOP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+; Input AL drive number
 INT93H_FD_SELECT_DRIVE:
 						PUSH	AX
 						PUSH	CX
@@ -664,13 +678,16 @@ INT93H_FD_SELECT_DRIVE:
 						POP		DX
 						POP		CX
 						POP		AX
+
+						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
+
 						RET
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-; Input AL drive  DH side
+; DH side
 INT93H_FD_DRIVE_CONTROL_IRQEN:
 						PUSH	AX
 						PUSH	DX
@@ -687,6 +704,7 @@ INT93H_FD_DRIVE_CONTROL_REST:
 						OUT		DX,AL
 						POP		DX
 						POP		AX
+
 						RET
 
 
@@ -729,6 +747,11 @@ INT93H_FD_CHECK_DISK_CHANGE:
 INT93H_FD_24H_DO_NOT_CLEAR_FLAG:
 						MOV		AH,AL	; Save AL in AH
 
+						MOV		DX,IO_FDC_DRIVE_SELECT
+						OUT		DX,AL
+						OUT		DX,AL
+						OUT		DX,AL
+
 						OR		AL,040H ; HISPD flag
 						MOV		DX,IO_FDC_DRIVE_SELECT
 						OUT		DX,AL
@@ -736,6 +759,8 @@ INT93H_FD_24H_DO_NOT_CLEAR_FLAG:
 						OUT		DX,AL
 
 						MOV		DX,IO_FDC_DRIVE_STATUS
+						IN		AL,DX
+						IN		AL,DX
 						IN		AL,DX
 						AND		AL,DRIVE_STA_FREADY
 						JNE		INT93H_FD_24H_DRIVE_READY
@@ -753,6 +778,88 @@ INT93H_FD_24H_DRIVE_READY:
 INT93H_FD_24H_NO_CHANGE:
 						AND		CS:[INT93_FD_DISKCHANGE],BL
 						JMP		INT93H_EXIT_NO_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; AL drive number
+INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG:
+						PUSH	CX
+						PUSH	AX
+
+						MOVZX	BX,AL
+						CMP		BYTE CS:[INT93_FD_MOTOR+BX],0
+
+						; If motor was not on, wait for 2ms
+						MOV		CX,2000
+INT93H_FD_MOTOR_ON_WAIT_LOOP:
+						OUT		06CH,AL
+						LOOP	INT93H_FD_MOTOR_ON_WAIT_LOOP
+
+						MOV		BYTE CS:[INT93_FD_MOTOR+BX],1
+
+INT93H_FD_MOTOR_ON_WAITED:
+						POP		AX
+						POP		CX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Called every 1 sec from TIMER BIOS
+; Earlier FM TOWNS models had no mean of checking if the floppy-disk has been changed.
+; Newer FM TOWNS models had a flag that was supposed to tell you if the floppy-disk has been changed, but the flag was disfunctional.
+; The flag just does not register.  I printed this flag constantly while inserting and removing the floppy disk, but the flag
+; sometimes changed, sometimes didn't.  The flag was utterly useless.
+; There is a possibility that if I move the head, the flag is updated, which was totally absurd.
+; Did I need to move the head to check if the disk was changed?  No thanks. Who came up with this useless flag was an absolute moron.
+; As a result, only way to check disk change is regularly check drive-ready status.
+INT93H_CHECK_FD_CHANGE_CALLBACK:
+						; IF is supposed to be off because it is called from the timer-interrupt handler.
+						CMP		BYTE CS:[INT93H_FD_IS_BUSY],0
+						JNE		SHORT INT93H_CHECK_FD_CHANGE_BUSY
+
+						CMP		BYTE CS:[INT93H_CHECK_DISKCHANGE_COUNT],100
+						JB		SHORT INT93H_CHECK_FD_CHANGE_NOTYET
+
+						MOV		BYTE CS:[INT93H_CHECK_DISKCHANGE_COUNT],0
+
+						PUSH	AX
+						PUSH	DX
+						MOV		AX,0100H	; AL is drive number, AH is drive number flag.
+
+INT93H_CHECK_FD_CHANGE_LOOP:
+						PUSH	AX
+
+						CALL	INT93H_FD_SELECT_DRIVE
+
+						MOV		DX,IO_FDC_DRIVE_STATUS
+						IN		AL,DX
+						IN		AL,DX
+						IN		AL,DX
+						AND		AL,DRIVE_STA_FREADY
+						JNE		INT93H_CHECK_FD_CHANGE_NEXT	; Jump if drive is ready
+
+						; Not Ready
+						OR		BYTE CS:[INT93_FD_DISKCHANGE],AH
+
+INT93H_CHECK_FD_CHANGE_NEXT:
+						POP		AX
+						SHL		AH,1
+						INC		AL
+						CMP		AL,4
+						JB		INT93H_CHECK_FD_CHANGE_LOOP
+
+						POP		DX
+						POP		AX
+
+INT93H_CHECK_FD_CHANGE_BUSY:
+						RETF
+
+INT93H_CHECK_FD_CHANGE_NOTYET:
+						INC		BYTE CS:[INT93H_CHECK_DISKCHANGE_COUNT]
+						RETF
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

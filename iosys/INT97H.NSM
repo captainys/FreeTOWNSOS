@@ -15,6 +15,9 @@ INT97H:
 						SAVE_WORLD
 						MOV		BP,SP
 
+						CMP		AH,TIMERBIOS_CMD_078H_YS_SET_FD_CALLBACK
+						JE		INT97H_REGISTER_FD_CALLBACK
+
 						CMP		AH,BIOSCMD_COMMON_INIT
 						JE		INT97H_INIT
 
@@ -81,6 +84,8 @@ NUM_TIMERS:				EQU		4
 TIMER_PARAMS:			DB		TIMER_PARAMETER_BLOCK_size*NUM_TIMERS dup(0FFh)
 TIMER_PARAMS_END:
 
+FD_BIOS_CALLBACK		DD		0		; Read INT93H_FD for the meaning of this f**king call back.
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT40H_DATA_BLOCK:
@@ -99,6 +104,13 @@ INT40H_HANDLER:
 						JE		INT40H_NOT_TM0OUT
 
 						; TM0OUT
+
+
+						CMP		DWORD CS:[FD_BIOS_CALLBACK],0
+						JE		INT40H_HANDLER_NO_FD_CALLBACK
+						CALL	FAR [CS:FD_BIOS_CALLBACK]	; Read INT93H_FD for the meaning of this f**king call back.
+INT40H_HANDLER_NO_FD_CALLBACK:
+
 
 						; Process registered timers
 
@@ -251,6 +263,13 @@ LEAP_YEAR_ADJUSTMENT:
 
 NOT_LEAP_YEAR:
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT97H_REGISTER_FD_CALLBACK:
+						MOV		CS:[FD_BIOS_CALLBACK],BX		; Read INT93H_FD for the meaning of this f**king call back.
+						MOV		CS:[FD_BIOS_CALLBACK+2],DX
+						JMP		INT97H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
