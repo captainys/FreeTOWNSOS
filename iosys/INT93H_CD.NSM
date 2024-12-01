@@ -11,7 +11,7 @@ CD_EMULATION_SCSI_DEV	DB		0	; BIOS Device CODE.  0B?H for SCSI ID ?.
 ; Disc Change should be cached because the disc-change status code may be consumed by any of the BIOS function,
 ; such as CDDA functions.  If the disc-change status code is consumed before MSCDEX checks the disc change,
 ; it will not have a way to know the disc has changed unless the flag is cached.
-DISC_CHANGE_FLAG_CACHE	DB		0
+DISC_CHANGE_FLAG_CACHE	DB		0	; It is set to 1 when CD emulation is enabled/disabled, as well as when CD change/not ready is detected.
 
 
 CDC_PARAM				DB		0,0,0,0,0,0,0,0
@@ -915,20 +915,6 @@ INT93H_CD_73H_YSSCSICD_INST_CHECK:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT93H_CD_74H_ENABLE_REDIR:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-INT93H_CD_75H_DISABLE_REDIR:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 ; Wait until CDC is ready.
 ; Destroys AL and DX
@@ -1097,6 +1083,7 @@ INT93H_CD_ENABLE_EMULATION_NOT_FFH:
 						MOV		CS:[CD_EMULATION_SCSI_DEV],DL
 
 						MOV		BYTE CS:[CD_EMULATION_SCSI_EN],1
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 
 						JMP		INT93H_EXIT
 
@@ -1109,6 +1096,7 @@ INT93H_CD_ENABLE_EMULATION_ERROR:
 
 INT93H_CD_DISABLE_EMULATION:
 						MOV		BYTE CS:[CD_EMULATION_SCSI_EN],0
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
 
