@@ -3,6 +3,9 @@ INT93H_HD:
 						MOV		WORD CS:[ERROR_DETAIL],0FFFFh
 
 						MOV		AH,[BP+SAVED_EAX+1]
+						CMP		AH,DISKBIOS_CMD_EXT_IDENTIFY_SCSI_DEV
+						JE		INT93H_HD_IDENTIFY_DEVICE
+
 						CMP		AH,3
 						JE		INT93H_HD_03H_RESTORE
 						CMP		AH,5
@@ -13,8 +16,14 @@ INT93H_HD:
 						JMP		INT93H_EXIT
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 INT93H_HD_03H_RESTORE:
 						JMP		INT93H_EXIT_NO_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 INT93H_HD_05H_READ:
@@ -50,6 +59,9 @@ INT93H_HD_05H_READ:
 						JMP		INT93H_EXIT
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 INT93H_HD_06H_WRITE:
 						; Input
 						;   CL    SCSI ID
@@ -81,3 +93,22 @@ INT93H_HD_06H_WRITE:
 
 						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+INT93H_HD_IDENTIFY_DEVICE:
+						MOV		CL,[BP+SAVED_EAX]
+						AND		CL,7
+						; Input
+						;   CL   SCSI ID
+						; Output
+						;   CL   05 or 04 means CD
+						;        00 means HD
+						;   Carry  Set if error
+						CALL	IDENTIFY_SCSI_DEVICE
+						JC		INT93H_EXIT
+
+						MOV		BYTE [BP+SAVED_EAX],CL
+						JMP		INT93H_EXIT_NO_ERROR
