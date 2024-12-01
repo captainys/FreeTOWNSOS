@@ -117,6 +117,11 @@ INT93H_CD_EMU_BY_SCSI:
 						CMP		BX,06H
 						JBE		INT93H_CD_JUMP_TO_FUNCTION
 
+						MOV		SI,INT93H_CD_EMU_JUMPTABLE_YSSCSICD
+						SUB		BX,20H
+						CMP		BX,05H
+						JBE		INT93H_CD_JUMP_TO_FUNCTION
+
 						TSUGARU_DEBUG
 
 						JMP		INT93H_EXIT
@@ -1430,19 +1435,6 @@ INT93H_CD_EMU_72H_EXT_CDDA_PLAY_BCD:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INT93H_CD_EMU_74H_ENABLE_REDIR:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-INT93H_CD_EMU_75H_DISABLE_REDIR:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; HSG=60*MIN+75*SEC+FRM  ->  60 seconds/min,   75 frames/sec   -> 60*75 frames/min
 ; Input:
 ;	DX:AX	HSG
