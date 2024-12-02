@@ -442,6 +442,8 @@ void EGB_RESOLUTION(
 		unsigned int newScreenMode[2],newEmulatingScreenMode[2];
 		newScreenMode[0]=work->perPage[0].screenMode;
 		newScreenMode[1]=work->perPage[1].screenMode;
+		newEmulatingScreenMode[0]=work->perPage[0].emulatingScreenMode;
+		newEmulatingScreenMode[1]=work->perPage[1].emulatingScreenMode;
 		newScreenMode[AL]=EDX&0x3F;
 		newEmulatingScreenMode[AL]=EGB_INVALID_SCRNMODE;
 		if(0!=(EGB_Flags&EGB_FLAG_FORCE31KHZ))
@@ -450,9 +452,12 @@ void EGB_RESOLUTION(
 			{
 			case 7:
 			case 8:
+				newEmulatingScreenMode[AL]=newScreenMode[AL];
+				newScreenMode[AL]=5; // Replace modes 7, and 8  with 5.
+				break;
 			case 14:
 				newEmulatingScreenMode[AL]=newScreenMode[AL];
-				newScreenMode[AL]-=2; // Replace modes 7,8, and 14  with 5, 6, and 12.
+				newScreenMode[AL]=12; // Replace mode 14 with 12.
 				break;
 			case 11:
 			case 16:
