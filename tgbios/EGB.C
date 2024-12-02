@@ -430,14 +430,38 @@ void EGB_RESOLUTION(
 	unsigned int FS)
 {
 	_Far struct EGB_Work *work=EGB_GetWork();
+	_Far unsigned char *TGBIOS;
+	_FP_SEG(TGBIOS)=SEG_TGBIOS_DATA;
+	_FP_OFF(TGBIOS)=0;
+
+	_Far unsigned int EGB_Flags=*(_Far unsigned int *)(TGBIOS+EGB_FLAGS_OFFSET);
 
 	unsigned char AL=EAX&0xFF;
 	if(0==AL || 1==AL)
 	{
-		unsigned int newScreenMode[2];
+		unsigned int newScreenMode[2],newEmulatingScreenMode[2];
 		newScreenMode[0]=work->perPage[0].screenMode;
 		newScreenMode[1]=work->perPage[1].screenMode;
 		newScreenMode[AL]=EDX&0x3F;
+		newEmulatingScreenMode[AL]=EGB_INVALID_SCRNMODE;
+		if(0!=(EGB_Flags&EGB_FLAG_FORCE31KHZ))
+		{
+			switch(newScreenMode[AL])
+			{
+			case 7:
+			case 8:
+			case 14:
+				newEmulatingScreenMode[AL]=newScreenMode[AL];
+				newScreenMode[AL]-=2; // Replace modes 7,8, and 14  with 5, 6, and 12.
+				break;
+			case 11:
+			case 16:
+			case 17:
+				newEmulatingScreenMode[AL]=newScreenMode[AL];
+				--newScreenMode[AL]; // Replace modes 11, 16, and 17 with 10, 15, and 16.
+				break;
+			}
+		}
 
 		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(newScreenMode[AL]);
 		if(NULL==scrnMode)
@@ -479,6 +503,8 @@ void EGB_RESOLUTION(
 			{
 				work->perPage[0].screenMode=newScreenMode[0];
 				work->perPage[1].screenMode=newScreenMode[1];
+				work->perPage[0].emulatingScreenMode=newEmulatingScreenMode[0];
+				work->perPage[1].emulatingScreenMode=newEmulatingScreenMode[1];
 				if(0==(EDX&0x40))
 				{
 					EGB_SetUpCRTC(work,modeComb);
@@ -740,6 +766,23 @@ void EGB_02H_DISPLAYSTART(
 	case 2:  // Zoom
 		{
 			_Far struct EGB_ScreenMode *scrnModeProp=EGB_GetScreenModeProp(work->perPage[writePage].screenMode);
+
+			switch(work->perPage[writePage].emulatingScreenMode)
+			{
+			case 7:
+			case 8:
+			case 16:
+			case 11:
+				horizontal/=2; // Default 4x is same as 2x in 31KHz mode.
+				vertical*=2;   // Default 1x is same as 2x in 31KHz mode.
+				break;
+			case 14:
+			case 17:
+				horizontal/=2; // Default 2x is same as 1x in 31KHz mode.
+				// vertical*=1;   Default 1x is same as 1x in 31KHz mode.
+				break;
+			}
+
 			if(NULL!=scrnModeProp)
 			{
 				if(horizontal<scrnModeProp->defZoom.x || vertical<scrnModeProp->defZoom.y)
@@ -3307,8 +3350,6 @@ void EGB_40H_PSET(
 	unsigned int GS,
 	unsigned int FS)
 {
-	int i;
-	unsigned char flags=EAX;
 	_Far struct EGB_BlockInfo *blkInfo;
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
@@ -3429,7 +3470,6 @@ void EGB_41H_CONNECT(
 	unsigned int FS)
 {
 	int i;
-	unsigned char flags=EAX;
 	_Far struct EGB_BlockInfo *blkInfo;
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
@@ -3476,7 +3516,6 @@ void EGB_42H_UNCONNECT(
 	unsigned int FS)
 {
 	int i;
-	unsigned char flags=EAX;
 	_Far struct EGB_BlockInfo *blkInfo;
 	_FP_SEG(blkInfo)=DS;
 	_FP_OFF(blkInfo)=ESI;
@@ -3612,7 +3651,7 @@ void EGB_RECTANGLE(
 		hatchLine=work->hatch[EGB_FILL_COLOR].ptn;
 		for(int y=yMin; y<=yMax; ++y)
 		{
-			unsigned int hatchPtn,hatchX=0,hatchW=work->hatch[EGB_FILL_COLOR].size.x;
+			unsigned int hatchPtn,hatchW=work->hatch[EGB_FILL_COLOR].size.x;
 			unsigned int hatchBit,hatchBitReset=0x80;
 
 			switch(hatchW)

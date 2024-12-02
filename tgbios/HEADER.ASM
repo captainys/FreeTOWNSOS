@@ -275,6 +275,9 @@ CODE					SEGMENT
 						DD		OFFSET MIDI
 						DW		TGBIOS_SEG
 
+						ORG		100H
+						DD		0		 ; EGB_FLAGS
+
 						ORG		1A0H
 						DD		OFFSET SNDINT
 						DW		TGBIOS_SEG

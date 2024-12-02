@@ -4,6 +4,13 @@
 
 #include "IODEF.H"
 
+
+// Flags at 110:00000100
+#define EGB_FLAGS_OFFSET  0x100
+#define EGB_FLAG_FORCE31KHZ  0x00000001
+
+
+
 #define EGB_BUFFER_SIZE 4096
 
 #define EGB_FOREGROUND_COLOR 0
@@ -141,6 +148,7 @@ struct EGB_ScreenMode
 struct EGB_PerPage
 {
 	unsigned char screenMode;
+	unsigned char emulatingScreenMode;
 	unsigned char _padding0;
 
 	// Confirmed in Towns OS V2.1 L50
