@@ -139,7 +139,8 @@ int main(void)
 
 	char first256bytes[256];
 	memset(first256bytes,0,sizeof(first256bytes));
-	memcpy(first256bytes,"FBIOS",5);
+	// "Multi-Mode Display Type    1999-99-99" will let 386SX SYSTEM ROM believe FBIOS is new enough to recognize 386SX models.
+	strcpy(first256bytes,"FBIOS  Multi-Mode Display Type    1999-99-99");
 	*(uint32_t *)(first256bytes+6)=ptr;
 
 	std::ofstream diskimg("../resources/IO.SYS",std::ios::binary);
