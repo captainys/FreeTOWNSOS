@@ -5,11 +5,11 @@
 
 The goal of this project is to write a copyright-free FM Towns OS to run free games and the re-released games, or why not a brand-new game for FM Towns. without concerns of violating copyrights of the files included in the original Towns OS.
 
-Let's see how far we can go!  But, so far so good.  Now Tsugaru OS is capable of running the three probably the most popular free games, Panic Ball 2, VSGP, and Sky Duel.  All playable without single file from the original Towns OS.
+Let's see how far we can go!  But, so far so good.  Now Tsugaru OS is capable of running the three probably the most popular free games, Panic Ball 2, VSGP, and Sky Duel.  I've tested Planet Attacker, Tactical Air Wing, and Ground Attack, which all worked ok.  All playable without single file from the original Towns OS.
 
 このプロジェクトの目標は、著作権フリーなFM Towns OSを実装して、もとのTowns OSの著作権を気にすることなくフリーゲームや、復刻版、さらには新規のFM TOWNS用アプリ開発を可能にすることです。
 
-果たしてどこまでできるかはやってみないとわかりません。が、とりあえず、FM TOWNSのフリーソフトの中で、おそらく最も有名だったと思われる、Panic Ball 2, VSGP, Sky Duelの3本はやや音が違う箇所があるものの、プレイ可能になりました。
+果たしてどこまでできるかはやってみないとわかりません。が、とりあえず、FM TOWNSのフリーソフトの中で、おそらく最も有名だったと思われる、Panic Ball 2, VSGP, Sky Duelの3本はやや音が違う箇所があるものの、プレイ可能になりました。我が、Planet Attacker, Tactical Air Wing, Ground Attackも動作確認できました。
 
 
 
@@ -19,9 +19,13 @@ Let's see how far we can go!  But, so far so good.  Now Tsugaru OS is capable of
 
 あるいは、release/HDIMG.h0 をSCSI-ID 0にマウントして、他に何もメディアを入れずに津軽を起動しても津軽OSを起動することができます。なお、津軽OSはCMOSのドライブ設定に依存せず、SCSI ID 0のPartition 0から順にドライブレターを割り振っていくので、CMOS設定が無くてもハードディスクから起動できます。
 
+また、CDIMG.ISOをCD-Rに焼くことで、とりあえず実機TOWNSに接続したSCSI CDドライブからの起動も確認できています。
+
 To try it, you can boot from release/FDIMG.bin from Tsugaru.  release/FDIMG_USEROM.bin uses MSDOS.SYS and COMMAND.COM in the ROM drive, instead of YSDOS.SYS and YAMAND.COM on the disk.  I'm going to make it work on the real hardware.  It's a preparation for it.
 
 Or, you can mount release/HDIMG.h0 on SCSI ID 0 and run it from Tsugaru.  Tsugaru OS does not rely on CMOS setting, so the first partition of SCSI ID 0 (or whatever found first) will be assigned to D drive.  It can start without CMOS setup.
+
+I have confirmed that if you burn CDISO.ISO to a CD-R, you can boot from a SCSI CD drive connected to the real TOWNS.
 
 
 
@@ -92,6 +96,62 @@ Free386 is a PharLap-compatible DOS-Extender developed by nabe-abk.  Free386 is 
 YAMAND.COMとYSDOS.SYSは自分のプロジェクトから持ってきてます。https://github.com/captainys/TOWNSROM
 
 YAMAND.COM and YSDOS.SYS are from my project https://github.com/captainys/TOWNSROM .
+
+
+
+# TOWNS_CD
+
+TOWNS OSは、MSCDEXのハードウェアレイアドライバとして、TOWNS_CDというドライバを使います。津軽OSも同じ名前を踏襲しています。津軽OSのTOWNS_CDは、内蔵CDドライブからSCSI CDドライブへのリダイレクション機能をサポートしています。これは、従来YSSCSICD.SYSによって実現していた機能と同等です。
+
+拡張機能として、TOWNS_CDに文字を書き込むことで、リダイレクションをコントロールできます。例えば、
+```
+ECHO E > TOWNS_CD
+```
+と書くことで、SCSIデバイスを6番から0番まで順にスキャンして、最初に見つけたCDドライブを内蔵ドライブとして扱います。もしも、複数のCDドライブを接続している状態で、小さな番号のSCSI IDを優先したい場合は、次のように書きます。
+```
+ECHO e > TOWNS_CD
+```
+また、リダイレクション対象SCSI IDを指定して有効化したいときは、
+```
+ECHO 4 > TOWNS_CD
+```
+のように書くことで、SCSI ID 4番のCDにリダイレクトすることができます。
+
+その他、
+```
+ECHO P > TOWNS_CD
+```
+でリダイレクション一時停止(Dでも可)、
+```
+ECHO R > TOWNS_CD
+```
+で再開できます。なお、大文字・小文字は区別します。
+
+TOWNS OS uses a DOS driver called TOWNS_CD as a hardware layer for MSCDEX.  Tsugaru OS has its own version of TOWNS_CD.  This driver has an additional functionality of redirecting internal CD to external SCSI CD drive.  This functionality is same as the functionality of YSSCSICD.SYS.
+
+In addition to YSSCSICD.SYS, Tsugaru OS's TOWNS_CD can enable or disable redirection by writing a letter to TOWNS_CD.  For example, by typing a command:
+```
+ECHO E > TOWNS_CD
+```
+You can enable the redirection.  TOWNS_CD driver will scan SCSI ID from 6 to 0 in the descending order and use the first CD drive found.  If you have multiple SCSI CD drives connected, and if you want to use the smallest SCSI ID, type:
+```
+ECHO e > TOWNS_CD
+```
+Or, if you want to enable the redirection for a specific SCSI ID, type:
+```
+ECHO 4 > TOWNS_CD
+```
+then TOWNS_CD will redirect CD BIOS to SCSI ID 4.
+
+Or,
+```
+ECHO P > TOWNS_CD
+```
+to pause the redirection (D also works), and
+```
+ECHO R > TOWNS_CD
+```
+for resuming the redirection.
 
 
 
