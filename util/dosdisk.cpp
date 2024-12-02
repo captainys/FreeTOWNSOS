@@ -361,6 +361,34 @@ unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)
 	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
 	return data.data()+clusterPos;
 }
+void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
+{
+	CHR[0]=0;
+	CHR[1]=0;
+	CHR[2]=0;
+
+	auto bpb=GetBPB();
+
+	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();
+	if(2<=cluster) // Cluster 2 is real first cluster.
+	{
+		cluster-=2;
+	}
+	else
+	{
+		cluster=0;
+	}
+	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
+
+	if(0<bpb.bytesPerSector && 0<bpb.sectorsPerTrack)
+	{
+		size_t lba=clusterPos/bpb.bytesPerSector;
+		size_t track=lba/bpb.sectorsPerTrack;
+		CHR[0]=track/2; // CYLINDER
+		CHR[1]=track&1; // HEAD
+		CHR[2]=lba%bpb.sectorsPerTrack;
+	}
+}
 const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
 {
 	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();

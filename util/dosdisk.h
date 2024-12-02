@@ -165,6 +165,7 @@ public:
 	uint32_t FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const;
 	unsigned char *GetCluster(int cluster,const BPB &bpb);
 	const unsigned char *GetCluster(int cluster,const BPB &bpb) const;
+	void ClusterToCHR(unsigned char CHR[3],int cluster) const;
 
 	unsigned char *FindAvailableDirEnt(void);
 	void WriteDirEnt(

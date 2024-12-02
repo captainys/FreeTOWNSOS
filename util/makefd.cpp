@@ -31,7 +31,7 @@ public:
 	std::string IPLFile;
 
 	std::string IOSYS;
-	unsigned IOSYSLOCation;
+	unsigned IOSYSLocation=0x20;
 
 	bool RecognizeCommandParameter(int ac,char *av[])
 	{
@@ -94,6 +94,20 @@ public:
 			{
 				if(i+2<ac)
 				{
+					if("IO.SYS"!=std::string(av[i+1]))
+					{
+						std::cout << "File name for -ipliosys needs to be IO.SYS.\n";
+						return false;
+					}
+					if("20h"!=std::string(av[i+2]) && "20H"!=std::string(av[i+2]) && "0x20"!=std::string(av[i+2]))
+					{
+						std::cout << "Offset for -ipliosys needs to be 20H.\n";
+						return false;
+					}
+
+					IOSYS="IO.SYS";
+					IOSYSLocation=0x20;
+					i+=2;
 				}
 				else
 				{
@@ -124,27 +138,51 @@ public:
 		std::cout << "  If no output file is specified, this program makes an empty disk.\n";
 		std::cout << "-ipl ipl-image-file\n";
 		std::cout << "  Specify IPL-image file.\n";
-		std::cout << "-ipliosys IO.SYS 0020h\n";
-		std::cout << "  Write CHR of IO.SYS location at offset 0020h of IPL.\n";
-		std::cout << "  At this time, the file name needs to be IO.SYS and the offset needs to be 0020h\n";
+		std::cout << "-ipliosys IO.SYS 20h\n";
+		std::cout << "  Write CHR of IO.SYS location at offset 20h of IPL.\n";
+		std::cout << "  At this time, the file name needs to be IO.SYS and the offset needs to be 20h\n";
 	}
 };
+
+/*! This extracts the last part of the file (after /,\, or :) and make up a DOS 8+3 name.
+*/
+void MakeDOS8PLUS3(char DOS8PLUS3[11],std::string inFile)
+{
+	for(int i=0; i<11; ++i)
+	{
+		DOS8PLUS3[i]=' ';
+	}
+	int strPtr=inFile.size();
+	while(0<strPtr && '/'!=inFile[strPtr] && '\\'!=inFile[strPtr] && ':'!=inFile[strPtr])
+	{
+		--strPtr;
+	}
+	if('/'==inFile[strPtr] || '\\'==inFile[strPtr] || ':'==inFile[strPtr])
+	{
+		++strPtr;
+	}
+	for(int i=0; i<8 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
+	{
+		DOS8PLUS3[i]=toupper(inFile[strPtr]);
+	}
+	if('.'==inFile[strPtr])
+	{
+		++strPtr;
+	}
+	for(int i=0; i<3 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
+	{
+		DOS8PLUS3[8+i]=toupper(inFile[strPtr]);
+	}
+}
 
 bool MakeDisk(std::string outFile,const CommandParameterInfo &cpi)
 {
 	Disk disk;
 	disk.CreateFD(BPB_MEDIA_1232K);
 
-	if(""!=cpi.IPLFile)
-	{
-		auto file=ReadBinaryFile(cpi.IPLFile);
-		if(0==file.size())
-		{
-			std::cout << "Cannot open the IPL image: "<< cpi.IPLFile << "\n";
-			return false;
-		}
-		disk.WriteIPLSector(file);
-	}
+	char IOSYS8PLUS3[11];
+	MakeDOS8PLUS3(IOSYS8PLUS3,cpi.IOSYS);
+	unsigned char IOSYSCHR[3]={0,0,0};
 
 	std::cout << "Making: " << outFile << "\n";
 
@@ -177,32 +215,7 @@ bool MakeDisk(std::string outFile,const CommandParameterInfo &cpi)
 		}
 
 		char DOS8PLUS3[11];
-		for(auto &c : DOS8PLUS3)
-		{
-			c=' ';
-		}
-		int strPtr=inFile.size();
-		while(0<strPtr && '/'!=inFile[strPtr] && '\\'!=inFile[strPtr] && ':'!=inFile[strPtr])
-		{
-			--strPtr;
-		}
-		if('/'==inFile[strPtr] || '\\'==inFile[strPtr] || ':'==inFile[strPtr])
-		{
-			++strPtr;
-		}
-		for(int i=0; i<8 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
-		{
-			DOS8PLUS3[i]=toupper(inFile[strPtr]);
-		}
-		if('.'==inFile[strPtr])
-		{
-			++strPtr;
-		}
-		for(int i=0; i<3 && strPtr<inFile.size() && '.'!=inFile[strPtr]; ++i,++strPtr)
-		{
-			DOS8PLUS3[8+i]=toupper(inFile[strPtr]);
-		}
-
+		MakeDOS8PLUS3(DOS8PLUS3,inFile);
 		for(auto &c : DOS8PLUS3)
 		{
 			std::cout << c;
@@ -222,7 +235,33 @@ bool MakeDisk(std::string outFile,const CommandParameterInfo &cpi)
 			   firstCluster,
 			   file.size());
 		}
+
+		if(0==memcmp(DOS8PLUS3,IOSYS8PLUS3,11))
+		{
+			disk.ClusterToCHR(IOSYSCHR,firstCluster);
+		}
 	}
+
+
+	if(""!=cpi.IPLFile)
+	{
+		auto file=ReadBinaryFile(cpi.IPLFile);
+		if(0==file.size())
+		{
+			std::cout << "Cannot open the IPL image: "<< cpi.IPLFile << "\n";
+			return false;
+		}
+
+		if(0!=IOSYSCHR[2])
+		{
+			file[cpi.IOSYSLocation  ]=IOSYSCHR[2]; // Sector
+			file[cpi.IOSYSLocation+1]=IOSYSCHR[1]; // Head
+			file[cpi.IOSYSLocation+2]=IOSYSCHR[0]; // Track
+		}
+		disk.WriteIPLSector(file);
+	}
+
+
 
 	std::ofstream ofp(outFile,std::ios::binary);
 	ofp.write((char *)disk.data.data(),disk.data.size());
