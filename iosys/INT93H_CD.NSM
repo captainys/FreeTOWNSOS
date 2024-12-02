@@ -1225,20 +1225,100 @@ INT93H_CD_EMU_51H_CDDA_GET_INFO:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_52H_CDDA_STOP:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		BYTE [BP+SAVED_ECX+1],0FFH
+						JE		INT93H_EXIT_NO_ERROR
+						; SCSI2 does not support idle-time to auto stop.  Just ignore.
+
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JC		INT93H_EXIT
+
+
+						CMP		BYTE CS:[SCSI_DATABUF+1],11H ; 11H=PLAYING
+						JNE		INT93H_EXIT_NO_ERROR ; Jump if not playing
+						; If not playing, just return no error.
+
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_STOP_PLAY
+						JC		INT93H_EXIT
+
+						; My memo in YSSCSICD tells, SCSI_RESTORE also can stop CDDA.
+
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_53H_CDDA_GET_STATUS:
-						TSUGARU_DEBUG
+						CMP		CH,0
+						JE		SHORT INT93H_CD_EMU_53H_CDDA_GET_STATUS_CHZERO
+						MOV		WORD CS:[ERROR_DETAIL],2
+						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_53H_CDDA_GET_STATUS_CHZERO:
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JC		INT93H_EXIT
+
+						; [SCSI_DATA_BUF+1]  Audio Status
+						;   11H  Playing
+						;   12H  Paused
+						;   13H  Completed
+						;   14H  Stopped due to error
+						;   15H  No current audio status
+						; [SCSI_DATA_BUF+6]  Track
+						; [SCSI_DATA_BUF+7]  Index
+						; [SCSI_DATA_BUF+8]  Absolute CD Addr MSB
+						; [SCSI_DATA_BUF+9]  Absolute CD Addr
+						; [SCSI_DATA_BUF+10]  Absolute CD Addr LSB
+						; [SCSI_DATA_BUF+11]  Track relative CD Addr MSB
+						; [SCSI_DATA_BUF+12]  Track relative CD Addr
+						; [SCSI_DATA_BUF+13]  Track relative CD Addr LSB
+
+						MOV		BYTE CS:[ERROR_CODE],0	; At this point, no-error.
+
+						CMP		BYTE CS:[SCSI_DATABUF+1],11H ; 11H=PLAYING
+						JE		SHORT INT93H_CD_EMU_53H_CDDA_GET_STATUS_PLAYING	; Jump if playing
+
+						MOV		BYTE [BP+SAVED_EAX],0	; Return AL=0 Not playing.
+						JMP		INT93H_EXIT
+
+
+INT93H_CD_EMU_53H_CDDA_GET_STATUS_PLAYING:
+						MOV		BYTE [BP+SAVED_EAX],1	; Return AL=1 Playing.
+
+						; MOV		CS:[BIOSFLAG_PAUSE_STATE],1   I was doing it in YSSCSICD.SYS  Don't remember why I needed it.
+
+						MOV		BYTE ES:[DI],0
+
+						MOV		CH,CS:[SCSI_DATABUF+6]
+						MOV		ES:[DI+1],CH
+
+						MOV		BYTE ES:[DI+2],0
+
+						; Offset 4+8,4+9,4+10,4+11.
+						; Offset 12(=0), 13(=Min), 14(=Sec), 15(=Frm).
+						MOV		CX,WORD CS:[SCSI_DATABUF+13]
+						MOV		ES:[DI+3],CX		; Min, Sec
+						MOVZX	CX,BYTE CS:[SCSI_DATABUF+15]
+						MOV		ES:[DI+5],CX		; Frame
+
+						; Offset 4+4,4+5,4+6,4+7
+						; Offset 8(=0), 9(=Min), 10(=Sec), 11(=Frm)
+						MOV		CX,WORD CS:[SCSI_DATABUF+9]
+						MOV		ES:[DI+7],CX
+						MOV		CL,CS:[SCSI_DATABUF+11]
+						MOV		ES:[DI+9],CL
+
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_54H_CDDA_GET_CDINFO:
-						TSUGARU_DEBUG
-
 						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
 						AND		CL,7
 						PUSH	DS

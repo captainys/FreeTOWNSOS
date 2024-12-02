@@ -211,10 +211,13 @@ INT93H_53C0H:
 						ADD		AH,30H					; Make it 83H
 
 						INT		93H						; Need to make a recursive call because Free386 identifies INTNum by looking at the return CS:EIP-1
+						JC		INT93H_INTERCEPT_RETURN
 
 						MOV		EBP,ESP
 
 						PUSHFD	; CF,AX,CX needs to be preserved.
+
+						MOV		[EBP+SAVED_EAX32],AL		; Playing or Not playing
 
 						CLD
 
