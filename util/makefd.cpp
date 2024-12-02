@@ -30,6 +30,9 @@ public:
 	std::vector <std::string> inFile;
 	std::string IPLFile;
 
+	std::string IOSYS;
+	unsigned IOSYSLOCation;
+
 	bool RecognizeCommandParameter(int ac,char *av[])
 	{
 		for(int i=1; i<ac; ++i)
@@ -87,6 +90,17 @@ public:
 					return false;
 				}
 			}
+			else if("-ipliosys"==opt)
+			{
+				if(i+2<ac)
+				{
+				}
+				else
+				{
+					std::cout << "Missing argument for -ipliosys option.\n";
+					return false;
+				}
+			}
 			else
 			{
 				return false;
@@ -110,6 +124,9 @@ public:
 		std::cout << "  If no output file is specified, this program makes an empty disk.\n";
 		std::cout << "-ipl ipl-image-file\n";
 		std::cout << "  Specify IPL-image file.\n";
+		std::cout << "-ipliosys IO.SYS 0020h\n";
+		std::cout << "  Write CHR of IO.SYS location at offset 0020h of IPL.\n";
+		std::cout << "  At this time, the file name needs to be IO.SYS and the offset needs to be 0020h\n";
 	}
 };
 
