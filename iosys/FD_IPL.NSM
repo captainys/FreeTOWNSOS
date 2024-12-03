@@ -175,20 +175,17 @@ FOUND_IOSYS:
 						CDQ
 						DIV		ECX
 
-						MOV		EBX,EAX	; BX is number of sectors.
+						MOV		BX,AX	; BX is number of sectors.  Let's not think about the case more than 64K sectors.
 
-						PUSH	BX
 						MOV		AX,[DI+DIRENT_FIRST_CLUSTER]
 
-						XCHG	DI,BX
+						PUSH	DI
 						MOV		DI,BPB_POS_IN_IPL
-						BPB_CLUSTER_TO_SECT_CT
+						BPB_CLUSTER_TO_SECT_CT					; This preserves BX
 						ADD		AX,[ROOTDIR_SECTOR]
 						ADD		AX,[ROOTDIR_NUM_SECTORS]
-						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
-						XCHG	DI,BX
-
-						POP		BX
+						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR	; This preserves BX
+						POP		DI
 
 						MOV		AL,CS:[DISKBIOS_DEVICE_CODE]
 						PUSH	WORD IOSYS_SEGMENT
