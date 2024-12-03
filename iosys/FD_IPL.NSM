@@ -26,6 +26,24 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Input FS:DI  BPB
+; Output AX  LBA for the root dir
+;        DX Destroyed
+;        Preserves BX
+%macro					BPB_CALC_ROOTDIR_LBA	0
+						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
+						; Skip FAT
+						MOVZX	AX,BYTE FS:[DI+BPB_NUM_FATS]
+						MUL		WORD FS:[DI+BPB_SECT_PER_FAT]
+
+						; Skip IPL sector (reserved sector)
+						MOVZX	DX,BYTE FS:[DI+BPB_RESERVED_SECTOR_CT]
+						ADD		AX,DX
+%endmacro
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 ; Input FS:DI  BPB
 ; Output AX  Number of sectors of ROOTDIR
@@ -116,7 +134,7 @@ BOOT:
 						; BX is the number of sectors.
 
 
-						CALL	BPB_CALC_ROOTDIR_LBA
+						BPB_CALC_ROOTDIR_LBA
 						MOV		[ROOTDIR_SECTOR],AX
 
 
@@ -256,26 +274,6 @@ READ_SECTOR_DONE:
 READ_SECTORS_ERROR:
 						ADD		SP,4
 						STC
-						RET
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-; Input FS:DI  BPB
-; Output AX  LBA for the root dir
-;        DX Destroyed
-;        Preserves BX
-BPB_CALC_ROOTDIR_LBA:
-						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
-						; Skip FAT
-						MOVZX	AX,BYTE FS:[DI+BPB_NUM_FATS]
-						MUL		WORD FS:[DI+BPB_SECT_PER_FAT]
-
-						; Skip IPL sector (reserved sector)
-						MOVZX	DX,BYTE FS:[DI+BPB_RESERVED_SECTOR_CT]
-						ADD		AX,DX
-
 						RET
 
 
