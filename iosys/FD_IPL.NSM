@@ -13,6 +13,41 @@
 						%INCLUDE "TOWNSDEF.NSM"
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input   AX=Cluster  FS:DI=BPB
+; Output  AX=LBA
+;        Preserves BX
+%macro					BPB_CLUSTER_TO_SECT_CT	0
+						SUB		AX,2	; In DOS, cluster 2 is the first cluster.
+						MOVZX	DX,BYTE FS:[DI+BPB_SECTOR_PER_CLUSTER]
+						MUL		DX
+%endmacro
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input FS:DI  BPB
+; Output AX  Number of sectors of ROOTDIR
+;        DX Destroyed
+;        Preserves BX
+%macro					BPB_CALC_ROOTDIR_SECT_CT	0
+						; Calculated as (#RootDirEntries * DirEntSize + bytesPerSector -1)/bytesPerSector
+						; Number of bytes for root dir entries / bytes per sector, but must round up if some root dir entries are hanging.
+						MOV		AX,FS:[DI+BPB_NUM_ROOT_DIR_ENT]
+						SHL		AX,DIRENT_SHIFT		; AX is number of bytes of the root directory entries.
+
+						ADD		AX,FS:[DI+BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
+						DEC		AX
+						CWD
+						DIV		WORD FS:[DI+BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
+
+%endmacro
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
 ; Root directory will be read from B000:4000
 ROOTDIR_READ_OFFSET		EQU		4000h
 
@@ -73,7 +108,7 @@ BOOT:
 
 						; Read Directory from B100:0000
 
-						CALL	BPB_CALC_ROOTDIR_SECT_CT
+						BPB_CALC_ROOTDIR_SECT_CT
 						MOV		BX,AX
 						MOV		[ROOTDIR_NUM_SECTORS],AX
 
@@ -131,7 +166,7 @@ FOUND_IOSYS:
 
 						XCHG	DI,BX
 						MOV		DI,BPB_POS_IN_IPL
-						CALL	BPB_CLUSTER_TO_SECT_CT
+						BPB_CLUSTER_TO_SECT_CT
 						ADD		AX,[ROOTDIR_SECTOR]
 						ADD		AX,[ROOTDIR_NUM_SECTORS]
 						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
@@ -221,45 +256,6 @@ READ_SECTOR_DONE:
 READ_SECTORS_ERROR:
 						ADD		SP,4
 						STC
-						RET
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-; Input   AX=Cluster  FS:DI=BPB
-; Output  AX=LBA
-;        Preserves BX
-BPB_CLUSTER_TO_SECT_CT:
-						PUSH	DX
-
-						SUB		AX,2	; In DOS, cluster 2 is the first cluster.
-						MOVZX	DX,BYTE FS:[DI+BPB_SECTOR_PER_CLUSTER]
-						MUL		DX
-
-						POP		DX
-						RET
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Input FS:DI  BPB
-; Output AX  Number of sectors of ROOTDIR
-;        DX Destroyed
-;        Preserves BX
-BPB_CALC_ROOTDIR_SECT_CT:
-						; Calculated as (#RootDirEntries * DirEntSize + bytesPerSector -1)/bytesPerSector
-						; Number of bytes for root dir entries / bytes per sector, but must round up if some root dir entries are hanging.
-						MOV		AX,FS:[DI+BPB_NUM_ROOT_DIR_ENT]
-						SHL		AX,DIRENT_SHIFT		; AX is number of bytes of the root directory entries.
-
-						ADD		AX,FS:[DI+BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
-						DEC		AX
-						CWD
-						DIV		WORD FS:[DI+BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
-
 						RET
 
 
