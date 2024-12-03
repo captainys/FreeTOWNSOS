@@ -133,7 +133,7 @@ BOOT:
 
 						TEXTLOCATION	1,1
 						MOV		SI,MSG_TSUGARU_OS
-						CALL	GRAPH_PRINT_TALL
+						CALL	GRAPH_PRINT_TALL_CSSI
 
 
 						; Read Directory from B100:0000
@@ -160,6 +160,12 @@ BOOT:
 						CALL	READ_SECTORS
 						JC		DISK_READ_ERROR
 
+
+						TEXTLOCATION	1,2
+						MOV		SI,MSG_LOADED_ROOTDIR
+						CALL	GRAPH_PRINT_TALL_CSSI
+
+
 						MOV		DI,ROOTDIR_READ_OFFSET
 						MOV		DX,[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
 FIND_IOSYS_LOOP:
@@ -178,6 +184,13 @@ FIND_IOSYS_LOOP:
 						JMP		FIND_IOSYS_LOOP
 
 FOUND_IOSYS:
+						PUSH	DI	; Save directory pointer
+						TEXTLOCATION	1,3
+						MOV		SI,MSG_FOUND_IOSYS
+						CALL	GRAPH_PRINT_TALL_CSSI
+						POP		DI	; Restore directory pointer
+
+
 						MOV		EAX,[DI+DIRENT_FILE_SIZE]
 						MOVZX	ECX,WORD [BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]
 
@@ -206,6 +219,10 @@ FOUND_IOSYS:
 						CALL	READ_SECTORS
 						JC		DISK_READ_ERROR
 
+						TEXTLOCATION	1,4
+						MOV		SI,MSG_JUMP_TO_IOSYS
+						CALL	GRAPH_PRINT_TALL_CSSI
+
 						MOV		BX,CS:[BOOT_DEVICE]
 
 						DB		0EAH ; JMPF
@@ -214,9 +231,24 @@ FOUND_IOSYS:
 
 
 DISK_READ_ERROR:
+						TEXTLOCATION	1,4
+						MOV		SI,MSG_READ_ERROR
+						CALL	GRAPH_PRINT_TALL_CSSI
+						JMP		ERROR_EXIT
+
 IOSYS_NOT_FOUND:
-						STC
-						RETF	; Return to the SYSROM
+						TEXTLOCATION	1,4
+						MOV		SI,MSG_IOSYS_NOT_FOUND
+						CALL	GRAPH_PRINT_TALL_CSSI
+
+
+ERROR_EXIT:				JMP		ERROR_EXIT
+; To return to SYSROM
+;						STC
+;						RETF	; Return to the SYSROM
+
+
+
 
 
 
@@ -317,13 +349,160 @@ BPB_LBA_TO_CYLINDER_HEAD_SECTOR:
 						RET
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+GRAPH_INIT:
+
+						MOV		DX,IO_FMR_GVRAMDISPMODE
+						MOV		AL,27H  ; Show all planes, write to Page 0 (Page 0 is upper half of VRAM Layer 0)
+						OUT		DX,AL
+
+						MOV		DX,IO_FMR_GVRAMMASK
+						MOV		AL,0FH  ; Write to all planes
+						OUT		DX,AL
+
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Map 0C0000h-0C7FFFh to FM-R VRAM.
+GRAPH_VRAMMODE:
+						PUSH	DX
+						PUSH	AX
+						MOV		AL,0
+
+						MOV		DX,IO_FMR_VRAM_OR_MAINRAM
+						OUT		DX,AL
+						POP		AX
+						POP		DX
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+GRAPH_CLS:
+						PUSH	ES
+						PUSH	DI
+						PUSH	AX
+						PUSH	CX
+
+						MOV		AL,15
+						CALL	GRAPH_COLOR
+
+						MOV		AX,0C000H
+						MOV		ES,AX
+						MOV		DI,0
+						MOV		CX,80*400/2
+						MOV		AX,0
+						REP STOSW
+
+						POP		CX
+						POP		AX
+						POP		DI
+						POP		ES
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Input
+;   AL Color (0-15)
+; DX will be destroyed.
+GRAPH_COLOR:
+						AND		AL,0FH
+						MOV		DX,IO_FMR_GVRAMMASK
+						OUT		DX,AL
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; DI:  VRAM ADDRESS
+; AH:  ASCII Code
+; C0000H must be in FM-R VRAM mode.
+; BX preserved
+; DS preserved
+GRAPH_DRAWFONT_TALL:
+						PUSH	DS
+
+						MOV		DX,0C000H
+						MOV		DS,DX
+
+						MOV		DX,IO_KVRAM_OR_ANKFONT
+						MOV		AL,1
+						OUT		DX,AL
+
+						; ANK Font ROM CA000H-
+						MOV		AL,8
+						MUL		AH
+						ADD		AX,0A000H
+
+						MOV		CX,8
+						MOV		SI,AX
+GRAPH_DRAWFONT_TALL_LOOP:
+						MOV		DH,DS:[SI]
+						MOV		[DI],DH
+						MOV		[DI+50H],DH
+						INC		SI
+						ADD		DI,0A0H
+						LOOP	GRAPH_DRAWFONT_TALL_LOOP
+
+						MOV		DX,IO_KVRAM_OR_ANKFONT
+						XOR		AL,AL
+						OUT		DX,AL
+
+						POP		DS
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input
+;   DS:SI     String
+;   DI        VRAM Address
+GRAPH_PRINT_TALL_CSSI:
+						PUSH	ES
+						PUSH	SI
+						PUSH	DI
+						PUSH	AX
+						PUSH	DX
+						PUSH	CX
+
+						MOV		AX,0C000H
+						MOV		ES,AX
+						MOV		BX,SI
+GRAPH_PRINT_TALL_LOOP:
+						MOV		AL,CS:[BX]
+						CMP		AL,0
+						JE		SHORT GRAPH_PRINT_TALL_BREAK
+						MOV		AH,AL
+						CALL	GRAPH_DRAWFONT_TALL
+						ADD		DI,1-80*16
+						INC		BX
+						JMP		GRAPH_PRINT_TALL_LOOP
+GRAPH_PRINT_TALL_BREAK:
+						POP		CX
+						POP		DX
+						POP		AX
+						POP		DI
+						POP		SI
+						POP		ES
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 						%INCLUDE "CRTC.NSM"
-						%INCLUDE "GRAPHICS.NSM"
+
 
 MSG_TSUGARU_OS			DB		"TSUGARU OS IPL by CaptainYS",0
+MSG_LOADED_ROOTDIR		DB		"LOADED ROOT DIR",0
 MSG_READ_ERROR			DB		"DISC READ ERROR",0
+MSG_IOSYS_NOT_FOUND		DB		"IO.SYS NOT FOUND",0
 MSG_FOUND_IOSYS			DB		"FOUND IO.SYS",0
 MSG_JUMP_TO_IOSYS		DB		"JUMP TO IO.SYS",0
 
