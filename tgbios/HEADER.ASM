@@ -245,7 +245,7 @@ TGBIOS_SEG				EQU		0110H
 
 CODE					SEGMENT
 
-						DB		"TSUGARU BIOS",0
+						DB		"TSUGARU BIOS",0  ; DROPHDR.EXP will look for this keyword.  Do not change.
 
 						ORG		20H
 						DD		OFFSET EGB
