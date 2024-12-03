@@ -35,4 +35,6 @@ proc=subprocess.Popen([
 	"-scale","200",
 	"-keyboard","trans",
 	"-gameport0","phys0",
+
+	"-SYM", os.path.join(THISDIR,"BUILD","TGBIOS.SYM"),
 ]+sys.argv[1:]).wait()
