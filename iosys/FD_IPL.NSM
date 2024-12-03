@@ -15,29 +15,29 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Input   AX=Cluster  FS:DI=BPB
+; Input   AX=Cluster  CS:BPB_POS_IN_IPL=BPB
 ; Output  AX=LBA
 ;        Preserves BX
 %macro					BPB_CLUSTER_TO_SECT_CT	0
 						SUB		AX,2	; In DOS, cluster 2 is the first cluster.
-						MOVZX	DX,BYTE FS:[DI+BPB_SECTOR_PER_CLUSTER]
+						MOVZX	DX,BYTE CS:[BPB_POS_IN_IPL+BPB_SECTOR_PER_CLUSTER]
 						MUL		DX
 %endmacro
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Input FS:DI  BPB
+; Input CS:BPB_POS_IN_IPL  BPB
 ; Output AX  LBA for the root dir
 ;        DX Destroyed
 ;        Preserves BX
 %macro					BPB_CALC_ROOTDIR_LBA	0
 						; LBA is # of reserved sectors (IPL) plus number of FAT sectors times number of FATs
 						; Skip FAT
-						MOVZX	AX,BYTE FS:[DI+BPB_NUM_FATS]
-						MUL		WORD FS:[DI+BPB_SECT_PER_FAT]
+						MOVZX	AX,BYTE CS:[BPB_POS_IN_IPL+BPB_NUM_FATS]
+						MUL		WORD CS:[BPB_POS_IN_IPL+BPB_SECT_PER_FAT]
 
 						; Skip IPL sector (reserved sector)
-						MOVZX	DX,BYTE FS:[DI+BPB_RESERVED_SECTOR_CT]
+						MOVZX	DX,BYTE CS:[BPB_POS_IN_IPL+BPB_RESERVED_SECTOR_CT]
 						ADD		AX,DX
 %endmacro
 
@@ -45,20 +45,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-; Input FS:DI  BPB
+; Input CS:BPB_POS_IN_IPL  BPB
 ; Output AX  Number of sectors of ROOTDIR
 ;        DX Destroyed
 ;        Preserves BX
 %macro					BPB_CALC_ROOTDIR_SECT_CT	0
 						; Calculated as (#RootDirEntries * DirEntSize + bytesPerSector -1)/bytesPerSector
 						; Number of bytes for root dir entries / bytes per sector, but must round up if some root dir entries are hanging.
-						MOV		AX,FS:[DI+BPB_NUM_ROOT_DIR_ENT]
+						MOV		AX,CS:[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
 						SHL		AX,DIRENT_SHIFT		; AX is number of bytes of the root directory entries.
 
-						ADD		AX,FS:[DI+BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
+						ADD		AX,CS:[BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
 						DEC		AX
 						CWD
-						DIV		WORD FS:[DI+BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
+						DIV		WORD CS:[BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
 
 %endmacro
 
@@ -115,8 +115,6 @@ BOOT:
 						MOV		AX,CS
 						MOV		DS,AX
 						MOV		ES,AX
-						MOV		FS,AX
-						MOV		DI,BPB_POS_IN_IPL	; FS:DI is BPB
 
 						MOV		[BOOT_DEVICE],BX
 
@@ -179,13 +177,12 @@ FOUND_IOSYS:
 
 						MOV		AX,[DI+DIRENT_FIRST_CLUSTER]
 
-						PUSH	DI
-						MOV		DI,BPB_POS_IN_IPL
-						BPB_CLUSTER_TO_SECT_CT					; This preserves BX
+
+						BPB_CLUSTER_TO_SECT_CT					; This preserves BX, DI
 						ADD		AX,[ROOTDIR_SECTOR]
 						ADD		AX,[ROOTDIR_NUM_SECTORS]
-						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR	; This preserves BX
-						POP		DI
+						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR	; This preserves BX, DI
+
 
 						MOV		AL,CS:[DISKBIOS_DEVICE_CODE]
 						PUSH	WORD IOSYS_SEGMENT
@@ -289,11 +286,11 @@ BPB_LBA_TO_CYLINDER_HEAD_SECTOR:
 						; Cylinder=LBA/(#ofHeads*#sectorsPerTrack)
 						; Sector=LBA%sectorsPerTrack
 						CWD
-						DIV		WORD FS:[DI+BPB_SECT_PER_TRACK]
+						DIV		WORD CS:[BPB_POS_IN_IPL+BPB_SECT_PER_TRACK]
 						PUSH	DX	; Save Sector#, AX=Cylinder*#Heads+Head
 
 						CWD
-						DIV		WORD FS:[DI+BPB_NUM_HEADS]
+						DIV		WORD CS:[BPB_POS_IN_IPL+BPB_NUM_HEADS]
 						MOV		CX,AX	; CX is Cylinder, DX is head
 
 						AND		DL,1
