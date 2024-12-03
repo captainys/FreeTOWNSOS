@@ -149,16 +149,14 @@ BOOT:
 						JC		DISK_READ_ERROR
 
 						MOV		DI,ROOTDIR_READ_OFFSET
-						MOV		SI,IOSYS_FILENAME
 						MOV		DX,[BPB_POS_IN_IPL+BPB_NUM_ROOT_DIR_ENT]
 FIND_IOSYS_LOOP:
-						PUSH	SI
+						MOV		SI,IOSYS_FILENAME
 						PUSH	DI
 						MOV		CX,11
 						CLD
 						REP		CMPSB
 						POP		DI
-						POP		SI
 
 						JE		FOUND_IOSYS
 
@@ -246,10 +244,18 @@ READ_SECTORS_LOOP:
 						AND		AH,AH
 						JNE		READ_SECTORS_ERROR
 
+						ADD		DI,CS:[BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]
+						JNC		UNDER_64KB
+
+						; Carry-set.  Must add 1000H to DS
+						MOV		AX,DS
+						ADD		AX,1000H
+						MOV		DS,AX
+UNDER_64KB:
+
 						POP		CX
 						POP		AX
 
-						ADD		DI,CS:[BPB_POS_IN_IPL+BPB_BYTES_PER_SECTOR]
 						DEC		BX
 						JLE		READ_SECTOR_DONE
 
@@ -259,8 +265,7 @@ READ_SECTORS_LOOP:
 
 						MOV		DL,1
 
-						INC		DH		; Next Side
-						AND		DH,1
+						XOR		DH,1	; Next Side
 						JNE		READ_SECTORS_LOOP
 
 						INC		CX		; Next Track
