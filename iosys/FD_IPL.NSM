@@ -11,6 +11,8 @@
 						%INCLUDE "UTIL.NSM"
 						%INCLUDE "DEF.NSM"
 						%INCLUDE "TOWNSDEF.NSM"
+						%INCLUDE "IODEF.NSM"
+						%INCLUDE "GRAPHMAC.NSM"
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -121,6 +123,18 @@ BOOT:
 						AND		BH,7
 						OR		BH,DISKBIOS_FDD_0
 						MOV		[DISKBIOS_DEVICE_CODE],BH
+
+
+						CALL	GRAPH_INIT
+						CALL	GRAPH_VRAMMODE
+						CALL	GRAPH_CLS
+						CALL	RESETPALETTE16
+						CALL	CRTC640X480_640X480MOD
+
+						TEXTLOCATION	1,1
+						MOV		SI,MSG_TSUGARU_OS
+						CALL	GRAPH_PRINT_TALL
+
 
 						; Read Directory from B100:0000
 
@@ -305,6 +319,13 @@ BPB_LBA_TO_CYLINDER_HEAD_SECTOR:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+						%INCLUDE "CRTC.NSM"
+						%INCLUDE "GRAPHICS.NSM"
+
+MSG_TSUGARU_OS			DB		"TSUGARU OS IPL by CaptainYS",0
+MSG_READ_ERROR			DB		"DISC READ ERROR",0
+MSG_FOUND_IOSYS			DB		"FOUND IO.SYS",0
+MSG_JUMP_TO_IOSYS		DB		"JUMP TO IO.SYS",0
 
 BOOT_DEVICE				DW		0
 DISKBIOS_DEVICE_CODE	DB		0h
