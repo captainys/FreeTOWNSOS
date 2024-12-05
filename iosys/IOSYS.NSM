@@ -48,8 +48,15 @@ REALENTRY:
 						MOV		FS:[1AH],CS
 
 						MOV		CS:[BOOT_DEVICE],EBX	; Sent from the IPL.  If HD, high-word is partition number.
+
+						MOV		EBX,00000FFh
+						CALL	PALETTE_DEBUG
+
 						CALL	SETUP_REALMODE_INT_HANDLER
-						MOV		BX,CS:[BOOT_DEVICE]
+
+						MOV		EBX,000FF00h
+						CALL	PALETTE_DEBUG
+
 
 						MOV		WORD CS:[SECTBUF_PTR],SECTOR_BUFFER
 						MOV		WORD CS:[SECTBUF_SEG],CS
@@ -62,6 +69,10 @@ REALENTRY:
 						POP		GS
 						MOV		SI,CONDEV_HEADER_NEXT
 
+						MOV		EBX,000FFFFh
+						CALL	PALETTE_DEBUG
+
+						MOV		EBX,CS:[BOOT_DEVICE]
 						PUSH	WORD CS:[SEG_DOSLOADER_SRC]
 						PUSH	0
 						RETF	; JMP to DOSLOADER
@@ -173,8 +184,10 @@ SECTBUF_SEG				DW		0
 CDS						DB		(CURRENT_DIR_STRUCT_size*MAX_NUM_CDS) dup (0)
 
 						ALIGN	16
+BUFFER_HEADER			DB		16 dup(0)	; Let's make it an additional DOS DMA buffer later.
 SECTOR_BUFFER			DB		1024 dup(0)
 
+						%INCLUDE	"PLTDEBUG.NSM"
 						%INCLUDE	"DOSUTIL.NSM"
 						%INCLUDE	"CONDEV.NSM"
 						%INCLUDE	"CLOCKDEV.NSM"
