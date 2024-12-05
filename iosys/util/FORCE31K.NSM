@@ -6,10 +6,25 @@
 						CPU		386
 						BITS	16
 
+						ORG		0100H
+
+						CLI
+						MOV		AX,CS
+						MOV		SS,AX
+						MOV		SP,STACK_END
+						STI
+
+						PUSH	CS
+						POP		DS
+
+						TSUGARU_DEBUG
+
 						CALL	CRTC640X480_640X480MOD
-						CALL	RESETPALETTE16
 
 						MOV		AH,4CH
 						INT		21H
 
 						%INCLUDE	"../CRTC.NSM"
+
+STACK:					DB		128	dup(0)
+STACK_END:
