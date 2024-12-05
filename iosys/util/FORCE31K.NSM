@@ -1,0 +1,15 @@
+						%INCLUDE "../UTIL.NSM"
+						%INCLUDE "../DEF.NSM"
+						%INCLUDE "../TOWNSDEF.NSM"
+						%INCLUDE "../IODEF.NSM"
+
+						CPU		386
+						BITS	16
+
+						CALL	CRTC640X480_640X480MOD
+						CALL	RESETPALETTE16
+
+						MOV		AH,4CH
+						INT		21H
+
+						%INCLUDE	"../CRTC.NSM"

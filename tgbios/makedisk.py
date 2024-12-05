@@ -32,6 +32,15 @@ def Run(argv):
 
 
 	proc=subprocess.Popen([
+		"python",
+		os.path.join(THISDIR,"..","iosys","util","build.py")])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error bulding IO.SYS")
+		quit()
+
+
+	proc=subprocess.Popen([
 		"Tsugaru_CUI",
 		os.path.join(THISDIR,"..","CompROM"),
 		"-FD0",
@@ -84,6 +93,7 @@ def Run(argv):
 		"-i",		"../resources/FD/CONFIG.SYS",
 		"-i",		"../resources/FD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../resources/FORCE31K.COM",
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../resources/FAKENSDD.SYS",
@@ -104,6 +114,7 @@ def Run(argv):
 		"-ipl",		"../iosys/FD_IPL.bin",
 		"-ipliosys",	"IO.SYS","20h",
 		"-i",		"../resources/IO.SYS",
+		"-i",		"../resources/FORCE31K.COM",
 		"-i",		"../resources/FD/CONFIG.SYS",
 		"-i",		"../resources/FD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
@@ -132,6 +143,7 @@ def Run(argv):
 		"-i",		"../resources/SUCCESS.EXE",
 		"-i",		"../resources/FAIL.EXE",
 		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../resources/FORCE31K.COM",
 		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../resources/FAKENSDD.SYS",
 		"-i",		"../resources/SYSXXXX0.COM",
@@ -157,6 +169,7 @@ def Run(argv):
 		"-i",		"0",	"../resources/HD/CONFIG.SYS",
 		"-i",		"0",	"../resources/HD/AUTOEXEC.BAT",
 		"-i",		"0",	"../resources/TGDRV.COM",
+		"-i",		"0",	"../resources/FORCE31K.COM",
 		"-i",		"0",	"../resources/TEST.EXP",
 		"-i",		"0",	"../resources/MINVCPI.SYS",
 		"-i",		"0",	"../resources/FAKENSDD.SYS",
@@ -197,6 +210,7 @@ def Run(argv):
 		"-F",		"../resources/CD/CONFIG.SYS",
 		"-F",		"../resources/CD/AUTOEXEC.BAT",
 		"-F",		"../resources/TGDRV.COM",
+		"-F",		"../resources/FORCE31K.COM",
 		"-F",		"../resources/MINVCPI.SYS",
 		"-F",		"../resources/FAKENSDD.SYS",
 		"-F",		"../resources/SYSXXXX0.COM",
