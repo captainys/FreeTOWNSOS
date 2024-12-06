@@ -436,6 +436,55 @@ INSTALL_SCSI_CD_FAILED:
 						JMP		INSTALL_SCSI_CD_FAILED
 
 
+DISKBIOS_ERROR:
+						PUSH	CX
+						MOV		SI,MSG_ERROR_AX
+						CALL	AX_TO_ASCII_CS_SI
+
+						POP		AX
+						MOV		SI,MSG_ERROR_CX
+						CALL	AX_TO_ASCII_CS_SI
+
+						MOV		SI,MSG_ERROR_AX_CX
+						CALL	TEXT_MESSAGE
+
+						JMP		INFINITY
+
+
+
+AX_TO_ASCII_CS_SI:
+						PUSH	CX
+
+						SHLD	CX,AX,4
+						CALL	CL_4BITS_TO_HEX
+						MOV		CS:[SI],CL
+
+						SHLD	CX,AX,8
+						CALL	CL_4BITS_TO_HEX
+						MOV		CS:[SI+1],CL
+
+						SHLD	CX,AX,12
+						CALL	CL_4BITS_TO_HEX
+						MOV		CS:[SI+2],CL
+
+						SHLD	CX,AX,16
+						CALL	CL_4BITS_TO_HEX
+						MOV		CS:[SI+3],CL
+
+						POP		CX
+
+						RET
+
+CL_4BITS_TO_HEX:
+						AND		CL,0FH
+						CMP		CL,10
+						JAE		FOUBITS_TO_HEX_ALPHABETS
+						ADD		CL,'0'
+						RET
+FOUBITS_TO_HEX_ALPHABETS:
+						ADD		CL,'A'-10
+						RET
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -1275,7 +1324,7 @@ LOAD_DOS_FROM_FD:
 						MOV		FS,DI	; Prep to use BPB
 						XOR		DI,DI
 						INT		93H
-						JB		INFINITY
+						JB		DISKBIOS_ERROR
 
 
 
@@ -1363,6 +1412,7 @@ LOAD_DOS_FROM_FD:
 						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
 
 						INT		93H
+						JB		DISKBIOS_ERROR
 
 						; CF set by INT 93H
 
@@ -1564,6 +1614,10 @@ MSG_RESTORE				DB		"RESTORE",0
 MSG_READ_BPB			DB		"READ BPB",0
 MSG_READ_DIR			DB		"READ DIR",0
 MSG_FOUND_YSDOS			DB		"FOUND YSDOS",0
+
+MSG_ERROR_AX_CX			DB		"ERROR AX=",
+MSG_ERROR_AX			DB		"0000 CX=",
+MSG_ERROR_CX			DB		"0000",0
 
 DISKBIOS_BOOT_DEVICE	DB		0
 BOOT_PARTITION			DB		0		; If booting from HDD
