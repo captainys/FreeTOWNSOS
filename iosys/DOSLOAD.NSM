@@ -52,6 +52,11 @@ HD_PARTITION_TABLE_PTR	DD		0	; +14h  IO.SYS uses this offset.  Do not change.
 NUM_HD_BPB_PTR			DD		0	; +18h  IO.SYS uses this offset.  Do not change.
 
 
+TEXT_POS:
+TEXT_Y:					DB		8
+TEXT_X:					DB		0
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 REALENTRY:
@@ -126,6 +131,13 @@ CLONE_ENTRY:
 						CALL	PALETTE_DEBUG
 
 
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_INT_INITIALIZED
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
+
 						; Apparently INT 4DH should always be enabled.
 						PUSH	EAX
 						MOV		DI,SS
@@ -150,7 +162,6 @@ CLONE_ENTRY:
 						MOV		AX,(DISKBIOS_CMD_EXT_ENABLE_SCSI_REDIR*0x100)+DISKBIOS_CD
 						MOV		DL,BH
 						INT		93H
-INSTALL_SCSI_CD_FAILED:
 						JB		INSTALL_SCSI_CD_FAILED
 						MOV		BX,BOOTDEV_CD
 						MOV		CS:[BOOT_DEVICE],BX
@@ -187,6 +198,13 @@ TRY_LOAD_DOS_FROM_ROM:
 
 ; Stack Top is YSDOS Segment
 YSDOS_LOADED:
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_DOS_LOADED
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
+
 						; INPUT to YSDOS.SYS
 						;    DX     ENDMEM 0C000H in TOWNS because always TOWNS has more than 640KB
 						;    DS:SI  DEVHEAD
@@ -215,6 +233,16 @@ YSDOS_LOADED:
 						MOV		DX,TSUGARUIO_VM_HOST_IF_CMD_STATUS
 						MOV		AL,TOWNS_VMIF_CMD_NOTIFY_DOSLOL
 						OUT		DX,AL
+
+
+						PUSh	CS
+						POP		DS
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_DOSINIT_PASSED
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
 
 						XOR		AX,AX
 						MOV		FS,AX
@@ -332,19 +360,55 @@ CLOSE_DEFAULT_FILE_LOOP:
 						MOV		AH,49H	; FREE MEMORY
 						INT		21H
 
+
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_INSTALLING_MSCDEX
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
+
 						CALL	INSTALL_MSCDEX
+
+
+						PUSH	CS
+						POP		DS
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_MSCDEX_INSTALLED
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
 
 						MOV		DL,CS:[BOOT_DRIVE]
 						MOV		AH,0Eh
 						INT		21H
 
+
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_DO_CONFIG_SYS
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
+
 						CALL	DO_CONFIG_SYS
 
 						CALL	CREATE_ADDITIONAL_SFT	; Make sure to do it after the preliminary PSP is copied.
 
-						MOV		AX,4B00H	; EXEC
+
 						PUSH	CS
 						POP		DS
+
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_START_YAMAND_COM
+						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
+
+						; Already CS=DS
+						MOV		AX,4B00H	; EXEC
 						MOV		DX,DEFAULT_COMSPEC
 						PUSH	CS
 						POP		ES
@@ -365,9 +429,27 @@ COMMANDCOM_PARAM_DOES_NOT_START_WITH_PATH:
 						MOV		BX,COMMANDCOM_PARAMBLOCK
 						INT		21H
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 HALT_FOREVER:
 						HLT
 						JMP		HALT_FOREVER
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+INSTALL_SCSI_CD_FAILED:
+						MOV		AX,CS:[TEXT_POS]
+						CALL	GRAPH_LOCATE
+						MOV		SI,MSG_INSTALL_SCSI_CD_FAILED
+						CALL	GRAPH_PRINT_TALL
+						JMP		INSTALL_SCSI_CD_FAILED
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 						ALIGN	32
@@ -1457,6 +1539,8 @@ FOUND_BOOT_DRIVE:
 %endmacro
 						%INCLUDE	"ISO9660.NSM"
 						%INCLUDE	"PLTDEBUG.NSM"
+						%INCLUDE	"CRTC.NSM"
+						%INCLUDE	"GRAPHICS.NSM"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1464,6 +1548,15 @@ FOUND_BOOT_DRIVE:
 YSDOS_SYS_FILENAME		DB		"YSDOS   SYS"
 MSDOS_SYS_FILENAME		DB		"MSDOS   SYS"
 YSDOS_SYS_FILENAME_CSTR	DB		"YSDOS.SYS",0
+
+MSG_INT_INITIALIZED		DB		"INT HANDLER READY TO GO",0
+MSG_INSTALL_SCSI_CD_FAILED	DB	"SCSI-CD REDIRECTION FAILED",0
+MSG_DOS_LOADED			DB		"DOS LOADED",0
+MSG_DOSINIT_PASSED		DB		"PASSED DOSINIT",0
+MSG_INSTALLING_MSCDEX	DB		"INSTALLING MSCDEX(or SHUCDX)",0
+MSG_MSCDEX_INSTALLED	DB		"MSCDEX(or SHUCDX) INSTALLED",0
+MSG_DO_CONFIG_SYS		DB		"DO CONFIG.SYS",0
+MSG_START_YAMAND_COM	DB		"START YAMAND.COM",0
 
 DISKBIOS_BOOT_DEVICE	DB		0
 BOOT_PARTITION			DB		0		; If booting from HDD
