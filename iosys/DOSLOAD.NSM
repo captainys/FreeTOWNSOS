@@ -131,11 +131,8 @@ CLONE_ENTRY:
 						CALL	PALETTE_DEBUG
 
 
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
 						MOV		SI,MSG_INT_INITIALIZED
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
+						CALL	TEXT_MESSAGE
 
 
 						; Apparently INT 4DH should always be enabled.
@@ -198,11 +195,8 @@ TRY_LOAD_DOS_FROM_ROM:
 
 ; Stack Top is YSDOS Segment
 YSDOS_LOADED:
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
 						MOV		SI,MSG_DOS_LOADED
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
+						CALL	TEXT_MESSAGE
 
 
 						; INPUT to YSDOS.SYS
@@ -235,13 +229,8 @@ YSDOS_LOADED:
 						OUT		DX,AL
 
 
-						PUSh	CS
-						POP		DS
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
 						MOV		SI,MSG_DOSINIT_PASSED
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
+						CALL	TEXT_MESSAGE
 
 
 						XOR		AX,AX
@@ -361,23 +350,15 @@ CLOSE_DEFAULT_FILE_LOOP:
 						INT		21H
 
 
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
 						MOV		SI,MSG_INSTALLING_MSCDEX
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
+						CALL	TEXT_MESSAGE
 
 
 						CALL	INSTALL_MSCDEX
 
 
-						PUSH	CS
-						POP		DS
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
 						MOV		SI,MSG_MSCDEX_INSTALLED
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
+						CALL	TEXT_MESSAGE
 
 
 						MOV		DL,CS:[BOOT_DRIVE]
@@ -385,11 +366,8 @@ CLOSE_DEFAULT_FILE_LOOP:
 						INT		21H
 
 
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
 						MOV		SI,MSG_DO_CONFIG_SYS
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
+						CALL	TEXT_MESSAGE
 
 
 						CALL	DO_CONFIG_SYS
@@ -397,17 +375,14 @@ CLOSE_DEFAULT_FILE_LOOP:
 						CALL	CREATE_ADDITIONAL_SFT	; Make sure to do it after the preliminary PSP is copied.
 
 
+						MOV		SI,MSG_START_YAMAND_COM
+						CALL	TEXT_MESSAGE
+
+
 						PUSH	CS
 						POP		DS
 
-						MOV		AX,CS:[TEXT_POS]
-						CALL	GRAPH_LOCATE
-						MOV		SI,MSG_START_YAMAND_COM
-						CALL	GRAPH_PRINT_TALL
-						INC		BYTE CS:[TEXT_Y]
-
-
-						; Already CS=DS
+						; CS=DS
 						MOV		AX,4B00H	; EXEC
 						MOV		DX,DEFAULT_COMSPEC
 						PUSH	CS
@@ -429,10 +404,6 @@ COMMANDCOM_PARAM_DOES_NOT_START_WITH_PATH:
 						MOV		BX,COMMANDCOM_PARAMBLOCK
 						INT		21H
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 HALT_FOREVER:
 						HLT
 						JMP		HALT_FOREVER
@@ -440,12 +411,28 @@ HALT_FOREVER:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Input SI: Message pointer
+TEXT_MESSAGE:
+						PUSH	DS
+						PUSH	AX
 
-INSTALL_SCSI_CD_FAILED:
+						PUSH	CS
+						POP		DS
 						MOV		AX,CS:[TEXT_POS]
 						CALL	GRAPH_LOCATE
-						MOV		SI,MSG_INSTALL_SCSI_CD_FAILED
 						CALL	GRAPH_PRINT_TALL
+						INC		BYTE CS:[TEXT_Y]
+
+						POP		AX
+						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+INSTALL_SCSI_CD_FAILED:
+						MOV		SI,MSG_INSTALL_SCSI_CD_FAILED
+						CALL	TEXT_MESSAGE
 						JMP		INSTALL_SCSI_CD_FAILED
 
 
@@ -1263,12 +1250,18 @@ LOAD_DOS_FROM_FD:
 						AND		AL,0FH
 						MOV		CS:[BOOT_DRIVE],AL	; A or B.  If the 3rd FD, forget about it....
 
+						MOV		SI,MSG_RESTORE
+						CALL	TEXT_MESSAGE
+
 						OR		AL,DISKBIOS_FDD_0
 						MOV		CS:[DISKBIOS_BOOT_DEVICE],AL
 
 						MOV		AH,DISKBIOS_CMD_03H_RESTORE
 						INT		93H
 
+
+						MOV		SI,MSG_READ_BPB
+						CALL	TEXT_MESSAGE
 
 
 						; Read IPL Sector to get BPB
@@ -1299,6 +1292,11 @@ LOAD_DOS_FROM_FD:
 						PUSH	AX	; Save ROOTDIR LBA
 
 						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
+
+
+						MOV		SI,MSG_READ_DIR
+						CALL	TEXT_MESSAGE
+
 
 						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
 						MOV		AL,CS:[DISKBIOS_BOOT_DEVICE]
@@ -1353,6 +1351,11 @@ LOAD_DOS_FROM_FD:
 						POP		DX
 						ADD		AX,DX
 						CALL	BPB_LBA_TO_CYLINDER_HEAD_SECTOR
+
+
+						MOV		SI,MSG_FOUND_YSDOS
+						CALL	TEXT_MESSAGE
+
 
 						MOV		DS,CS:[DOSSEG]	; YSDOS Loading Point
 						XOR		DI,DI
@@ -1557,6 +1560,10 @@ MSG_INSTALLING_MSCDEX	DB		"INSTALLING MSCDEX(or SHUCDX)",0
 MSG_MSCDEX_INSTALLED	DB		"MSCDEX(or SHUCDX) INSTALLED",0
 MSG_DO_CONFIG_SYS		DB		"DO CONFIG.SYS",0
 MSG_START_YAMAND_COM	DB		"START YAMAND.COM",0
+MSG_RESTORE				DB		"RESTORE",0
+MSG_READ_BPB			DB		"READ BPB",0
+MSG_READ_DIR			DB		"READ DIR",0
+MSG_FOUND_YSDOS			DB		"FOUND YSDOS",0
 
 DISKBIOS_BOOT_DEVICE	DB		0
 BOOT_PARTITION			DB		0		; If booting from HDD
