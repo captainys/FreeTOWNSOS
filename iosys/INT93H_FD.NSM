@@ -864,6 +864,11 @@ INT93H_FD_24H_DO_NOT_CLEAR_FLAG:
 						OUT		DX,AL
 						OUT		DX,AL
 
+						; Apparently real TOWNS does not return FREADY=1 unless the motor is spinning.
+						MOV		AL,FDC_CTL_MOTOR+FDC_CTL_MFM	; Just want to turn the motor on.
+						OUT_DRV_CTRL	; This destroys DX
+						CALL	INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG
+
 						MOV		DX,IO_FDC_DRIVE_STATUS
 						IN		AL,DX
 						IN		AL,DX
