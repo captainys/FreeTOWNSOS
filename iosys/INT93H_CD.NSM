@@ -18,6 +18,8 @@ CDC_PARAM				DB		0,0,0,0,0,0,0,0
 CDC_STATUS				DB		0,0,0,0
 CDC_READ_POINTER_PHYS	DD		0
 
+CDC_READ_DONE			DB		0
+
 INT49H_CD_INT_HANDLER:
 						RETF
 
@@ -311,10 +313,19 @@ INT93H_CD_REALLY_READ:
 						MOV		AL,CDCCMD_MODE1_READ+CDCCMD_IRQ+CDCCMD_STATUSREQ
 						OUT		DX,AL
 
-
+						MOV		BYTE CS:[CDC_READ_DONE],0
 
 INT93H_CD_READ_LOOP:
-						CALL	CDC_GET_STATUS
+						MOV		DX,IO_CDC_MASTER_STATUS
+						IN		AL,DX
+						TEST	AL,2
+						JNE		INT93H_CD_READ_STATUS_REQ
+						TEST	AL,40H
+						JNE		INT93H_CD_READ_DMAE
+						JMP		INT93H_CD_READ_LOOP
+
+INT93H_CD_READ_STATUS_REQ:
+						CALL	CDC_GET_STATUS_NO_CHECK
 						CMP		AL,06H	; Read Done
 						JE		INT93H_CD_READ_READ_DONE
 						CMP		AL,21H ; Error
@@ -329,28 +340,41 @@ INT93H_CD_READ_LOOP:
 						MOV		AL,010H	; DMA Transfer
 						OUT		DX,AL
 
-						CALL	CDC_WAIT_DMAE
-
 						ADD		DWORD CS:[CDC_READ_POINTER_PHYS],0800H
+						MOV		BYTE CS:[CDC_READ_DONE],0
+
+						JMP		INT93H_CD_READ_LOOP
+
+
+
+INT93H_CD_READ_READ_DONE:
+						OR		BYTE CS:[CDC_READ_DONE],1
+						JMP		INT93H_CD_READ_TEST_ALL_DONE
+
+
+
+INT93H_CD_READ_DMAE:
+						MOV		AL,040H
+						MOV		DX,IO_CDC_MASTER_STATUS
+						OUT		DX,AL
 
 						IN		AL,IO_DMA_MASK	; Mask DMA
 						AND		AL,0FH
 						OR		AL,08H
 						OUT		IO_DMA_MASK,AL
 
-						JMP		INT93H_CD_READ_LOOP
+						OR		BYTE CS:[CDC_READ_DONE],2
 
-INT93H_CD_READ_READ_DONE:
+INT93H_CD_READ_TEST_ALL_DONE:
+						CMP		BYTE CS:[CDC_READ_DONE],3
+						JNE		INT93H_CD_READ_LOOP
 
+
+
+; All Done
 						MOV		DX,IO_CDC_TFR_CONTROL	; Just in case.  Apparently DTS flag is cleared from the CDC.
 						XOR		AL,AL
 						OUT		DX,AL
-
-						; Mask DMA
-						IN		AL,IO_DMA_MASK
-						AND		AL,0FH
-						OR		AL,08H
-						OUT		IO_DMA_MASK,AL
 
 						; Clear DMA_ADDR_HIGH Just in case
 						XOR		AL,AL
@@ -972,6 +996,7 @@ CDC_GET_STATUS:
 						AND		AL,02H
 						JE		CDC_GET_STATUS_NO_STATUS
 
+CDC_GET_STATUS_NO_CHECK:
 						MOV		DX,IO_CDC_STATUS
 						IN		AL,DX
 						ROR		EAX,8
@@ -1022,16 +1047,6 @@ CDC_SETUP_DMA_FOR_ONE_SECTOR:
 						OUT		IO_DMA_MASK,AL
 
 						RET
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-CDC_WAIT_DMAE:
-						MOV		DX,IO_CDC_MASTER_STATUS
-						IN		AL,DX
-						AND		AL,40H
-						JE		CDC_WAIT_DMAE
-						RET
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
