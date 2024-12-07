@@ -415,6 +415,9 @@ HALT_FOREVER:
 TEXT_MESSAGE:
 						PUSH	DS
 						PUSH	AX
+						PUSH	BX
+						PUSH	CX
+						PUSH	DX
 
 						PUSH	CS
 						POP		DS
@@ -423,6 +426,9 @@ TEXT_MESSAGE:
 						CALL	GRAPH_PRINT_TALL
 						INC		BYTE CS:[TEXT_Y]
 
+						POP		DX
+						POP		CX
+						POP		BX
 						POP		AX
 						POP		DS
 						RET
