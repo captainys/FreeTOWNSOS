@@ -62,6 +62,39 @@ SCSI_SENSEKEY_RESERVED         			EQU		0x0F
 ;         Other phases can be ignored
 
 
+
+; Check SCSI availability.
+; I/O 0C32H should not return FFh if SCSI is available.
+; If I get FFh for 3 times, I think I can safe to say SCSI unavailable.
+SCSI_AVAILABLE:
+						PUSH	AX
+						PUSH	DX
+						MOV		DX,IO_SCSI_STATUS
+						MOV		AH,0FFH
+						IN		AL,DX
+						AND		AH,AL
+						IN		AL,DX
+						AND		AH,AL
+						IN		AL,DX
+						AND		AH,AL
+						CMP		AH,0FFH
+						JE		SCSI_IS_NOT_AVAILABLE
+;SCSI_IS_AVAILABLE:
+						POP		DX
+						POP		AX
+						CLC
+						RET
+
+SCSI_IS_NOT_AVAILABLE:
+						POP		DX
+						POP		AX
+						STC
+						RET
+
+
+
+
+
 ;Input
 ; CL		SCSI ID
 ; DS:[SI]   SCSI Command
@@ -76,6 +109,9 @@ SCSI_SENSEKEY_RESERVED         			EQU		0x0F
 ; Other registers won't be preserved.
 SCSI_COMMAND:
 						PUSHF
+
+						CALL	SCSI_AVAILABLE
+						JC		SCSI_ERROR_80
 
 
 						; Pentium model may be too fast for SCSI controller when multiple commands
@@ -93,6 +129,7 @@ SCSI_COMMAND_LOOP:
 						MOV		BYTE CS:[SCSI_PHASE_FLAG],0
 
 						CALL	SCSI_WAIT_READY	; AL,DX Destroyed
+						JB		SCSI_ERROR_80
 
 						CALL	SCSI_DMA_INITIALIZE
 
@@ -199,12 +236,16 @@ SCSI_ERROR:
 
 SCSI_WAIT_READY:
 						PUSH	CX
+
+						CALL	SCSI_AVAILABLE
+						JC		SCSI_WAIT_READY_DONE
+
 						CLC
-						MOV		CX,3000
+						MOV		CX,10000
 SCSI_WAIT_READY_LOOP:
 						MOV		DX,IO_SCSI_STATUS
 						IN		AL,DX
-						AND		AL,8	; BUSY Flag
+						AND		AL,8	; BUSY Flag  AND instruction clears CF.
 						JE		SHORT SCSI_WAIT_READY_DONE
 						OUT		IO_1US_WAIT,AL
 						LOOP	SCSI_WAIT_READY_LOOP
@@ -249,6 +290,9 @@ SCSI_SELECT:
 
 
 SCSI_WAIT_BUSY:
+						CALL	SCSI_AVAILABLE
+						JB		SCSI_WAIT_BUSY_DONE
+
 						CLC
 						MOV		CX,3000
 SCSI_WAIT_BUSY_LOOP:	MOV		DX,IO_SCSI_STATUS

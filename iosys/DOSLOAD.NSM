@@ -379,6 +379,11 @@ CLOSE_DEFAULT_FILE_LOOP:
 						CALL	TEXT_MESSAGE
 
 
+
+						CALL	FLUSH_KEY_BUFFER	; For some reason real TOWNS gives 'k'.
+
+
+
 						PUSH	CS
 						POP		DS
 
@@ -1586,6 +1591,15 @@ FIND_BOOT_DRIVE_LOOP:
 FOUND_BOOT_DRIVE:
 						MOV		AL,DS:[SI+DSKDRV_LETTER]
 						SUB		AL,'A'
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+FLUSH_KEY_BUFFER:
+						MOV		AX,0901H	; AH=09 Read Key  AL=01 No Blocking
+						INT		90H
+						CMP		DH,0FFH
+						JNE		FLUSH_KEY_BUFFER
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
