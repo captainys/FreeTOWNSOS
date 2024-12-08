@@ -53,7 +53,7 @@ def Run(argv):
 		THISDIR,
 		"-DEBUG",
 		"-UNITTEST",
-		"-USEFPU",
+		"-DONTUSEFPU",	# Let High-C use no-fpu mode.
 	])
 	proc.communicate()
 	if 0!=proc.returncode:
