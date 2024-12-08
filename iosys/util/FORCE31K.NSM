@@ -17,7 +17,7 @@
 						PUSH	CS
 						POP		DS
 
-						TSUGARU_DEBUG
+						; TSUGARU_DEBUG
 
 						CALL	CRTC640X480_640X480MOD
 
