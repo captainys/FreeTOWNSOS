@@ -10,8 +10,10 @@ INT93H_ROMDISK:
 
 
 INT93H_ROMDISK_READ:
-						MOV		ES,[BP+SAVED_DS]
-						MOV		DI,[BP+SAVED_EDI]
+						MOVZX	EDI,WORD [BP+SAVED_DS]
+						SHL		EDI,4
+						MOVZX	ESI,WORD [BP+SAVED_EDI]
+						ADD		EDI,ESI
 
 						MOV		SI,[BP+SAVED_ECX]
 						SHL		ESI,16
@@ -35,8 +37,8 @@ INT93H_ROMDISK_ESI_IS_PHYSADDR:
 
 						; Input
 						;   ESI      Source Physical Address
-						;   ES:DI    Destination
-						;   CX       Transfer size
-						CALL	READ_HIGHB
+						;   EDI       Destination
+						;   ECX      Transfer size
+						CALL	PHYSMEM_TRANSFER
 
 						JMP		INT93H_EXIT_NO_ERROR

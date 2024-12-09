@@ -19,19 +19,50 @@ GDT_BACKUP				DW		0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 GDT_INFO				DW		GDT_END-GDT_BEGIN-1
-GDT_ADDR				DD		0	; Sounds like a linear address
+GDT_ADDR				DD		0	; Sounds like it is a linear address
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 GDT_BEGIN				DD		0,0			; Table 0.  Not used?
 						; It must make a flat 32-bit descriptor.
 						; https://wiki.osdev.org/Unreal_Mode
-						DB		0FFH,0FFH	; Segment Limit (0-15)
-GDT_BASE_LOW			DB		0,0,010H		; Base Address 0-23
-						DB		10010010B	; P=1, DPL=00, S=1, TYPE=0010
-						DB		11000111B	; G=1, DB=1, (Unused)=0, A=0, LIMIT 16-19=0011
-GDT_BASE_HIGH			DB		0			; Base Address 24-31
-GDT_END					DB		0	; Dummy
+; Selector 08H
+CS16_DESC				DB		0FFH,0FFH	; Segment Limit (0-15)
+CS16_BASE_LOW			DB		0,0,0		; Base Address 0-23
+						DB		10011010B	; P=1, DPL=00, S=1, TYPE=01AH
+						DB		00000000B	; G=0(max 12MB), DB=0(16-bit), (Unused)=0, A=0, LIMIT 16-19=0000
+CS16_BASE_HIGH			DB		0			; Base Address 24-31
+
+; Selector 10H
+CS32_DESC				DB		0FFH,0FFH	; Segment Limit (0-15)
+CS32_BASE_LOW			DB		0,0,0		; Base Address 0-23
+						DB		10011010B	; P=1, DPL=00, S=1, TYPE=01AH
+						DB		11000011B	; G=1(max 4GB), DB=1(32-bit), (Unused)=0, A=0, LIMIT 16-19=0011
+CS32_BASE_HIGH			DB		0			; Base Address 24-31
+
+DS_DESC					DB		0FFH,0FFH	; Segment Limit (0-15)
+DS_BASE_LOW				DB		0,0,0		; Base Address 0-23
+						DB		10010010B	; P=1, DPL=00, S=1, TYPE=012H
+						DB		00000000B	; G=0(max 12MB), DB=0(32-bit), (Unused)=0, A=0, LIMIT 16-19=0000
+DS_BASE_HIGH			DB		0			; Base Address 24-31
+
+ALL_DESC				DB		0FFH,0FFH	; Segment Limit (0-15)
+						DB		0,0,0		; Base Address 0-23
+						DB		10010010B	; P=1, DPL=00, S=1, TYPE=012H
+						DB		11001111B	; G=1(max 4GB), DB=1(32-bit), (Unused)=0, A=0, LIMIT 16-19=0011
+						DB		0			; Base Address 24-31
+GDT_END:
+
+GOING_HIGH_CS_IP		DW		RDHIGH_JMP1,08H
+HOMECOMING_CS_IP		DW		RDHIGH_JMP4
+HOMECOMING_CS			DW		0
+
+
+SEL_CS16				EQU		08H
+SEL_CS32				EQU		10H
+SEL_DS16				EQU		18H
+SEL_ALLMEM				EQU		20H
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -40,13 +71,10 @@ GDT_END					DB		0	; Dummy
 
 ; Input
 ;   ESI      Source Physical Address
-;   ES:DI    Destination
-;   CX       Transfer size
+;   EDI      Destination Physical Address
+;   ECX      Transfer size
 
-READ_HIGHB:
-
-; https://wiki.osdev.org/Unreal_Mode
-
+PHYSMEM_TRANSFER:
 						PUSH	ES
 						PUSH	DS
 						PUSH	EDI
@@ -57,33 +85,41 @@ READ_HIGHB:
 						PUSH	EAX
 						PUSHF
 
-						;   ESI -> DX:AX
-						MOV		AX,SI
-						SHR		ESI,16
-						MOV		DX,SI
+						MOV		CS:[HOMECOMING_CS],CS	; Prepare to come home.
 
-						MOV		CS:[GDT_BASE_LOW+1],AH
-						MOV		CS:[GDT_BASE_LOW+2],DL
-						MOV		CS:[GDT_BASE_HIGH],DH
-						MOV		AH,AL
-						AND		AH,0F0H					; Align with 16-byte boundary.
-						MOV		CS:[GDT_BASE_LOW],AH	; I don't know if segment boundary needs to be 4-byte alignment.
-						AND		AX,000FH				; Let AL carry the low 4 bits.
-						MOV		SI,AX
-						; Now Source is 0008:SI
+						MOV		BX,CS
+						MOVZX	EBX,BX
+						SHL		EBX,4	; Make it a linear address
+
+						; Selector 08H
+						MOV		CS:[CS16_BASE_LOW],BX
+						ROR		EBX,16
+						MOV		CS:[CS16_BASE_LOW+2],BL
+						MOV		CS:[CS16_BASE_HIGH],BH
+						ROR		EBX,16
+
+						; Selector 10H
+						MOV		CS:[CS32_BASE_LOW],BX
+						ROR		EBX,16
+						MOV		CS:[CS32_BASE_LOW+2],BL
+						MOV		CS:[CS32_BASE_HIGH],BH
+						ROR		EBX,16
+
+						; Selector 18H
+						MOV		CS:[DS_BASE_LOW],BX
+						ROR		EBX,16
+						MOV		CS:[DS_BASE_LOW+2],BL
+						MOV		CS:[DS_BASE_HIGH],BH
 
 
-						MOV		DX,CS
-						SHR		DX,12
 						MOV		AX,CS
-						SHL		AX,4
-						ADD		AX,GDT_BEGIN
-						ADC		DX,0
-						MOV		WORD CS:[GDT_ADDR  ],AX
-						MOV		WORD CS:[GDT_ADDR+2],DX
+						MOVZX	EAX,AX
+						SHL		EAX,4
+						ADD		EAX,GDT_BEGIN
+						MOV		CS:[GDT_ADDR],EAX
 
 
-						CLI
+						CLI			; Do not use stack from this point on.
 
 						SGDT	CS:[GDT_BACKUP]
 						LGDT	CS:[GDT_INFO]
@@ -93,28 +129,49 @@ READ_HIGHB:
 						MOV		CR0,EDX
 
 						; https://wiki.osdev.org/Unreal_Mode suggest one jump "to tell 386/486 not to crash".
-						JMP		SHORT RDHIGH_JMP1
+						JMP		FAR [CS:GOING_HIGH_CS_IP]
 RDHIGH_JMP1:
 
-						MOVZX	ESI,SI
-						MOVZX	EDI,DI
-						MOVZX	ECX,CX
+						; In Selector 08H   16-bit operand size and 16-bit address size.
 
+ 						DB		0EAH ; JMPF
+						DW		RDHIGH_JMP2
+						DW		SEL_CS32
+
+						; Jump up to 32-bit operand size and 32-bit address size for transfer.
+
+RDHIGH_JMP2:
+
+						BITS	32
 
 						; Quote from https://www.felixcloutier.com/x86/lgdt:lidt
 						; They are the only instructions that directly load a linear address 
 						; (that is, not a segment-relative address) and a limit in protected mode.
-						MOV		AX,8	; Descriptor 1
+						MOV		AX,SEL_ALLMEM	; Descriptor 2 maps entire 4GB
 						MOV		DS,AX
+						MOV		ES,AX
+
 						REP		MOVSB
 
+						MOV		AX,SEL_DS16	; Clear G flag.
+						MOV		DS,AX
+						MOV		ES,AX
+
+ 						DB		0EAH ; JMPF
+						DD		RDHIGH_JMP3
+						DW		SEL_CS16
+
+						; Come down to 16-bit operand size/address size to be ready to jump back to real-mode CS.
+
+RDHIGH_JMP3:
+						BITS	16
 
 						AND		DL,0FEH
 						MOV		CR0,EDX
 
-						JMP		SHORT RDHIGH_JMP2
-RDHIGH_JMP2:
+						JMP		FAR [CS:HOMECOMING_CS_IP]
 
+RDHIGH_JMP4:
 						LGDT	CS:[GDT_BACKUP]
 
 						POPF
