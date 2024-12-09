@@ -149,6 +149,8 @@ BLKDEV_INIT:
 						;   xxxx:yyyy ptr0 ptr1 ptr2 ptr3 ... ptr(#unit-1)
 						; each pointer is a short pointer. xxxx:ptr0 is the first BPB.
 
+						CALL	SETUP_ROMDRIVE_IF_MARTY
+
 						CALL	AUTOMOUNT_HDD_PARTITIONS
 
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
@@ -163,6 +165,42 @@ BLKDEV_INIT:
 						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],AX
 
 						JMP		BLKDEV_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SETUP_ROMDRIVE_IF_MARTY:
+						IN		AL,IO_MACHINE_ID_HIGH
+						CMP		AL,MACHINEID_MARTY ; 4AH
+						JE		DO_SETUP_ROMDRIVE
+						RET
+
+DO_SETUP_ROMDRIVE:
+						MOV		CX,0
+						MOV		DX,0	; LBA0=partition table
+
+						MOV		BX,BLKDEV_IPL_SEG
+						MOV		DS,BX
+						XOR		DI,DI
+
+						MOV		BX,1
+						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
+						MOV		AL,DISKBIOS_ROMDISK
+
+						INT		93H
+						JB		SETUP_ROMDRIVE_ERROR
+
+						MOV		CX,BIOS_PARAMETER_BLOCK_size
+						MOV		SI,BPB_POS_IN_IPL
+
+						PUSH	CS
+						POP		ES
+						MOV		DI,ROMDRIVE_BPB
+
+						CLD
+						REP		MOVSB
+
+SETUP_ROMDRIVE_ERROR:
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -307,7 +345,7 @@ BLKDEV_MEDIA_CHECK:
 						MOV		AH,ES:[BX+REQ_UNIT]
 						MOV		AL,ES:[BX+REQ_MEDIACHECK_MEDIA_DESC]
 
-						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						CMP		AH,02h	; Unit 2 -> ROM Drive
 						JE		BLKDEV_MEDIA_CHECK_ROMDRIVE
 						CMP		AH,2
 						JB		BLKDEV_MEDIA_CHECK_INTERNAL_FD ; Unit 0 or 1 Internal FD
@@ -420,7 +458,7 @@ BLKDEV_READ:
 						MOV		AH,ES:[BX+REQ_UNIT]
 						MOV		AL,ES:[BX+REQ_READ_WRITE_MEDIA_DESC]
 
-						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						CMP		AH,02h	; Unit 2 -> ROM Drive
 						JE		BLKDEV_READ_ROMDRIVE
 						CMP		AH,2
 						JB		BLKDEV_READ_INTERNAL_FD ; Unit 0 or 1 Internal FD
@@ -437,11 +475,18 @@ BLKDEV_READ:
 BLKDEV_READ_ROMDRIVE:
 						MOV		AL,DISKBIOS_ROMDISK
 						MOV		AH,DISKBIOS_CMD_05H_READ_SECTOR
-						MOV		CX,0
 						MOV		DX,ES:[BX+REQ_READ_WRITE_LBA]
 						MOV		DS,ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
 						MOV		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
 						MOV		BX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]	; Do BX last.  Need ES:BX for other parameters.
+
+						XOR		CX,CX
+						BSF		CX,WORD WORD CS:[ROMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						SUB		CX,9
+						SHL		DX,CL
+						SHL		BX,CL
+
+						XOR		CX,CX
 						INT		93H
 
 						LES		BX,CS:[BLKDEV_REQHDR_PTR]
@@ -597,7 +642,7 @@ BLKDEV_WRITE:
 						MOV		AH,ES:[BX+REQ_UNIT]
 						MOV		AL,ES:[BX+REQ_READ_WRITE_MEDIA_DESC]
 
-						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						CMP		AH,02h	; Unit 2 -> ROM Drive
 						JE		BLKDEV_WRITE_ROMDRIVE
 						CMP		AH,2
 						JB		BLKDEV_WRITE_INTERNAL_FD ; Unit 0 or 1 Internal FD
@@ -713,7 +758,7 @@ BLKDEV_BUILD_BPB:
 						MOV		AH,ES:[BX+REQ_UNIT]
 						MOV		AL,ES:[BX+REQ_READ_WRITE_MEDIA_DESC]
 
-						CMP		AX,02FBh	; Unit 2 and Media Type is FBh -> ROM Drive
+						CMP		AH,02h	; Unit 2 -> ROM Drive
 						JE		BLKDEV_BUILD_BPB_ROMDRIVE
 						CMP		AH,2
 						JB		BLKDEV_BUILD_BPB_INTERNAL_FD

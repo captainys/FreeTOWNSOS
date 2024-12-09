@@ -3,6 +3,7 @@
 
 						%INCLUDE "UTIL.NSM"
 						%INCLUDE "DEF.NSM"
+						%INCLUDE "IODEF.NSM"
 						%INCLUDE "TOWNSDEF.NSM"
 
 
