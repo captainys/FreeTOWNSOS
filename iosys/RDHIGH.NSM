@@ -53,9 +53,6 @@ ALL_DESC				DB		0FFH,0FFH	; Segment Limit (0-15)
 						DB		0			; Base Address 24-31
 GDT_END:
 
-GOING_HIGH_CS_IP		DW		RDHIGH_JMP1,08H
-HOMECOMING_CS_IP		DW		RDHIGH_JMP4
-HOMECOMING_CS			DW		0
 
 
 SEL_CS16				EQU		08H
@@ -65,6 +62,14 @@ SEL_ALLMEM				EQU		20H
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; To be safe, it should be called long before used.
+PHYSMEM_TRANSFER_INITIALIZE:
+						MOV		CS:[RDHIGH_HOMECOMING_CS],CS	; Prepare to come home.
+						RET
+
+
 
 
 ; Need .386p
@@ -85,7 +90,7 @@ PHYSMEM_TRANSFER:
 						PUSH	EAX
 						PUSHF
 
-						MOV		CS:[HOMECOMING_CS],CS	; Prepare to come home.
+						MOV		CS:[RDHIGH_HOMECOMING_CS],CS	; Prepare to come home.
 
 						MOV		BX,CS
 						MOVZX	EBX,BX
@@ -129,7 +134,9 @@ PHYSMEM_TRANSFER:
 						MOV		CR0,EDX
 
 						; https://wiki.osdev.org/Unreal_Mode suggest one jump "to tell 386/486 not to crash".
-						JMP		FAR [CS:GOING_HIGH_CS_IP]
+ 						DB		0EAH ; JMPF
+						DW		RDHIGH_JMP1
+						DW		SEL_CS16
 RDHIGH_JMP1:
 
 						; In Selector 08H   16-bit operand size and 16-bit address size.
@@ -169,7 +176,9 @@ RDHIGH_JMP3:
 						AND		DL,0FEH
 						MOV		CR0,EDX
 
-						JMP		FAR [CS:HOMECOMING_CS_IP]
+ 						DB		0EAH ; JMPF
+						DW		RDHIGH_JMP4
+RDHIGH_HOMECOMING_CS:	DW		0
 
 RDHIGH_JMP4:
 						LGDT	CS:[GDT_BACKUP]

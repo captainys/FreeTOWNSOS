@@ -78,6 +78,7 @@ INT93H_INIT:
 						MOV		AH,TIMERBIOS_CMD_078H_YS_SET_FD_CALLBACK
 						INT		97H	; Register this absolute waste callback.
 
+						CALL	PHYSMEM_TRANSFER_INITIALIZE
 
 						XOR		AX,AX
 						MOV		DS,AX
