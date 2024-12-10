@@ -46,7 +46,7 @@ SYSVARS_PTR				DW		0	; +08h
 SYSVARS_SEG				DW		0	; +0Ah
 CDS_PTR					DD		0	; +0Ch
 
-NUM_FILES				DW		15	; +10h
+						DW		0	; +10h
 						DW		0
 HD_PARTITION_TABLE_PTR	DD		0	; +14h  IO.SYS uses this offset.  Do not change.
 NUM_HD_BPB_PTR			DD		0	; +18h  IO.SYS uses this offset.  Do not change.
@@ -601,7 +601,7 @@ CREATE_ADDITIONAL_SFT:
 						LFS		BX,CS:[SYSVARS_PTR]	; FS:BX is SYSVARS
 						MOV		ES,FS:[BX-2]		; ES is First MCB
 
-						MOV		AX,CS:[NUM_FILES]
+						MOVZX	AX,BYTE CS:[CONFIG_SYS_FILES]
 						MOV		DX,SFT_ENTRY_SIZE
 						MUL		DX
 						ADD		AX,SFT_HEADER_size+15
@@ -622,7 +622,7 @@ CREATE_ADDITIONAL_SFT:
 						REP		STOSB
 
 						MOV		DWORD ES:[0],0FFFFFFFFh
-						MOV		AX,CS:[NUM_FILES]
+						MOVZX	AX,BYTE CS:[CONFIG_SYS_FILES]
 						MOV		ES:[4],AX
 
 						XOR		AX,AX
