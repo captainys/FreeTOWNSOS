@@ -188,7 +188,7 @@ CDS						DB		(CURRENT_DIR_STRUCT_size*MAX_NUM_CDS) dup (0)
 
 						ALIGN	16
 BUFFER_HEADER			DB		16 dup(0)	; Let's make it an additional DOS DMA buffer later.
-SECTOR_BUFFER			DB		1024 dup(0)
+SECTOR_BUFFER			DB		2048 dup(0)
 
 						%INCLUDE	"PLTDEBUG.NSM"
 						%INCLUDE	"DOSUTIL.NSM"

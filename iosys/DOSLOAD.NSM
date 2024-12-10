@@ -375,6 +375,7 @@ CLOSE_DEFAULT_FILE_LOOP:
 						CALL	DO_CONFIG_SYS
 
 						CALL	CREATE_ADDITIONAL_SFT	; Make sure to do it after the preliminary PSP is copied.
+						CALL	CREATE_ADDITIONAL_BUFFERS
 
 
 						MOV		SI,MSG_START_YAMAND_COM
@@ -629,6 +630,36 @@ CREATE_ADDITIONAL_SFT:
 						MOV		FS:[BX+SYSVARS_SFT],AX
 						MOV		FS:[BX+SYSVARS_SFT+2],ES
 
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CREATE_ADDITIONAL_BUFFERS:
+						; Push FIRST_MCB and make FCB there.
+						LFS		BX,CS:[SYSVARS_PTR]	; FS:BX is SYSVARS
+						MOV		ES,FS:[BX-2]		; ES is First MCB
+
+						MOVZX	EAX,BYTE CS:[CONFIG_SYS_BUFFERS]
+						MOV		EDX,2048+16
+						MUL		EDX
+						SHR		EAX,4
+
+						PUSH	ES
+						PUSH	AX
+						CALL	PUSH_MCB
+						POP		AX
+						POP		ES
+
+						XOR		DI,DI
+						MOVZX	CX,BYTE CS:[CONFIG_SYS_BUFFERS]
+
+CREATE_ADDITIONAL_BUFFERS_LOOP:
+						MOV		AX,77D3H
+						INT		21H
+						ADD		DI,2048+16
+
+						LOOP	CREATE_ADDITIONAL_BUFFERS_LOOP
 
 						RET
 
@@ -971,9 +1002,9 @@ DO_CONFIG_BUFFERS:
 
 						CALL	ATOI8
 
-						CMP		AL,64
+						CMP		AL,24
 						JB		DO_CONFIG_BUFFERS_UPPERBOUND
-						MOV		AL,64
+						MOV		AL,24
 
 DO_CONFIG_BUFFERS_UPPERBOUND:
 						MOV		CS:[CONFIG_SYS_BUFFERS],AL
