@@ -255,6 +255,12 @@ void SND_INIT(
 	// Disable RF5C68 INT
 	_outb(TOWNSIO_SOUND_PCM_INT_MASK,0);
 
+	// Enable Audio Output???
+	// Bit7 Level-Meter LED On/Off   1->ON
+	// Bit6 Enable Audio Output      1->Enable
+	// The original TBIOS Sound BIOS writes 7FH on initialization.
+	_outb(TOWNSIO_SOUND_MASTERSWITCH,0xFF);
+
 	SND_SetError(EAX,SND_NO_ERROR);
 }
 void SND_KEY_ON(

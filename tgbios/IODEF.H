@@ -165,6 +165,8 @@ enum
 	TOWNSIO_SOUND_PCM_CTRL=          0x4F7, // [2] pp.19,
 	TOWNSIO_SOUND_PCM_CH_ON_OFF=     0x4F8, // [2] pp.19,
 
+	TOWNSIO_SOUND_MASTERSWITCH=      0x4EC, // [2] p.216
+
 	// Electric Volume affects multiple devices.
 	// FMTownsCommon class instead of Sound or CDRom classes intercepts these.
 	TOWNSIO_ELEVOL_1_DATA=           0x4E0, // [2] pp.18, pp.174
