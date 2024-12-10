@@ -56,6 +56,8 @@ TEXT_POS:
 TEXT_Y:					DB		8
 TEXT_X:					DB		0
 
+CONFIG_SYS_BUFFERS		DB		8
+CONFIG_SYS_FILES		DB		20
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -677,6 +679,8 @@ INSTALL_MSCDEX_FAIL:
 CONFIGSYS_FILENAME		DB		"A:\CONFIG.SYS",0
 CONFIGSYS_LENGTH		DW		0
 
+KEYWORD_BUFFERS			DB		"BUFFERS"
+KEYWORD_BUFFERS_LENGTH	EQU		7
 KEYWORD_SHELL			DB		"SHELL"
 KEYWORD_SHELL_LENGTH	EQU		5
 KEYWORD_DEVICE			DB		"DEVICE"
@@ -717,6 +721,16 @@ DO_CONFIG_SYS_LOOP:
 
 						CALL	CONFIGSYS_CAPITALIZE_BEFORE_EQUAL
 
+						PUSH	SI
+						MOV		DI,KEYWORD_BUFFERS
+						MOV		CX,KEYWORD_BUFFERS_LENGTH
+						REPE	CMPSB
+						POP		SI
+						JNE		DO_CONFIG_NOT_BUFFERS
+						CALL	DO_CONFIG_BUFFERS
+						JMP		DO_CONFIG_SYS_NEXT
+
+DO_CONFIG_NOT_BUFFERS:
 						PUSH	SI
 						MOV		DI,KEYWORD_SHELL
 						MOV		CX,KEYWORD_SHELL_LENGTH
@@ -923,8 +937,103 @@ DO_CONFIG_FILES:
 						PUSH	DS
 						PUSH	SI
 
+						CALL	CONFIG_SYS_SKIP_EQUAL
+						CMP		BYTE [SI-1],'='
+						JNE		DO_CONFIG_FILES_RET
+
+						CALL	CONFIG_SYS_SKIP_SPACE_AND_TAB
+
+						CALL	ATOI8
+
+						CMP		AL,32
+						JB		DO_CONFIG_FILES_UPPERBOUND
+						MOV		AL,32
+
+DO_CONFIG_FILES_UPPERBOUND:
+						MOV		CS:[CONFIG_SYS_FILES],AL
+
+DO_CONFIG_FILES_RET:
 						POP		SI
 						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+DO_CONFIG_BUFFERS:
+						PUSH	DS
+						PUSH	SI
+
+						CALL	CONFIG_SYS_SKIP_EQUAL
+						CMP		BYTE [SI-1],'='
+						JNE		DO_CONFIG_FILES_RET
+
+						CALL	CONFIG_SYS_SKIP_SPACE_AND_TAB
+
+						CALL	ATOI8
+
+						CMP		AL,64
+						JB		DO_CONFIG_BUFFERS_UPPERBOUND
+						MOV		AL,64
+
+DO_CONFIG_BUFFERS_UPPERBOUND:
+						MOV		CS:[CONFIG_SYS_BUFFERS],AL
+
+DO_CONFIG_BUFFERS_RET:
+						POP		SI
+						POP		DS
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+GET_UINT8_AFTER_EQUAL:
+						LODSB
+						CMP		AL,9	; TAB
+						JE		GET_UINT8_AFTER_EQUAL
+						CMP		AL,' '
+						JE		GET_UINT8_AFTER_EQUAL
+
+						CMP		AL,'='
+						JNE		GET_UINT8_AFTER_EQUAL_ERROR
+
+						; Found Equal
+GET_UINT8_SKIP_SPACE_AFTER_EQ:
+						LODSB
+						CMP		AL,9	; TAB
+						JE		GET_UINT8_SKIP_SPACE_AFTER_EQ
+						CMP		AL,' '
+						JE		GET_UINT8_SKIP_SPACE_AFTER_EQ
+
+						CALL	ATOI8
+						CLC
+						RET
+
+GET_UINT8_AFTER_EQUAL_ERROR:
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ATOI8:
+						MOV		AH,0
+
+ATOI8_LOOP:
+						MOV		AL,DS:[SI]
+						SUB		AL,'0'
+						CMP		AL,9
+						JA		ATOI8_EXIT
+
+						MOV		AL,AH
+						SHL		AH,3	; times 8
+						ADD		AH,AL
+						ADD		AH,AL	; times 10
+
+						LODSB
+						SUB		AL,'0'
+						ADD		AH,AL
+						JMP		ATOI8_LOOP
+
+ATOI8_EXIT:
+						MOV		AL,AH
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

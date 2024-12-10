@@ -1,5 +1,6 @@
 shell=A:\YAMAND.COM A:\ /E:40 /P
-files=10
 device=MINVCPI.SYS
 device=FAKENSDD.SYS
 device=TGBIOS.SYS /TGBIOS.BIN
+files=20
+buffers=10
