@@ -50,7 +50,7 @@ NUM_FILES				DW		15	; +10h
 						DW		0
 HD_PARTITION_TABLE_PTR	DD		0	; +14h  IO.SYS uses this offset.  Do not change.
 NUM_HD_BPB_PTR			DD		0	; +18h  IO.SYS uses this offset.  Do not change.
-
+ADDITIONAL_IO_BUF_PTR	DD		0	; +1Ch  IO.SYS uses this offset.  Do not change.
 
 TEXT_POS:
 TEXT_Y:					DB		8
@@ -756,6 +756,10 @@ DO_CONFIG_SYS_NEXT:
 						JB		DO_CONFIG_SYS_LOOP
 
 DO_CONFIG_SYS_EXIT:
+						LES		DI,CS:[ADDITIONAL_IO_BUF_PTR]
+						MOV		AX,77D3H	; YSDOS extension.  Add Buffer
+						INT		21H
+
 						LFS		BX,CS:[SYSVARS_PTR]
 						MOV		AX,CS:[DEVICE_LOAD_POINT]
 						SUB		AX,FS:[BX-2]

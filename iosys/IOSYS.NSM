@@ -47,6 +47,8 @@ REALENTRY:
 						MOV		FS:[16H],CS
 						MOV		WORD FS:[18H],NUM_HD_BPB
 						MOV		FS:[1AH],CS
+						MOV		WORD FS:[1CH],BUFFER_HEADER
+						MOV		FS:[1EH],CS
 
 						MOV		CS:[BOOT_DEVICE],EBX	; Sent from the IPL.  If HD, high-word is partition number.
 
