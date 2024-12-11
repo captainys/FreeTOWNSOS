@@ -447,20 +447,44 @@ void SND_KEY_ON(
 					loopStartAddr=sound->addrInWaveRAM+sound->snd.loopStart;
 				}
 
-				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-
-				_outb(TOWNSIO_SOUND_PCM_ST,(sound->addrInWaveRAM>>8));
-				_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
-				_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
-				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);
-				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // I'll be worried about loop sometime in the future.
-
-				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);
-				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
-
 				unsigned char keyFlag=(1<<ch);
 				stat->PCMKey|=keyFlag;
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_ST,(sound->addrInWaveRAM>>8));
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // I'll be worried about loop sometime in the future.
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
 				stat->PCMKey&=~keyFlag;
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
 			}
