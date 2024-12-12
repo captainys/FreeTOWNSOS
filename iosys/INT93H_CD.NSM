@@ -408,10 +408,16 @@ INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS:
 						CALL	CDC_GET_STATUS
 						JC		INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS
 
-						CMP		AX,0800H	; Media Changed
+						CMP		AX,0800H	; Media Changed - My memo tells it is 00 08 00 00.  But, doesn't work in real hardware.
+						JE		INT93H_CD_0FH_DISC_DID_CHANGE
+
+						CMP		AX,0821H	; Media Changed - Based on the tests on real MX, 21 08 00 00 is the media-change status.
 						JE		INT93H_CD_0FH_DISC_DID_CHANGE
 
 						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		INT93H_CD_0FH_DISC_DID_CHANGE	; Take it as a media change.
+
+						CMP		AX,0921H	; 21 09 00 00 Drive Not Ready
 						JE		INT93H_CD_0FH_DISC_DID_CHANGE	; Take it as a media change.
 
 						CMP		AL,21H
@@ -422,13 +428,86 @@ INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS:
 
 						MOV		BYTE CS:[ERROR_CODE],0
 						MOV		BYTE [BP+SAVED_EDX],DL
+						OR		DL,DL
+						JE		INT93H_EXIT
+						CALL	INT93H_CD_TOC_READ_DUMMY
 						JMP		INT93H_EXIT
 
 INT93H_CD_0FH_DISC_DID_CHANGE:
+						CALL	INT93H_CD_TOC_READ_DUMMY
+
 						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],0
 						MOV		BYTE CS:[ERROR_CODE],0
 						MOV		BYTE [BP+SAVED_EDX],1
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Apparently, status 00 08 00 00 or 21 08 00 00 is returned only if the media changed since the last TOC read.
+; Based on an experiment done with my real TOWNS II MX.
+INT93H_CD_TOC_READ_DUMMY:
+						CLI
+
+						CALL	CDC_CLEAR_STATUS_QUEUE
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_TOCREAD+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+						XOR		BX,BX	; Use as the last track number.
+
+CDC_TOCDUMMYREAD_LOOP:
+						CALL	CDC_GET_STATUS	; This destroys DX
+						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		CDC_TOCDUMMYREAD_END
+						CMP		AX,0800H	; Media Changed
+						JE		CDC_TOCDUMMYREAD_END
+						CMP		AL,21H
+						JE		CDC_TOCDUMMYREAD_END
+						AND		AL,AL
+						JE		CDC_TOCDUMMYREAD_LOOP
+
+						CMP		AL,16H
+						JE		CDC_TOCDUMMYREAD_16H
+						CMP		AL,17H
+						JE		CDC_TOCDUMMYREAD_17H
+						JMP		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+CDC_TOCDUMMYREAD_16H:
+						MOV		ECX,EAX
+						ROR		ECX,8
+						JMP		CDC_TOCDUMMYREAD_LOOP
+
+CDC_TOCDUMMYREAD_17H:
+						CMP		CH,0A1H		; Last track number
+						JNE		CDC_TOCDUMMYREAD_17H_NOT_A1H
+						MOV		BL,AH		; BL is the last track number in BCD
+						JMP		CDC_TOCDUMMYREAD_LOOP
+
+CDC_TOCDUMMYREAD_17H_NOT_A1H:
+						; CH can be A0, A1, A2, or TT.
+
+						CMP		CH,BL
+						JNE		CDC_TOCDUMMYREAD_LOOP
+
+						; Sequence (all hexadecimal)
+						; 16 xx A0 xx (ECX=xxA0xx16)
+						; 17 TT xx xx (EAX=xxxxTT17)   TT is the first track in BCD
+						; 16 xx A1 xx (ECX=xxA1xx16)
+						; 17 TT xx xx (EAX=xxxxTT17)   TT is the last track in BCD
+						; 16 xx A2 xx (ECX=xxA2xx16)
+						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,frm of the total disc in BCD
+						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 4xh for data track. TT is the track number
+						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,from of the track.
+
+CDC_TOCDUMMYREAD_END:
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -841,7 +920,7 @@ CDC_CDDA_PSUE_LOOP:
 						CMP		AL,21H
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 						CMP		AL,12H
-						JNE		CDC_TOCREAD_LOOP
+						JNE		CDC_CDDA_PSUE_LOOP
 
 						JMP		INT93H_EXIT
 
