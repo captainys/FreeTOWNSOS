@@ -777,6 +777,7 @@ CDC_TOCREAD_17H_NOT_A2H:
 						MOV		ESI,EAX
 						MOV		AL,AH
 						CALL	BCD2BIN_AL
+						AND		CL,0F0H	; Apparently low-4 bits need to be ignored.
 						CMP		CL,40H
 						JNE		CDC_TOCREAD_17H_NOT_DATATRK
 
@@ -809,7 +810,7 @@ CDC_TOCREAD_17H_STORE:
 						; 17 TT xx xx (EAX=xxxxTT17)   TT is the last track in BCD
 						; 16 xx A2 xx (ECX=xxA2xx16)
 						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,frm of the total disc in BCD
-						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 40h for data track. TT is the track number
+						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 4xh for data track. TT is the track number
 						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,from of the track.
 
 						MOV		BYTE CS:[ERROR_CODE],0
