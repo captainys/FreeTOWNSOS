@@ -130,7 +130,7 @@ int RecognizeCommandParameters(int ac,char *av[])
 		}
 		else if(0==strcmp(av[i],"-to") || 0==strcmp(av[i],"-to"))
 		{
-			int nNewPtn=ReadPattern(newPtn,ac,av,i+1);
+			nNewPtn=ReadPattern(newPtn,ac,av,i+1);
 			printf("To:  ");
 			for(j=0; j<nNewPtn; ++j)
 			{
