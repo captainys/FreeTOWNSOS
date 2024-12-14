@@ -44,7 +44,7 @@ void Command(unsigned char cmd)
 
 	printf("Command %02x\n",cmd);
 
-	_CLI;
+	_CLI();
 
 	while(0==(inp(IO_CDC_MASTER_STATUS)&1));
 
@@ -74,7 +74,7 @@ void Command(unsigned char cmd)
 		}
 	}
 
-	_STI;
+	_STI();
 
 	for(i=0; i<nSta; ++i)
 	{

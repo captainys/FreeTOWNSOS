@@ -12,6 +12,8 @@ unsigned char TOC[6+99*3];
 #define TOWNSIO_ELEVOL_2_DATA 0x4E2 // [2] pp.18, pp.174
 #define TOWNSIO_ELEVOL_2_COM  0x4E3 // [2] pp.18, pp.174
 
+#define TOWNSIO_SOUND_MASTERSWITCH 0x4EC // [2] p.216
+
 int main(int ac,char *av[])
 {
 	if(2<ac)
@@ -68,6 +70,8 @@ int main(int ac,char *av[])
 
 		outp(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|4);
 		outp(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+
+		outp(TOWNSIO_SOUND_MASTERSWITCH,0xFF);
 	}
 
 	regs.x.ax=0x50C0;

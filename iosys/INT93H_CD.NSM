@@ -561,6 +561,7 @@ CDDA_PLAY_CH_CHECKED:
 						XOR		AX,AX
 						AND		CH,CH
 						JE		CDDA_PLAY_NO_REPEAT		; I don't know how to do repeat N times.
+														; Linux source suggests param[6]=9 and param[7]=repeat_count-1
 						MOV		AL,1					; Set repeat flag
 CDDA_PLAY_NO_REPEAT:
 						MOV		CS:[CDC_PARAM+6],AX
@@ -583,6 +584,8 @@ CDDA_PLAY_STATUS_LOOP:
 
 						CMP		AL,00H		; Command done
 						JNE		CDDA_PLAY_STATUS_LOOP
+
+						; Real FM TOWNS 2F did not start playing until command A0 is sent after CDDA Play command is sent ?
 
 						JMP		INT93H_EXIT_NO_ERROR
 
