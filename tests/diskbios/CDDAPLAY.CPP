@@ -1,9 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <i86.h>
+#include <conio.h>
+#include <dos.h>
 #include "diskbios.h"
 
 unsigned char TOC[6+99*3];
+
+#define TOWNSIO_ELEVOL_1_DATA 0x4E0 // [2] pp.18, pp.174
+#define TOWNSIO_ELEVOL_1_COM  0x4E1 // [2] pp.18, pp.174
+#define TOWNSIO_ELEVOL_2_DATA 0x4E2 // [2] pp.18, pp.174
+#define TOWNSIO_ELEVOL_2_COM  0x4E3 // [2] pp.18, pp.174
 
 int main(int ac,char *av[])
 {
@@ -53,6 +60,15 @@ int main(int ac,char *av[])
 		TOC[7+trk*3],
 		TOC[8+trk*3],
 	};
+
+	{
+		unsigned char vol=0x7f;
+		outp(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|5);
+		outp(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+
+		outp(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|4);
+		outp(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+	}
 
 	regs.x.ax=0x50C0;
 	regs.x.cx=0xFF01;

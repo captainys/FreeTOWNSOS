@@ -70,6 +70,9 @@ def main(argv):
 	WatcomBuild(["SCSITYPE.CPP"])
 	WatcomBuild(["CDDAPLAY.CPP"])
 	WatcomBuild(["CDPAUSE.CPP"])
+	WatcomBuild(["CDRESUME.CPP"])
+	WatcomBuild(["CDSTATE.CPP"])
+	WatcomBuild(["CDSUBQ.CPP"])
 
 
 
