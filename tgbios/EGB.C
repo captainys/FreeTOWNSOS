@@ -1862,10 +1862,10 @@ void EGB_22H_GETBLOCK1BIT(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-#define EGB_PUTBLOCK_BW_8BIT_INLINE(operator) \
+#define EGB_PUTBLOCK_BW_8BIT_INLINE(colorType,operator,vramIncrement) \
 {\
-	unsigned char fgCol=color[EGB_FOREGROUND_COLOR];\
-	unsigned char bgCol=color[EGB_BACKGROUND_COLOR];\
+	colorType fgCol=color[EGB_FOREGROUND_COLOR];\
+	colorType bgCol=color[EGB_BACKGROUND_COLOR];\
 	unsigned char bitCount,bits;\
 	unsigned int xCount,xCount0=p1.x+1-p0.x;\
 	for(y=p0.y; y<=p1.y; ++y)\
@@ -1876,7 +1876,7 @@ void EGB_22H_GETBLOCK1BIT(
 		for(xCount=xCount0; 0!=xCount; --xCount)\
 		{\
 			{operator;}\
-			++vram;\
+			vramIncrement;\
 			bits<<=1;\
 			if(0==(--bitCount))\
 			{\
@@ -2059,6 +2059,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				{
 				case EGB_FUNC_OPAQUE:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned char,
 					{
 						if(bits&0x80)
 						{
@@ -2068,35 +2069,42 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 						{
 							*vram=bgCol;
 						}
-					});
+					},
+					++vram);
 					break;
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_MATTE:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned char,
 					{
 						if(bits&0x80)
 						{
 							*vram=fgCol;
 						}
-					});
+					},
+					++vram);
 					break;
 				case EGB_FUNC_AND:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned char,
 					{
 						if(!(bits&0x80))
 						{
 							*vram=0;
 						}
-					});
+					},
+					++vram);
 					break;
 				case EGB_FUNC_OR:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned char,
 					{
 						if(bits&0x80)
 						{
 							*vram|=fgCol;
 						}
-					});
+					},
+					++vram);
 					break;
 				default:
 					TSUGARU_BREAK;
