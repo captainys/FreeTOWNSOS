@@ -285,6 +285,8 @@ INT93H_CD_05H_READ_LBA:
 
 						MOV		WORD CS:[CDC_PARAM+6],0
 
+; 15H will also jump here.
+INT93H_CD_READ_AFTER_MSF_SET:
 						; Tentative
 						MOV		DI,[BP+SAVED_EDI]
 						MOV		CS:[CDC_READ_POINTER_PHYS],DI
@@ -304,7 +306,6 @@ INT93H_CD_05H_READ_LBA:
 
 
 
-; 14H will also jump here.
 INT93H_CD_REALLY_READ:
 						CLI
 
@@ -520,8 +521,41 @@ INT93H_CD_14H_SEEK_MSF:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_15H_READ_MSF:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		DL,[BP+SAVED_ECX]	; Incoming CL is MIN
+						MOV		AX,[BP+SAVED_EDX]	; Incoming AH,AL are SEC,FRM
+
+						MOV		CS:[CDC_PARAM  ],DL
+						MOV		CS:[CDC_PARAM+1],AH
+						MOV		CS:[CDC_PARAM+2],AL
+
+						; Input
+						;	DL		MIN
+						;	AH		SEC
+						;	AL		FRM
+						CALL	MSF2HSG
+						; Output:
+						;	DH		0
+						;	DL		High-byte of HSG
+						;	AH		Mid-byte of HSG
+						;	AL		Low-byte of HSG
+
+						MOV		BX,[BP+SAVED_EBX]
+						OR		BX,BX
+						JE		INT93H_EXIT_NO_ERROR
+
+						DEC		BX
+						ADD		AX,BX
+						ADC		DL,0
+
+						CALL	HSG2MSF
+
+						MOV		CS:[CDC_PARAM+3],DL
+						MOV		CS:[CDC_PARAM+4],AH
+						MOV		CS:[CDC_PARAM+5],AL
+
+						MOV		WORD CS:[CDC_PARAM+6],0
+
+						JMP		INT93H_CD_READ_AFTER_MSF_SET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
