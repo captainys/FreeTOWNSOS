@@ -7,6 +7,8 @@
 
 CD_EMULATION_SCSI_EN	DB		0	; SCSI-CD Emulation enabled.
 CD_EMULATION_SCSI_DEV	DB		0	; BIOS Device CODE.  0B?H for SCSI ID ?.
+CD_EMULATION_CDDA_CACHE	DB		0,0,0,0,0
+
 
 ; Disc Change should be cached because the disc-change status code may be consumed by any of the BIOS function,
 ; such as CDDA functions.  If the disc-change status code is consumed before MSCDEX checks the disc change,
@@ -1264,8 +1266,8 @@ INT93H_CD_EMU_03H_RESTORE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_04H_SEEK_LBA:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						; In fact, it doens't have to do anything.
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1302,7 +1304,7 @@ INT93H_CD_EMU_05H_READ_LBA:
 
 						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 						MOV		BYTE CS:[ERROR_CODE],80h
-						MOV		BYTE CS:[ERROR_DETAIL],1
+						MOV		WORD CS:[ERROR_DETAIL],1
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1389,13 +1391,65 @@ INT93H_CD_EMU_15H_READ_MSF:
 
 						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 						MOV		BYTE CS:[ERROR_CODE],80h
-						MOV		BYTE CS:[ERROR_DETAIL],1
+						MOV		WORD CS:[ERROR_DETAIL],1
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_50H_CDDA_PLAY:
-						TSUGARU_DEBUG
+						MOV		CH,[BP+SAVED_ECX+1]
+						CMP		CH,0
+						JE		SHORT INT93H_CD_EMU_50H_CH_OK
+						CMP		CH,0FEH
+						JAE		SHORT INT93H_CD_EMU_50H_CH_OK	; 0FEh or 0FFh
+
+						; Parameter Error
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],2
+						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_50H_CH_OK:
+						; Cache first, and use cache for SCSI command >>
+						; DOS Extender Call Back may overwrite the Protected-Mode shared buffer.
+						MOV		ES,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+
+						MOV		ECX,ES:[DI]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE],ECX
+						MOV		CX,ES:[DI+4]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],CX
+						; Cache first <<
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JC		INT93H_EXIT
+
+						MOV		BYTE CS:[ERROR_CODE],10H	; Maybe Is Already Playing Error.
+
+						MOV		AL,CS:[SCSI_DATABUF+1]
+						CMP		AL,11H ; 11H=PLAYING
+						JE		INT93H_EXIT
+
+
+						CALL	INT93H_CD_EMU_ENABLE_LINE_IN
+
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+
+						MOV		EAX,CS:[CD_EMULATION_CDDA_CACHE]
+						AND		EAX,0FFFFFFH
+						MOV		EDX,CS:[CD_EMULATION_CDDA_CACHE+2]
+						SHR		EDX,8
+
+						; Input
+						;    CL   	SCSI ID
+						;    EAX	Start MSF 00|FF|SS|MM
+						;    EDX	End MSF   00|FF|SS|MM
+						CALL	SCSI_START_PLAY
+						JC		INT93H_EXIT
+
+						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1763,5 +1817,36 @@ MSF2HSG:
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LINE_IN_VOLUME			EQU		3FH		; 3FH is maximum.
+
+INT93H_CD_EMU_ENABLE_LINE_IN:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,04E1H	; LINE-IN Volume Control
+						;IOWrite Port:000004E1 Value:04
+						;IOWrite Port:000004E0 Value:3E
+						;IOWrite Port:000004E1 Value:05
+						;IOWrite Port:000004E0 Value:3E
+						MOV		AL,4
+						OUT		DX,AL
+
+						DEC		DL
+						MOV		AL,LINE_IN_VOLUME
+						OUT		DX,AL
+
+						INC		DL
+						MOV		AL,5
+						OUT		DX,AL
+
+						DEC		DL
+						MOV		AL,LINE_IN_VOLUME
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
 
 						%INCLUDE "LIB.NSM"
