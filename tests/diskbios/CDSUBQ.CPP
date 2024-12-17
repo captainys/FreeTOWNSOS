@@ -50,7 +50,7 @@ void Command(unsigned char cmd)
 
 	for(i=0; i<8; ++i)
 	{
-		outp(IO_CDC_PARAM,0); // Push 8 parameters all zero.
+		outp(IO_CDC_PARAM,(0==i ? 1 :0)); // Push 8 parameters all zero.
 	}
 
 	while(0==(inp(IO_CDC_MASTER_STATUS)&1));

@@ -2031,12 +2031,12 @@ void SND_FM_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	// This function does not require a work area.  FM TOWNS Technical Databook p.430
+
+	// Stop YM2612 Timers
+	YM2612_Write(0,0x27,YM_REG27H_TMA_RESET|YM_REG27H_TMB_RESET);
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_FM_REGWRITE(
@@ -2202,34 +2202,34 @@ void SND_43H_ELEVOL_SET(
 		// Left volume
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_1_COM,(((~vol)>>2)&0x10)|5);
-		_outb(TOWNSIO_ELEVOL_1_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_1_DATA,(vol>>1)&0x3f);
 		// Right volume
 		vol=(EDX&0x7f);
 		_outb(TOWNSIO_ELEVOL_1_COM,(((~vol)>>2)&0x10)|4);
-		_outb(TOWNSIO_ELEVOL_1_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_1_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0xc;
 		break;
 	case 1: // CD IN
 		// Left volume
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|5);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		// Right volume
 		vol=(EDX&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|4);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0x30;
 		break;
 	case 2: // MIC IN
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|6);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0x40;
 		break;
 	case 3: // MODEM IN
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|7);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0x80;
 		break;
 	}
