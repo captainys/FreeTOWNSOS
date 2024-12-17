@@ -287,26 +287,11 @@ INT93H_CD_05H_READ_LBA:
 
 ; 15H will also jump here.
 INT93H_CD_READ_AFTER_MSF_SET:
-						; Tentative
-						MOV		DI,[BP+SAVED_EDI]
-						MOV		CS:[CDC_READ_POINTER_PHYS],DI
-						MOV		SI,[BP+SAVED_ESI]
-						MOV		CS:[CDC_READ_POINTER_PHYS+2],SI
+						CALL	INT93H_CD_GET_READ_PHYS_ADDR
+						; Output EDI=Physical Address
+						;        EAX destroyed
+						MOV		CS:[CDC_READ_POINTER_PHYS],EDI
 
-						MOV		CH,[BP+SAVED_ECX+1]
-						CMP		CH,0FFH
-						JE		INT93H_CD_REALLY_READ
-
-						MOVZX	ESI,WORD [BP+SAVED_DS]
-						SHL		ESI,4
-						MOVZX	EDI,WORD [BP+SAVED_EDI]
-						ADD		ESI,EDI
-
-						MOV		CS:[CDC_READ_POINTER_PHYS],ESI
-
-
-
-INT93H_CD_REALLY_READ:
 						CLI
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
@@ -1183,6 +1168,29 @@ CDC_CLEAR_STATUS_QUEUE:
 						JNC		CDC_CLEAR_STATUS_QUEUE
 						RET
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Output EDI=Physical Address
+;        EAX destroyed
+INT93H_CD_GET_READ_PHYS_ADDR:
+						MOVZX	DI,BYTE [BP+SAVED_ECX+1]
+						CMP		DI,0FFH
+						JE		INT93H_CD_GET_READ_PHYS_ADDR_DIRECT
+
+						MOVZX	EAX,WORD [BP+SAVED_DS]
+						SHL		EAX,4
+						MOVZX	EDI,WORD [BP+SAVED_EDI]
+						ADD		EDI,EAX
+
+						RET
+
+INT93H_CD_GET_READ_PHYS_ADDR_DIRECT:
+						; Special mode SI|DI is the physical address.
+						MOV		DI,WORD [BP+SAVED_ESI]
+						SHL		EDI,16
+						MOV		DI,WORD [BP+SAVED_EDI]
+
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1262,24 +1270,11 @@ INT93H_CD_EMU_04H_SEEK_LBA:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_05H_READ_LBA:
-						MOV		CH,[BP+SAVED_ECX+1]
-						CMP		CH,0FFH
-						JE		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
+						; Input incoming registers
+						CALL	INT93H_CD_GET_READ_PHYS_ADDR
+						; Output EDI=Physical Address
+						;        EAX destroyed
 
-						MOVZX	EAX,WORD [BP+SAVED_DS]
-						SHL		EAX,4
-						MOVZX	EDI,WORD [BP+SAVED_EDI]
-						ADD		EDI,EAX
-
-						JMP		INT93H_CD_EMU_05H_READ_LBA_CONTINUE
-
-INT93H_CD_EMU_05H_READ_LBA_SPECIAL:
-						; Special mode SI|DI is the physical address.
-						MOV		DI,WORD [BP+SAVED_ESI]
-						SHL		EDI,16
-						MOV		DI,WORD [BP+SAVED_EDI]
-
-INT93H_CD_EMU_05H_READ_LBA_CONTINUE:
 						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
 						AND		CL,7
 
@@ -1342,13 +1337,59 @@ INT93H_CD_EMU_0FH_CHECK_DISC_CHANGE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_14H_SEEK_MSF:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						; Actually do not have to do anything.
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_15H_READ_MSF:
-						TSUGARU_DEBUG
+						; Input incoming registers
+						CALL	INT93H_CD_GET_READ_PHYS_ADDR
+						; Output EDI=Physical Address
+						;        EAX destroyed
+
+						MOV		DL,[BP+SAVED_ECX]	; Incoming CL is MIN
+						MOV		AX,[BP+SAVED_EDX]	; Incoming DH,DL are SEC,FRM
+
+						; Input
+						;	DL		MIN
+						;	AH		SEC
+						;	AL		FRM
+						CALL	MSF2HSG
+						; Output:
+						;	DH		0
+						;	DL		High-byte of HSG
+						;	AH		Mid-byte of HSG
+						;	AL		Low-byte of HSG
+
+						SHL		EDX,16
+						MOV		DX,AX
+
+						; TOWNS's MSF starts with 00:02:00 or 150 frames.  Therefore, need to subtract.
+						SUB		EDX,150
+
+						MOV		BX,[BP+SAVED_EBX]
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+
+						PUSH	CS
+						POP		DS
+
+						; Input
+						;   CL    SCSI ID
+						;   EDX   Starting Sector
+						;   BX    Number of Sectors
+						;   EDI   Data Buffer Physical Address
+						;   DS=CS
+						; Output
+						;   CF    Set if error
+						CALL	SCSI_READ_SECTOR
+						JNC		INT93H_EXIT_NO_ERROR
+
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
+						MOV		BYTE CS:[ERROR_CODE],80h
+						MOV		BYTE CS:[ERROR_DETAIL],1
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
