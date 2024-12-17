@@ -1705,8 +1705,50 @@ INT93H_CD_EMU_54H_IS_AUDIO_TRACK:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_55H_CDDA_PAUSE:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JC		INT93H_EXIT
+
+						; [SCSI_DATA_BUF+1]  Audio Status
+						;   11H  Playing
+						;   12H  Paused
+						;   13H  Completed
+						;   14H  Stopped due to error
+						;   15H  No current audio status
+						; [SCSI_DATA_BUF+6]  Track
+						; [SCSI_DATA_BUF+7]  Index
+						; [SCSI_DATA_BUF+8]  Absolute CD Addr MSB
+						; [SCSI_DATA_BUF+9]  Absolute CD Addr
+						; [SCSI_DATA_BUF+10]  Absolute CD Addr LSB
+						; [SCSI_DATA_BUF+11]  Track relative CD Addr MSB
+						; [SCSI_DATA_BUF+12]  Track relative CD Addr
+						; [SCSI_DATA_BUF+13]  Track relative CD Addr LSB
+
+						MOV		BYTE CS:[ERROR_CODE],80H
+						JC		INT93H_EXIT
+
+						; [SCSI_DATA_BUF+1]  Audio Status
+						;   11H  Playing
+						;   12H  Paused
+
+						MOV		BYTE CS:[ERROR_CODE],DISKBIOS_ERROR_CD_ALREADY_PAUSED
+						MOV		AL,CS:[SCSI_DATABUF+1]
+						CMP		AL,12h
+						JE		INT93H_EXIT
+
+						; Apparently should return no error if not playing.
+						CMP		AL,11H
+						JNE		INT93H_EXIT_NO_ERROR
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_PAUSE
+
+						MOV		BYTE CS:[ERROR_CODE],80H
+						JC		INT93H_EXIT
+
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
