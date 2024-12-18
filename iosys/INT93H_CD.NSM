@@ -1420,6 +1420,8 @@ INT93H_CD_EMU_50H_CH_OK:
 						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],CX
 						; Cache first <<
 
+						; 71H and 72H will call after setting CS:[CD_EMULATION_CDDA_CACHE]
+INT93H_CD_EMU_50H_71H_72H_START_CDDA:
 						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
 						AND		CL,7
 						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
@@ -1768,16 +1770,49 @@ INT93H_CD_EMU_70H_NOP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_71H_EXT_CDDA_PLAY:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
+						; Input to INT 71H
+						;     BL Starting time M (In BCD if AH=72H)
+						;     BH Starting time S (In BCD if AH=72H)
+						;     CL Starting time F (In BCD if AH=72H)
+						;     CH Ending time M (In BCD if AH=72H)
+						;     DL Ending time S (In BCD if AH=72H)
+						;     DH Ending time F (In BCD if AH=72H)
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE],BX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+2],CX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],DX
+
+						JMP		INT93H_CD_EMU_50H_71H_72H_START_CDDA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_72H_EXT_CDDA_PLAY_BCD:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
+						;     BL Starting time M (In BCD if AH=72H)
+						;     BH Starting time S (In BCD if AH=72H)
+						;     CL Starting time F (In BCD if AH=72H)
+						;     CH Ending time M (In BCD if AH=72H)
+						;     DL Ending time S (In BCD if AH=72H)
+						;     DH Ending time F (In BCD if AH=72H)
+
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE],BX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+2],CX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],DX
+
+						XOR		BX,BX
+INT93H_CD_EMU_72H_BCD2BIN:
+						MOV		AL,CS:[CD_EMULATION_CDDA_CACHE+BX]
+						CALL	BCD2BIN_AL
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+BX],AL
+						INC		BX
+						CMP		BX,6
+						JNE		INT93H_CD_EMU_72H_BCD2BIN
+
+						JMP		INT93H_CD_EMU_50H_71H_72H_START_CDDA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
