@@ -1894,6 +1894,10 @@ void EGB_22H_GETBLOCK1BIT(
 	bgCol;\
 }
 
+extern void EGB_PUTBLOCK_1BIT_TO_8BIT_PSET(_Far unsigned char *vram,_Far unsigned char *src,unsigned int fgCol,unsigned int bgCol,unsigned int XCount,unsigned int YCount,unsigned int bytesPerLine);
+extern void EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ(_Far unsigned char *vram,_Far unsigned char *src,unsigned int fgCol,unsigned int bgCol,unsigned int XCount,unsigned int YCount,unsigned int bytesPerLine);
+extern void EGB_PUTBLOCK_1BIT_TO_8BIT_AND(_Far unsigned char *vram,_Far unsigned char *src,unsigned int fgCol,unsigned int bgCol,unsigned int XCount,unsigned int YCount,unsigned int bytesPerLine);
+
 unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	_Far struct EGB_ScreenMode *scrnMode,
 	_Far struct EGB_BlockInfo *blkInfo,
@@ -2055,60 +2059,36 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				}
 				break;
 			case 8:
-				switch(drawingMode)
 				{
-				case EGB_FUNC_OPAQUE:
-					EGB_PUTBLOCK_BW_8BIT_INLINE(
-					unsigned char,
+					unsigned char fgCol=color[EGB_FOREGROUND_COLOR]&0xFF;
+					unsigned char bgCol=color[EGB_BACKGROUND_COLOR]&0xFF;
+					switch(drawingMode)
 					{
-						if(bits&0x80)
+					case EGB_FUNC_OPAQUE:
+						EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ(vram,src,fgCol,bgCol,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine);
+						break;
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_MATTE:
+						EGB_PUTBLOCK_1BIT_TO_8BIT_PSET(vram,src,fgCol,bgCol,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine);
+						break;
+					case EGB_FUNC_AND:
+						EGB_PUTBLOCK_1BIT_TO_8BIT_AND(vram,src,fgCol,bgCol,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine);
+						break;
+					case EGB_FUNC_OR:
+						EGB_PUTBLOCK_BW_8BIT_INLINE(
+						unsigned char,
 						{
-							*vram=fgCol;
-						}
-						else
-						{
-							*vram=bgCol;
-						}
-					},
-					++vram);
-					break;
-				case EGB_FUNC_PSET:
-				case EGB_FUNC_MATTE:
-					EGB_PUTBLOCK_BW_8BIT_INLINE(
-					unsigned char,
-					{
-						if(bits&0x80)
-						{
-							*vram=fgCol;
-						}
-					},
-					++vram);
-					break;
-				case EGB_FUNC_AND:
-					EGB_PUTBLOCK_BW_8BIT_INLINE(
-					unsigned char,
-					{
-						if(!(bits&0x80))
-						{
-							*vram=0;
-						}
-					},
-					++vram);
-					break;
-				case EGB_FUNC_OR:
-					EGB_PUTBLOCK_BW_8BIT_INLINE(
-					unsigned char,
-					{
-						if(bits&0x80)
-						{
-							*vram|=fgCol;
-						}
-					},
-					++vram);
-					break;
-				default:
-					TSUGARU_BREAK;
-					break;
+							if(bits&0x80)
+							{
+								*vram|=fgCol;
+							}
+						},
+						++vram);
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
 				}
 				break;
 			case 16:
