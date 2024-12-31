@@ -952,26 +952,42 @@ DO_CONFIG_DEVICE:
 						; Do Block Dev.
 						; TSUGARU_DEBUG
 
-; 						MOVZX	CX,BYTE CS:[CONFIG_INIT_UNITS]
-; 						LDS		SI,CS:[CONFIG_INIT_BPB_ARRAY]
-; 						MOV		ES,CS:[DEVICE_LOAD_POINT]
-; 						XOR		BP,BP
-; DO_CONFIG_BLOCKDEV_LOOP:
-; 						MOV		AH,52H	; Make DPB
-; 						INT		21H
-; 
-; 						ADD		SI,BIOS_PARAMETER_BLOCK_size
-; 						ADD		BP,DRIVE_PARAM_BLOCK_size
-; 
-; 						LOOP	DO_CONFIG_BLOCKDEV_LOOP
-; 
-; 						ADD		BP,15
-; 						SHR		BP,4
-; 						MOV		BX,ES
-; 						ADD		BX,BP
-; 
-; 						MOV		CS:[DEVICE_LOAD_POINT],BX
-; 						MOV		CS:[DEVICE_LOAD_POINT+2],BX
+ 						CMP		BYTE CS:[CONFIG_INIT_UNITS],0
+						JE		DO_CONFIG_DEVICE_EXIT
+ 						LDS		SI,CS:[CONFIG_INIT_BPB_ARRAY]
+						MOV		SI,DS:[SI]	; CONFIG_INIT_BPB_ARRAY is like a double-pointer.
+ 						MOV		ES,CS:[DEVICE_LOAD_POINT]
+ 						XOR		BP,BP
+DO_CONFIG_BLOCKDEV_LOOP:
+						MOV		AH,53H	; Make DPB
+						INT		21H
+
+						MOV		CL,CS:[CONFIG_INIT_FIRST_DRV]
+						CALL	DO_CONFIG_FIND_AVAILABLE_CDS
+						JB		DO_CONFIG_DEVICE_EXIT
+
+						MOV		WORD ES:[BP+DPB_PTR_TO_DEV_DRIVER],0
+						MOV		WORD ES:[BP+DPB_PTR_TO_DEV_DRIVER+2],FS
+						MOV		CS:[CONFIG_INIT_FIRST_DRV],CL
+
+						MOV		ES:[BP+DPB_DRIVE_CODE],CL
+						MOV		WORD GS:[DI+CDS_DRIVE_TYPE],CDS_TYPE_VALID
+						MOV		GS:[DI+CDS_DRIVE_PARAM_BLOCK],BP
+						MOV		GS:[DI+CDS_DRIVE_PARAM_BLOCK+2],ES
+
+						ADD		SI,BIOS_PARAMETER_BLOCK_size
+						ADD		BP,DRIVE_PARAM_BLOCK_size
+
+						DEC		BYTE CS:[CONFIG_INIT_UNITS]
+						JNE		DO_CONFIG_BLOCKDEV_LOOP
+
+						ADD		BP,15
+						SHR		BP,4
+						MOV		BX,ES
+						ADD		BX,BP
+
+						MOV		CS:[DEVICE_LOAD_POINT],BX
+						MOV		CS:[DEVICE_LOAD_POINT+2],BX
 
 DO_CONFIG_DEVICE_EXIT:
 						POP		SI
@@ -996,6 +1012,63 @@ CALL_STRATEGY_AND_INTERRUPT:
 
 						ADD		SP,4
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input:  CL=Unit number to start search from
+; Output: CL=Unit number available
+;         GS:DI=CDS
+;         CF=0 Found one available.
+;         CF=1 Not found.
+;         DS,SI,ES,BP preserved.
+DO_CONFIG_FIND_AVAILABLE_CDS:
+						PUSH	DS
+						PUSH	SI
+						PUSH	ES
+						PUSH	BP
+
+						MOV		AH,19H		; Get Current Drive
+						INT		21H
+						MOV		AH,0EH		; Set Current Drive
+						INT		21H
+						; Now AL is the number of potential drive letters.
+
+						MOV		CH,AL
+
+						CMP		CL,CH
+						JAE		DO_CONFIG_NO_AVAILABLE_CDS
+
+						MOV		AH,52H		; Get List of Lists
+						INT		21H
+						LGS		DI,ES:[BX+SYSVARS_FIRST_CDS]
+
+						MOV		AL,CL
+						MOV		AH,CURRENT_DIR_STRUCT_size
+						MUL		AH
+
+						ADD		DI,AX
+DO_CONFIG_FIND_AVAIL_CDS_LOOP:
+						CMP		WORD GS:[DI+CDS_DRIVE_TYPE],0
+						JE		DO_CONFIG_FOUND_AVAIL_CDS
+						ADD		DI,CURRENT_DIR_STRUCT_size
+						INC		CL
+						CMP		CL,CH
+						JB		DO_CONFIG_FIND_AVAIL_CDS_LOOP
+						JMP		DO_CONFIG_NO_AVAILABLE_CDS
+
+DO_CONFIG_FOUND_AVAIL_CDS:
+						CLC
+
+DO_CONFIG_FIND_AVAIL_CDS_EXIT:
+						POP		BP
+						POP		ES
+						POP		SI
+						POP		DS
+						RET
+
+DO_CONFIG_NO_AVAILABLE_CDS:
+						STC
+						JMP		DO_CONFIG_FIND_AVAIL_CDS_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
