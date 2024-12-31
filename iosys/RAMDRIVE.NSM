@@ -1,0 +1,174 @@
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
+						DW	0FFFFh
+HEADER_ATTRIBWORD		DW	0800h   ; BlockDev|open/close/removable media
+HEADER_STRATEGY_PTR		DW	STRATEGY
+HEADER_INTERRUPT_PTR	DW	INTERRUPT
+HEADER_NAME				DB	"RAMDRIVE"
+
+
+REQHDR_PTR				DD	0
+
+DRIVE_SIZE_IN_KB		DB	0
+DRIVE_LETTER			DB	0
+
+BPB_ARRAY				DW		RAMDRIVE_BPB
+
+
+RAMDRIVE_BPB:			DW		200H	; bytesPerSect
+						DB		2		; sectPerCluster
+						DW		1		; reservedSectors
+						DB		2		; #FATs
+						DW		0070H	; #rootDirEntries
+						DW		0500H	; #sectors including reserved sectors
+						DB		0FBh	; mediaDesc
+						DW		2		; #sectPerFAT
+						DW		8		; #sectPerTrack
+						DW		1		; #heads
+						DW		0		; #hiddenSect
+						DD		0		; 32-bit #sectors
+
+
+STRATEGY:
+						MOV		CS:[REQHDR_PTR],BX
+						MOV		CS:[REQHDR_PTR+2],ES
+						RETF
+
+INTERRUPT:
+						SAVE_WORLD
+
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JE		INIT
+						CMP		AL,DEVREQ_CMD_MEDIA_CHECK
+						JE		MEDIA_CHECK
+						CMP		AL,DEVREQ_CMD_BUILD_BPB
+						JE		BUILD_BPB
+						CMP		AL,DEVREQ_CMD_READ
+						JE		READ
+						CMP		AL,DEVREQ_CMD_WRITE
+						JE		WRITE
+
+						TSUGARU_DEBUG
+
+RETURN:
+						RESTORE_WORLD
+						RETF
+
+
+MEDIA_CHECK:
+BUILD_BPB:
+READ:
+WRITE:
+						TSUGARU_DEBUG
+						RETF
+
+
+END_OF_RESIDENT_CODE:
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+
+
+; DEVICE=RAMDRIVE.SYS /L:R /S:256
+;  /L  Drive letter
+;  /S  Size in KB
+INIT:
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_RESIDENT_CODE
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
+
+						LDS		SI,ES:[BX+REQ_INIT_CMDLINE]
+
+INIT_OPTION_LOOP:
+						LODSB
+						CMP		AL,'/'
+						JE		INIT_OPTION_SLASH
+						CMP		AL,' '
+						JE		INIT_OPTION_LOOP
+						CMP		AL,TAB
+						JE		INIT_OPTION_LOOP
+						CMP		AL,CR
+						JE		INIT_OPTION_END
+						CMP		AL,LF
+						JE		INIT_OPTION_END
+						CMP		AL,0
+						JE		INIT_OPTION_END
+
+INIT_ERROR:
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
+						MOV		DX,INIT_MSG_ERROR_IN_PARAM
+						PUSH	CS
+						POP		DS
+						MOV		AH,9
+						INT		21H
+						JMP		RETURN
+
+INIT_OPTION_END:
+						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],1
+						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN+2],CS
+						MOV		WORD ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],BPB_ARRAY
+						JMP		RETURN
+
+INIT_OPTION_SLASH:
+						LODSB
+						CMP		AL,'L'
+						JE		INIT_OPTION_DRIVE_LETTER
+						CMP		AL,'S'
+						JE		INIT_OPTION_SIZE
+						JMP		INIT_ERROR
+
+INIT_OPTION_DRIVE_LETTER:
+						LODSB
+						CMP		AL,':'
+						JNE		INIT_ERROR
+
+						LODSB
+						AND		AL,0DFh	; Force it a capital letter
+						MOV		CS:[DRIVE_LETTER],AL
+						SUB		AL,'A'
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		BYTE ES:[BX+REQ_INIT_DRIVE_CODE_FIRST_UNIT],0
+						JMP		INIT_OPTION_LOOP
+
+INIT_OPTION_SIZE:
+						CALL	ATOI
+						MOV		CS:[DRIVE_SIZE_IN_KB],AX
+						JMP		INIT_OPTION_LOOP
+
+
+ATOI:
+						MOV		CX,0
+ATOI_LOOP:
+						LODSB
+						CMP		AL,'0'
+						JB		ATOI_RETURN
+						CMP		AL,'9'
+						JA		ATOI_RETURN
+
+						MOV		DX,CX
+						SHL		DX,3
+						ADD		CX,CX
+						ADD		CX,DX
+
+						SUB		AL,'0'
+						MOVZX	AX,AL
+						ADD		CX,AX
+						JMP		ATOI_LOOP
+
+ATOI_RETURN:
+						MOV		AX,CX
+						RET
+
+
+
+INIT_MSG_ERROR_IN_PARAM	DB		"Error in the command option."
