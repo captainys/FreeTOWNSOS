@@ -880,6 +880,7 @@ CONFIG_INIT_STATUS		DW		0			; +03H Return Code
 						DB		8 dup(0)	; +05H Not used for Init
 CONFIG_INIT_UNITS		DB		0			; +0DH Number of units (Output)
 CONFIG_INIT_END_RES		DD		0			; +0EH End of resident code (Output)
+CONFIG_INIT_BPB_ARRAY:
 CONFIG_INIT_CMDLINE		DD		0			; +12H Command Line (Input) -> BPB array pointer (Output)
 CONFIG_INIT_FIRST_DRV	DB		0			; +16H First drive
 						DW		0			; +17H Looks like DOS 4.0 uses this byte, just in case.
@@ -930,13 +931,9 @@ DO_CONFIG_DEVICE:
 						CMP		WORD CS:[CONFIG_INIT_STATUS],0100h	; Status Code=Done
 						JNE		DO_CONFIG_DEVICE_EXIT
 
+						; Re-load FS just in case.
 						MOV		FS,CS:[DEVICE_LOAD_POINT]
-						TEST	WORD FS:[SYSDEV_DEVFLAGS],8000H
-						JNE		DO_CONFIG_DEVICE_CONDEV
 
-						TSUGARU_DEBUG
-
-DO_CONFIG_DEVICE_CONDEV:
 						MOV		BX,WORD CS:[CONFIG_INIT_END_RES]
 						ADD		BX,15
 						SHR		BX,4
@@ -946,6 +943,35 @@ DO_CONFIG_DEVICE_CONDEV:
 
 						MOV		CS:[DEVICE_LOAD_POINT],BX
 						MOV		CS:[DEVICE_LOAD_POINT+2],BX
+
+						; FS is pointing to the derive drive just loaded.
+						; BX is the next load point.
+						TEST	WORD FS:[SYSDEV_DEVFLAGS],8000H
+						JNE		DO_CONFIG_DEVICE_EXIT
+
+						; Do Block Dev.
+						; TSUGARU_DEBUG
+
+; 						MOVZX	CX,BYTE CS:[CONFIG_INIT_UNITS]
+; 						LDS		SI,CS:[CONFIG_INIT_BPB_ARRAY]
+; 						MOV		ES,CS:[DEVICE_LOAD_POINT]
+; 						XOR		BP,BP
+; DO_CONFIG_BLOCKDEV_LOOP:
+; 						MOV		AH,52H	; Make DPB
+; 						INT		21H
+; 
+; 						ADD		SI,BIOS_PARAMETER_BLOCK_size
+; 						ADD		BP,DRIVE_PARAM_BLOCK_size
+; 
+; 						LOOP	DO_CONFIG_BLOCKDEV_LOOP
+; 
+; 						ADD		BP,15
+; 						SHR		BP,4
+; 						MOV		BX,ES
+; 						ADD		BX,BP
+; 
+; 						MOV		CS:[DEVICE_LOAD_POINT],BX
+; 						MOV		CS:[DEVICE_LOAD_POINT+2],BX
 
 DO_CONFIG_DEVICE_EXIT:
 						POP		SI
