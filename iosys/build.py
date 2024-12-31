@@ -67,6 +67,7 @@ def Run(argv):
 	CopyToResources("FD_IPL.bin");
 	CopyToResources("FAKENSDD.SYS");
 	CopyToResources("MINVCPI.SYS");
+	CopyToResources("RAMDRIVE.SYS");
 	CopyToResources("SYSXXXX0.COM");
 
 	subprocess.Popen(["./assemble"])

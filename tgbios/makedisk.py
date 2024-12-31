@@ -214,6 +214,7 @@ def Run(argv):
 		"-F",		"../resources/MINVCPI.SYS",
 		"-F",		"../resources/FAKENSDD.SYS",
 		"-F",		"../resources/SYSXXXX0.COM",
+		"-F",		"../resources/RAMDRIVE.SYS",
 		"-F",		"../externals/ORICON/ORICON.COM",
 		"-F",		"../externals/Free386/free386.com",
 		"-F",		"TGBIOS.SYS",
