@@ -660,8 +660,6 @@ XMS_INQUIRE_AVAILABLE_NOMEM:
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_ALLOC_MEMORY:
-		TSUGARU_DEBUG
-
 						; Input	EDX=Requested size in KB
 						PUSH	SI
 						PUSH	DI
@@ -743,7 +741,6 @@ XMS_ALLOC_MEMORY_NO_HANDLE:
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_LOCK:
-		TSUGARU_DEBUG
 						CMP		DX,4*XMS_MAX_MEMORY_BLOCKS
 						JAE		XMS_LOCK_INVALID_HANDLE
 
@@ -772,7 +769,6 @@ XMS_LOCK_INVALID_HANDLE:
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_FREE_MEMORY:
-		TSUGARU_DEBUG
 						CMP		DX,4*XMS_MAX_MEMORY_BLOCKS
 						JAE		XMS_FREE_INVALID_HANDLE
 
