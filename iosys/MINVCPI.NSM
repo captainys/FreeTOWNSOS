@@ -229,8 +229,8 @@ XMS_DIVIDE_BLOCK_FOUND:
 XMS_DIVIDE_BLOCK_SHIFT_LOOP:
 						MOV		EBX,CS:[DI-4]
 						MOV		CS:[DI],EBX
-						SUB		EDI,4
-						CMP		EDI,ESI
+						SUB		DI,4
+						CMP		DI,SI
 						JA		XMS_DIVIDE_BLOCK_SHIFT_LOOP
 
 
@@ -623,6 +623,7 @@ XMS_GETVERSION:
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_INQUIRE_AVAILABLE_MEMORY:
+						PUSH	ECX
 						PUSH	EBX
 						PUSh	ESI
 
@@ -645,6 +646,7 @@ XMS_INQUIRE_AVAILABLE_MEMORY:
 
 						POP		ESI
 						POP		EBX
+						POP		ECX
 						XOR		BL,BL
 						RETF
 
@@ -654,6 +656,7 @@ XMS_INQUIRE_AVAILABLE_NOMEM:
 						XOR		EDX,EDX
 						POP		ESI
 						POP		EBX
+						POP		ECX
 						MOV		BL,0A0H
 						RETF
 

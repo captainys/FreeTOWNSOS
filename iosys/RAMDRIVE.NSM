@@ -15,6 +15,8 @@ HEADER_INTERRUPT_PTR	DW	INTERRUPT
 HEADER_NAME				DB	"RAMDRIVE"
 
 XMS_ENTRY				DD	0
+XMS_HANDLE				DW	0	; Just in case
+XMS_PHYS_ADDR			DD	0
 
 REQHDR_PTR				DD	0
 
@@ -140,9 +142,15 @@ INIT_ERROR:
 						JMP		RETURN
 
 INIT_OPTION_END:
+						MOV		AH,88h	; XMS Inquire Available Memory
+						CALL	FAR [CS:XMS_ENTRY]
+						MOV		EBX,EAX	; EBX is available memory in KB.
+
 						MOVZX	EAX,WORD CS:[DRIVE_SIZE_IN_KB]
 						CMP		AX,MAX_SIZE_IN_KB
 						MOV		DX,INIT_MSG_ERROR_TOO_LARGE
+						JA		INIT_ERROR
+						CMP		EAX,EBX
 						JA		INIT_ERROR
 
 						SHL		EAX,10	; KB to Bytes
@@ -151,6 +159,18 @@ INIT_OPTION_END:
 						MOV		CS:[RAMDRIVE_BPB+BPB_TOTALNUM_SECT],AX
 
 						CALL	MAKE_INITIAL_DISK_IMAGE
+
+	TSUGARU_DEBUG
+						MOVZX	EDX,WORD CS:[DRIVE_SIZE_IN_KB]
+						MOV		AH,89H ; XMS Alloc Memory
+						CALL	FAR [CS:XMS_ENTRY]	; Not supposed to fail because it checked availability above.
+						MOV		CS:[XMS_HANDLE],DX
+
+						MOV		AH,0CH ; XMS Lock Memory
+						CALL	FAR [CS:XMS_ENTRY]	; Not supposed to fail.
+						SHL		EDX,16
+						MOV		DX,BX
+						MOV		CS:[XMS_PHYS_ADDR],EDX
 
 						LES		BX,CS:[REQHDR_PTR]	; Re-fetch REQHDR
 						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],1
