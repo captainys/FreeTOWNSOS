@@ -81,6 +81,9 @@ WRITE:
 						JMP		RETURN
 
 
+						%INCLUDE "RDHIGH.NSM"
+
+
 END_OF_RESIDENT_CODE:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
@@ -91,6 +94,8 @@ END_OF_RESIDENT_CODE:
 ;  /L  Drive letter
 ;  /S  Size in KB
 INIT:
+						CALL	PHYSMEM_TRANSFER_INITIALIZE
+
 						MOV		AX,4300H	; XMS installation check
 						INT		2FH
 						CMP		AL,80H
@@ -158,9 +163,6 @@ INIT_OPTION_END:
 						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
 						MOV		CS:[RAMDRIVE_BPB+BPB_TOTALNUM_SECT],AX
 
-						CALL	MAKE_INITIAL_DISK_IMAGE
-
-	TSUGARU_DEBUG
 						MOVZX	EDX,WORD CS:[DRIVE_SIZE_IN_KB]
 						MOV		AH,89H ; XMS Alloc Memory
 						CALL	FAR [CS:XMS_ENTRY]	; Not supposed to fail because it checked availability above.
@@ -172,11 +174,27 @@ INIT_OPTION_END:
 						MOV		DX,BX
 						MOV		CS:[XMS_PHYS_ADDR],EDX
 
+						; Input
+						;   ESI      Source Physical Address
+						;   EDI      Destination Physical Address
+						;   ECX      Transfer size
+
+						CALL	MAKE_INITIAL_DISK_IMAGE
+						MOVZX	ECX,BX
+						MOV		EDI,CS:[XMS_PHYS_ADDR]
+						MOV		SI,CS
+						MOVZX	ESI,SI
+						SHL		ESI,4
+						ADD		ESI,INIT_DISK_IMAGE
+						CALL	PHYSMEM_TRANSFER
+
+
 						LES		BX,CS:[REQHDR_PTR]	; Re-fetch REQHDR
 						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],1
 						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN+2],CS
 						MOV		WORD ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],BPB_ARRAY
 						JMP		RETURN
+
 
 INIT_OPTION_SLASH:
 						LODSB
