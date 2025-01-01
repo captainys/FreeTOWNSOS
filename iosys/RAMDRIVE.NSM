@@ -75,10 +75,67 @@ MEDIA_CHECK:
 
 
 BUILD_BPB:
-READ:
-WRITE:
 						TSUGARU_DEBUG
 						JMP		RETURN
+
+READ:
+						CALL	GET_PHYSADDR
+						; Output:
+						;   ESI Physical Address
+						;   ECX Bytes
+
+						MOVZX	EDI,WORD ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOVZX	EAX,WORD ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						SHL		EDI,4
+						ADD		EDI,EAX
+
+						; Input
+						;   ESI      Source Physical Address
+						;   EDI      Destination Physical Address
+						;   ECX      Transfer size
+						CALL	PHYSMEM_TRANSFER
+						JMP		RETURN
+
+
+WRITE:
+						CALL	GET_PHYSADDR
+						; Output:
+						;   ESI Physical Address
+						;   ECX Bytes
+
+						MOVZX	EDI,WORD ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOVZX	EAX,WORD ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						SHL		EDI,4
+						ADD		EDI,EAX
+						XCHG	ESI,EDI
+
+						; Input
+						;   ESI      Source Physical Address
+						;   EDI      Destination Physical Address
+						;   ECX      Transfer size
+						CALL	PHYSMEM_TRANSFER
+						JMP		RETURN
+
+
+; Input: ES:BX=Request Header
+; Output:  ESI=Physical Address  ECX=Byte count
+GET_PHYSADDR:
+						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
+						MOV		DX,WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MUL		DX
+						MOV		SI,DX
+						SHL		ESI,16
+						MOV		SI,AX
+						ADD		ESI,CS:[XMS_PHYS_ADDR]
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
+						MOV		DX,WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MUL		DX
+						MOV		CX,DX
+						SHL		ECX,16
+						MOV		CX,AX
+
+						RET
 
 
 						%INCLUDE "RDHIGH.NSM"
