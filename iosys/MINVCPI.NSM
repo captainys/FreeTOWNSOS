@@ -108,6 +108,47 @@ XMS_FIND_LARGEST_BLOCK_NONE_AVAIL:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Return:
+;   ECX=Highest ending physical address
+;   EDX=Total amount of free memory
+;   Registers are saved.
+XMS_GET_TOTAL_FREE_MEM:
+						PUSH	SI
+						PUSH	EAX
+						PUSh	EBX
+
+						MOV		SI,XMS_MEMORY_BLOCKS
+						XOR		ECX,ECX
+						XOR		EDX,EDX
+
+XMS_GET_TOTAL_FREE_MEM_LOOP:
+						MOV		EAX,CS:[SI]
+
+						MOV		ECX,EAX
+						AND		ECX,XMS_BLOCK_ADDR_MASK
+						DEC		ECX
+
+						TEST	EAX,XMS_BLOCK_FLAG_LAST
+						JE		XMS_GET_TOTAL_FREE_MEM_BREAK
+
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+
+						ADD		SI,4
+						MOV		EBX,CS:[SI]
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+
+						SUB		EBX,EAX
+						ADD		EDX,EBX
+						JMP		XMS_GET_TOTAL_FREE_MEM_LOOP
+
+XMS_GET_TOTAL_FREE_MEM_BREAK:
+						POP		EBX
+						POP		EAX
+						POP		SI
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; Input:
 ;         EAX Physical address of the block
 ;         ECX Size of the aft block
