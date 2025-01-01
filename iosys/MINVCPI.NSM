@@ -79,7 +79,7 @@ XMS_FIND_LARGEST_BLOCK:
 XMS_FIND_LARGEST_BLOCK_LOOP:
 						MOV		EDX,CS:[SI]
 						TEST	EDX,XMS_BLOCK_FLAG_LAST
-						JE		XMS_FIND_LARGEST_BLOCK_BREAK
+						JNE		XMS_FIND_LARGEST_BLOCK_BREAK
 
 						AND		EDX,XMS_BLOCK_ADDR_MASK
 
@@ -129,7 +129,7 @@ XMS_GET_TOTAL_FREE_MEM_LOOP:
 						DEC		ECX
 
 						TEST	EAX,XMS_BLOCK_FLAG_LAST
-						JE		XMS_GET_TOTAL_FREE_MEM_BREAK
+						JNE		XMS_GET_TOTAL_FREE_MEM_BREAK
 
 						AND		EAX,XMS_BLOCK_ADDR_MASK
 
@@ -579,37 +579,61 @@ XMS_WANNABE_ENTRY:
 
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 XMS_GETVERSION:
 						MOV		AH,3	; Pretend to be Version 3
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 XMS_INQUIRE_AVAILABLE_MEMORY:
 						PUSH	EBX
+						PUSh	ESI
 
-						CALL	GET_MEMORY_CAPACITY
-						;Output  EDX=RAM size in bytes.
-						;        BX=Dextroyed
-						;        AX=Destroyed
+						CALL	XMS_FIND_LARGEST_BLOCK
+						; Return CF=0
+						;        EAX=Physical address of the largest unused block
+						;        ECX=Length of the largest unused block
+						;        Or CF=1,ECX=EAX=0 if none available.
+						;        ESI,EBX,EDX destroyed
+						JB		XMS_INQUIRE_AVAILABLE_NOMEM
 
-						; Nobody else is using upper memory.  Therefore, everything 0C0000h and above is available.
+						MOV		EAX,ECX
+						SHR		EAX,10	; Make it in KB.
 
-						SUB		EDX,0C0000h
-						SHR		EDX,10	; Available continuous memory in KB
-						MOV		EAX,EDX	; Available memoroy in KB
-						XOR		ECX,ECX	; Free386 seems to excpet ECX to be zero.
+						CALL	XMS_GET_TOTAL_FREE_MEM
+						;   ECX=Highest ending physical address
+						;   EDX=Total amount of free memory
+						;   Registers are saved.
+						SHR		EDX,10	; Make it in KB
 
+						POP		ESI
 						POP		EBX
 						XOR		BL,BL
-
 						RETF
 
+XMS_INQUIRE_AVAILABLE_NOMEM:
+						CALL	XMS_GET_TOTAL_FREE_MEM
+						XOR		EAX,EAX
+						XOR		EDX,EDX
+						POP		ESI
+						POP		EBX
+						MOV		BL,0A0H
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 XMS_ALLOC_MEMORY:
+						; Input	EDX=Requested size in KB
+
 						; Free386 allocates all memory.  Sure.  I give it to Free386.  Nobody else is supposed to
 						; touch the upper memory.
 						MOV		AX,1	; Success
 						MOV		DX,1
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_LOCK:
 						; OK.  Everything is locked.  Locked from the beginning.
@@ -617,6 +641,8 @@ XMS_LOCK:
 						MOV		DX,XMS_START_HIWORD
 						MOV		BX,XMS_START_LOWORD
 						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_FREE_MEMORY:
 						RETF
