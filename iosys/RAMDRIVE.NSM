@@ -14,6 +14,7 @@ HEADER_STRATEGY_PTR		DW	STRATEGY
 HEADER_INTERRUPT_PTR	DW	INTERRUPT
 HEADER_NAME				DB	"RAMDRIVE"
 
+XMS_ENTRY				DD	0
 
 REQHDR_PTR				DD	0
 
@@ -88,6 +89,16 @@ END_OF_RESIDENT_CODE:
 ;  /L  Drive letter
 ;  /S  Size in KB
 INIT:
+						MOV		AX,4300H	; XMS installation check
+						INT		2FH
+						CMP		AL,80H
+						JNE		INIT_XMS_NOT_AVAILABLE
+
+						MOV		AX,4310H	; Get XMS Entry
+						INT		2FH
+						MOV		CS:[XMS_ENTRY],BX
+						MOV		CS:[XMS_ENTRY+2],ES
+
 						LES		BX,CS:[REQHDR_PTR]
 						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_RESIDENT_CODE
 						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
@@ -118,6 +129,9 @@ INIT_OPTION_LOOP:
 
 ; Input DX=Message
 INIT_ERROR:
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],0
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
 						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
 						PUSH	CS
 						POP		DS
@@ -179,6 +193,12 @@ INIT_OPTION_SIZE:
 						CALL	ATOI
 						MOV		CS:[DRIVE_SIZE_IN_KB],AX
 						JMP		INIT_OPTION_LOOP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_XMS_NOT_AVAILABLE:
+						MOV		DX,INIT_MSG_XMS_NOT_AVAILABLE
+						JMP		INIT_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -288,6 +308,7 @@ INIT_MSG_ERROR_IN_PARAM			DB	"Error in the command option.$",0
 INIT_MSG_ERROR_TOO_LARGE		DB	"Error: Max size if 4MB.$",0
 INIT_MSG_ERROR_UNDEFINED_OPTION	DB	"Error: Undefined option.$",0
 INIT_MSG_ERROR_MISSING_COLON	DB	"Error: Missing colon after the option.$",0
+INIT_MSG_XMS_NOT_AVAILABLE		DB	"Error: XMS drive unavailable.$",0
 
 INIT_VOLUME_LABEL				DB	"RAMDRIVE    "
 
