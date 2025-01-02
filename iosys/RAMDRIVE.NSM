@@ -264,10 +264,7 @@ INIT_OPTION_END:
 						CMP		EAX,EBX
 						JA		INIT_ERROR
 
-						SHL		EAX,10	; KB to Bytes
-						SHLD	EDX,EAX,16
-						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
-						MOV		CS:[RAMDRIVE_BPB+BPB_TOTALNUM_SECT],AX
+						CALL	INIT_SETUP_BPB
 
 						MOVZX	EDX,WORD CS:[DRIVE_SIZE_IN_KB]
 						MOV		AH,89H ; XMS Alloc Memory
@@ -337,6 +334,54 @@ INIT_OPTION_SIZE:
 						CALL	ATOI
 						MOV		CS:[DRIVE_SIZE_IN_KB],AX
 						JMP		INIT_OPTION_LOOP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_SETUP_BPB:
+						MOVZX	EAX,WORD CS:[DRIVE_SIZE_IN_KB]
+						SHL		EAX,10	; KB to Bytes
+						SHLD	EDX,EAX,16
+						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MOV		CS:[RAMDRIVE_BPB+BPB_TOTALNUM_SECT],AX
+
+						; Number of clusters=number of sectors divided by sectors per cluster.
+						MOVZX	BX,BYTE CS:[RAMDRIVE_BPB+BPB_SECTOR_PER_CLUSTER]
+						XOR		DX,DX
+						ADD		AX,BX										; Round Up
+						DEC		AX											; Round Up
+						DIV		BX
+
+						; AX is number of clusters.  Plus 2 (FFEh, FFFh) Times 12(bits) divided by 8(bits) is number of bytes for FAT.
+						ADD		AX,2
+						MOV		DX,12
+						MUL		DX
+
+						SHL		EDX,16
+						MOV		DX,AX
+						SHR		EDX,3
+						; EDX is number of bytes for FAT.
+
+						; 48KB drive, 1KB sector, 1 sector per cluster -> 48 clusters
+						; ((48+2)*12+7)/8=75 bytes
+
+						MOVZX	EAX,WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						DEC		EAX
+						ADD		EAX,EDX
+						XOR		DX,DX
+						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+
+						MOV		CS:[RAMDRIVE_BPB+BPB_SECT_PER_FAT],AX
+
+						; There cannot be more files than number of clusters.
+						; Therefore limit max number of files to the number of sectors.
+						MOV		AX,WORD CS:[DRIVE_SIZE_IN_KB]
+						CMP		AX,256
+						JLE		INIT_SETUP_BPB_RETURN
+						MOV		AX,256						; Max 256 files.
+INIT_SETUP_BPB_RETURN:
+						MOV		CS:[RAMDRIVE_BPB+BPB_NUM_ROOT_DIR_ENT],AX
+
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

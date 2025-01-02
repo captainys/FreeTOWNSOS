@@ -2,6 +2,6 @@ shell=Q:\YAMAND.COM Q:\ /E:40 /P
 device=MINVCPI.SYS
 device=FAKENSDD.SYS
 device=TGBIOS.SYS /TGBIOS.BIN
-device=RAMDRIVE.SYS /L:R /S:20
+device=RAMDRIVE.SYS /L:R /S:24
 files=20
 buffers=10
