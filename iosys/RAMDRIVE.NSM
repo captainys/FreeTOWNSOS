@@ -23,6 +23,10 @@ REQHDR_PTR				DD	0
 DRIVE_SIZE_IN_KB		DB	96
 DRIVE_LETTER			DB	'R'
 
+SAVE_IO_404H			DB	0
+SAVE_IO_480H			DB	0
+
+
 BPB_ARRAY				DW		RAMDRIVE_BPB
 
 
@@ -47,6 +51,7 @@ STRATEGY:
 
 INTERRUPT:
 						SAVE_WORLD
+						CALL	UMB_RAM_MODE
 
 						LES		BX,CS:[REQHDR_PTR]
 						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
@@ -65,6 +70,7 @@ INTERRUPT:
 						TSUGARU_DEBUG
 
 RETURN:
+						CALL	UMB_RESTORE_MAPPING
 						RESTORE_WORLD
 						RETF
 
@@ -137,6 +143,49 @@ GET_PHYSADDR:
 
 						RET
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+UMB_RAM_MODE:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,404H
+						IN		AL,DX
+						AND		AL,80H
+						MOV		CS:[SAVE_IO_404H],AL
+						MOV		AL,80h
+						OUT		DX,AL
+
+						MOV		DX,480H
+						IN		AL,DX
+						AND		AL,3
+						MOV		CS:[SAVE_IO_480H],AL
+						MOV		AL,3
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+UMB_RESTORE_MAPPING:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,404H
+						MOV		AL,CS:[SAVE_IO_404H]
+						OUT		DX,AL
+
+						MOV		DX,480H
+						MOV		AL,CS:[SAVE_IO_480H]
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
 
 						%INCLUDE "RDHIGH.NSM"
 
