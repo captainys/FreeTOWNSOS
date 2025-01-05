@@ -955,7 +955,7 @@ CDC_CDDA_PSUE_LOOP:
 						CMP		AL,12H
 						JNE		CDC_CDDA_PSUE_LOOP
 
-						JMP		INT93H_EXIT
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
