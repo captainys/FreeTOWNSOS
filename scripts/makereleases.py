@@ -22,6 +22,7 @@ def Run(argv):
 		"TGBIOS.BIN",
 		"FD_IPL.BIN",
 		"FDIMG.BIN",
+		"RUNNERFD.BIN",
 		"FDIMG_USEROM.BIN",
 		"HDIMG.h0",
 		"CDIMG.ISO",
