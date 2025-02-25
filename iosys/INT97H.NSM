@@ -43,7 +43,15 @@ INT97H:
 
 INT97H_EXIT:
 						RESTORE_WORLD
-						CLC
+
+						PUSH	BP
+						MOV		BP,SP
+						; BP   OLD BP
+						; BP+2 IP
+						; BP+4 CS
+						; BP+6 FLAGS
+						AND		BYTE [BP+6],0FEH
+						POP		BP
 						IRET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
