@@ -1,0 +1,84 @@
+
+; #define PLTDEBUG(c,b,r,g) \
+; { \
+; 	_outb(0x448,1); \
+; 	_outb(0x44A,0x25); \
+; 	_outb(0xFD90,c); \
+; 	_outb(0xFD92,b); \
+; 	_outb(0xFD94,r); \
+; 	_outb(0xFD96,g); \
+; 	_outb(0x448,1); \
+; 	_outb(0x44A,0x05); \
+; 	_outb(0xFD90,c); \
+; 	_outb(0xFD92,b); \
+; 	_outb(0xFD94,r); \
+; 	_outb(0xFD96,g); \
+; }
+
+
+; Make all 16-color-mode palette to the specified RGB values.
+;   EBX	Color  ??GGRRBBh
+PALETTE_DEBUG:
+					PUSH	CX
+					MOV		CH,AL
+					MOV		CL,15
+PALETTE_DEBUG_LOOP:
+					CALL	PALETTE_DEBUG_PAGES
+					DEC		CL
+					JNE		PALETTE_DEBUG_LOOP
+
+					MOV		AL,CH
+					POP		CX
+					RET
+
+
+PALETTE_DEBUG_PAGES:
+					MOV		DX,448H
+					MOV		AL,1
+					OUT		DX,AL
+
+					ADD		DL,2	; DX=44AH
+					MOV		AL,025H
+					OUT		DX,AL
+
+					CALL	PALETTE_DEBUG_ONE
+
+					MOV		DX,448H	; I may not have to re-latch, but just in case.
+					MOV		AL,1
+					OUT		DX,AL
+
+					ADD		DL,2	; DX=44AH
+					MOV		AL,005H
+					OUT		DX,AL
+
+					CALL	PALETTE_DEBUG_ONE
+
+					RET
+
+
+PALETTE_DEBUG_ONE:
+					MOV		AL,CL
+					MOV		DX,0FD90H
+					OUT		DX,AL	; Latch color-ID
+
+					ADD		DL,2	; DX=FD92
+					MOV		AL,BL
+					OUT		DX,AL	; BB
+
+					ROR		EBX,8
+					ADD		DL,2	; DX=FD94
+					MOV		AL,BL	; RR
+					OUT		DX,AL
+
+					ROR		EBX,8
+					ADD		DL,2	; DX=FD96
+					MOV		AL,BL
+					OUT		DX,AL
+
+					ROR		EBX,16
+					RET
+
+
+
+
+

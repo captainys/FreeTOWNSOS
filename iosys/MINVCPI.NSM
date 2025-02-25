@@ -44,6 +44,299 @@ FROM_PM_EDX				DD		0
 SAVE_IO_404H			DB		0
 SAVE_IO_480H			DB		0
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+XMS_MAX_MEMORY_BLOCKS	EQU		32
+XMS_BLOCK_RESOLUTION	EQU		0400H	; 1KB resolution
+XMS_BLOCK_FLAG_MASK		EQU		03FFH
+XMS_BLOCK_ADDR_MASK		EQU		0FFFFFC00H
+XMS_MEMORY_BLOCKS		DD		(XMS_MAX_MEMORY_BLOCKS+1) dup (0)
+XMS_MEMORY_BLOCKS_END:
+XMS_HANDLE_TO_PHYSMEM	DD		XMS_MAX_MEMORY_BLOCKS dup (0)
+XMS_HANDLE_TO_PHYSMEM_END:
+
+XMS_BLOCK_FLAG_USED		EQU		1
+XMS_BLOCK_FLAG_LAST		EQU		2
+
+; Memory-Block
+;   b31----------b10 b9-----b0
+;    |  Phys-Addr   |  Flags |
+; Flags
+;   b0  Used
+;   b1  End-Of-Usable Memory
+
+;
+; Return CF=0
+;        EAX=Physical address of the largest unused block
+;        ECX=Length of the largest unused block
+;        Or CF=1,ECX=EAX=0 if none available.
+;        ESI,EBX,EDX destroyed
+XMS_FIND_LARGEST_BLOCK:
+						MOV		SI,XMS_MEMORY_BLOCKS
+						XOR		EAX,EAX
+						XOR		ECX,ECX
+XMS_FIND_LARGEST_BLOCK_LOOP:
+						MOV		EDX,CS:[SI]
+						TEST	EDX,XMS_BLOCK_FLAG_LAST
+						JNE		XMS_FIND_LARGEST_BLOCK_BREAK
+
+						AND		EDX,XMS_BLOCK_ADDR_MASK
+
+						ADD		SI,4
+						MOV		EBX,CS:[SI]
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+						SUB		EBX,EDX
+
+						CMP		EBX,ECX
+						JB		XMS_FIND_LARGEST_BLOCK_LOOP
+
+						MOV		ECX,EBX
+						MOV		EAX,EDX
+						JMP		XMS_FIND_LARGEST_BLOCK_LOOP
+
+XMS_FIND_LARGEST_BLOCK_BREAK:
+						JECXZ	XMS_FIND_LARGEST_BLOCK_NONE_AVAIL
+						CLC
+						RET
+
+XMS_FIND_LARGEST_BLOCK_NONE_AVAIL:
+						XOR		EAX,EAX
+						XOR		ECX,ECX
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input EAX=physical memory, will be rounded to KB border.
+XMS_MARK_BLOCK_USED:
+						PUSH	SI
+						PUSH	EBX
+
+						MOV		SI,XMS_MEMORY_BLOCKS
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+
+XMS_MARK_BLOCK_USED_LOOP:
+						MOV		EBX,CS:[SI]
+						TEST	EBX,XMS_BLOCK_FLAG_LAST
+						JNE		XMS_MARK_BLOCK_USED_FAIL
+
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+						CMP		EAX,EBX
+						JE		XMS_MARK_BLOCK_USED_BREAK
+
+						ADD		SI,4
+						JMP		XMS_MARK_BLOCK_USED_LOOP
+
+XMS_MARK_BLOCK_USED_BREAK:
+						OR		BYTE CS:[SI],XMS_BLOCK_FLAG_USED
+						POP		EBX
+						POP		SI
+						CLC
+						RET
+
+XMS_MARK_BLOCK_USED_FAIL:
+						POP		EBX
+						POP		SI
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Return:
+;   ECX=Highest ending physical address
+;   EDX=Total amount of free memory
+;   Registers are saved.
+XMS_GET_TOTAL_FREE_MEM:
+						PUSH	SI
+						PUSH	EAX
+						PUSh	EBX
+
+						MOV		SI,XMS_MEMORY_BLOCKS
+						XOR		ECX,ECX
+						XOR		EDX,EDX
+
+XMS_GET_TOTAL_FREE_MEM_LOOP:
+						MOV		EAX,CS:[SI]
+
+						MOV		ECX,EAX
+						AND		ECX,XMS_BLOCK_ADDR_MASK
+						DEC		ECX
+
+						TEST	EAX,XMS_BLOCK_FLAG_LAST
+						JNE		XMS_GET_TOTAL_FREE_MEM_BREAK
+
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+
+						ADD		SI,4
+						MOV		EBX,CS:[SI]
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+
+						SUB		EBX,EAX
+						ADD		EDX,EBX
+						JMP		XMS_GET_TOTAL_FREE_MEM_LOOP
+
+XMS_GET_TOTAL_FREE_MEM_BREAK:
+						POP		EBX
+						POP		EAX
+						POP		SI
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input:
+;         EAX Physical address of the block
+;         ECX Size of the aft block
+; Output:
+;         CF=0 EAX Physical address of the block that has ECX bytes
+;         CF=1 Could not divide.  Block is used, or ECX is greater than the block size.
+;         ESI,EDI,EBX destroyed.  ECX rounded up to 4KB border.
+XMS_DIVIDE_BLOCK:
+						MOV		SI,XMS_MEMORY_BLOCKS
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+						ADD		ECX,XMS_BLOCK_RESOLUTION-1
+						AND		ECX,XMS_BLOCK_ADDR_MASK
+
+XMS_DIVIDE_BLOCK_SEARCH_LOOP:
+						MOV		EBX,CS:[SI]
+						TEST	EBX,XMS_BLOCK_FLAG_LAST
+						JNE		XMS_DIVIDE_BLOCK_ERROR	; Block not found.
+
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+						CMP		EAX,EBX
+						JE		XMS_DIVIDE_BLOCK_FOUND
+
+						ADD		SI,4
+						CMP		SI,XMS_MEMORY_BLOCKS_END-4
+						JB		XMS_DIVIDE_BLOCK_SEARCH_LOOP
+
+						JMP		XMS_DIVIDE_BLOCK_ERROR	; Cannot divide any more.
+
+XMS_DIVIDE_BLOCK_FOUND:
+						MOV		EBX,CS:[SI]
+						TEST	EBX,XMS_BLOCK_FLAG_USED
+						JNE		XMS_DIVIDE_BLOCK_ERROR	; Block is used
+
+						MOV		EBX,CS:[SI+4]
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+						SUB		EBX,EAX
+
+						CMP		EBX,ECX
+						JE		XMS_DIVIDE_BLOCK_NOERR	; Do not have to divide. No error.
+						JB		XMS_DIVIDE_BLOCK_ERROR	; Block is too small.
+
+						MOV		DI,XMS_MEMORY_BLOCKS_END-4
+XMS_DIVIDE_BLOCK_SHIFT_LOOP:
+						MOV		EBX,CS:[DI-4]
+						MOV		CS:[DI],EBX
+						SUB		DI,4
+						CMP		DI,SI
+						JA		XMS_DIVIDE_BLOCK_SHIFT_LOOP
+
+
+						MOV		EAX,CS:[SI+8]	; Already shifted
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+						SUB		EAX,ECX
+						MOV		CS:[SI+4],EAX
+
+XMS_DIVIDE_BLOCK_NOERR:
+						CLC
+						RET
+
+XMS_DIVIDE_BLOCK_ERROR:
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input EAX=Physical Address
+XMS_FREE_BLOCK:
+						MOV		SI,XMS_MEMORY_BLOCKS
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+
+XMS_FREE_BLOCK_SEARCH_LOOP:
+						MOV		EBX,CS:[SI]
+						TEST	EBX,XMS_BLOCK_FLAG_LAST
+						JNE		XMS_FREE_BLOCK_ERR		; Not found
+
+						AND		EBX,XMS_BLOCK_ADDR_MASK
+						CMP		EAX,EBX
+						JE		XMS_FREE_BLOCK_SEARCH_FOUND
+
+						ADD		SI,4
+						CMP		SI,XMS_MEMORY_BLOCKS_END
+						JB		XMS_FREE_BLOCK_SEARCH_LOOP
+
+XMS_FREE_BLOCK_ERR:
+						STC
+						RET
+
+XMS_FREE_BLOCK_SEARCH_FOUND:
+						MOV		CS:[SI],EAX
+						CALL	XMS_CONSOLIDATE_BLOCKS
+						CLC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+XMS_CONSOLIDATE_BLOCKS:
+						MOV		SI,XMS_MEMORY_BLOCKS
+
+XMS_CONSOLIDATE_BLOCKS_OUT_LOOP:
+						MOV		EBX,CS:[SI]
+						TEST	EBX,XMS_BLOCK_FLAG_LAST
+						JNE		XMS_CONSOLIDATE_BLOCKS_END
+
+						TEST	EBX,XMS_BLOCK_FLAG_USED
+						JNE		XMS_CONSOLIDATE_BLOCKS_OUT_NEXT
+
+						MOV		EDX,CS:[SI+4]
+						TEST	EDX,XMS_BLOCK_FLAG_USED+XMS_BLOCK_FLAG_LAST
+						JNE		XMS_CONSOLIDATE_BLOCKS_OUT_NEXT
+
+						; Found two consecutive unused blocks.
+						MOV		BX,SI
+
+XMS_CONSOLIDATE_BLOCKS_IN_LOOP:
+						MOV		EDX,CS:[BX+4]
+						MOV		CS:[BX],EDX
+						ADD		BX,4
+						TEST	EDX,XMS_BLOCK_FLAG_LAST
+						JE		XMS_CONSOLIDATE_BLOCKS_IN_LOOP
+						JMP		XMS_CONSOLIDATE_BLOCKS_OUT_LOOP
+
+XMS_CONSOLIDATE_BLOCKS_OUT_NEXT:
+						ADD		SI,4
+						JMP		XMS_CONSOLIDATE_BLOCKS_OUT_LOOP
+
+XMS_CONSOLIDATE_BLOCKS_END:
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Return BX=not FFFFh if found (offset to XMS_HANDLE_TO_PHYSMEM)
+;        BX=FFFFh if not found
+XMS_FIND_AVAIL_HANDLE:
+						MOV		BX,XMS_HANDLE_TO_PHYSMEM
+
+XMS_FIND_AVAIL_HANDLE_LOOP:
+						CMP		DWORD CS:[BX],0
+						JE		XMS_FOUND_AVAIL_HANDLE
+
+						ADD		BX,4
+						CMP		BX,XMS_HANDLE_TO_PHYSMEM_END
+						JB		XMS_FIND_AVAIL_HANDLE_LOOP
+
+						MOV		BX,0FFFFH
+						STC
+						RET
+
+XMS_FOUND_AVAIL_HANDLE:
+						SUB		BX,XMS_HANDLE_TO_PHYSMEM
+						CLC
+						RET
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 STRATEGY:
 						MOV		CS:[REQ_HEADER],BX
 						MOV		CS:[REQ_HEADER+2],ES
@@ -79,6 +372,19 @@ INTERRUPT:
 
 						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_MINVCPI
 						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
+
+						MOV		DWORD CS:[XMS_MEMORY_BLOCKS],XMS_MEMORY_START
+
+						CALL	GET_MEMORY_CAPACITY
+						;Output  EDX=RAM size in bytes.
+						;        BX=Dextroyed
+						;        AX=Destroyed
+						AND		EDX,XMS_BLOCK_ADDR_MASK
+						OR		EDX,XMS_BLOCK_FLAG_LAST+XMS_BLOCK_FLAG_USED
+
+						MOV		CS:[XMS_MEMORY_BLOCKS+4],EDX
+
 
 INTERRUPT_EXIT:
 						RESTORE_WORLD
@@ -303,46 +609,187 @@ XMS_WANNABE_ENTRY:
 						JE		XMS_INQUIRE_AVAILABLE_MEMORY
 						CMP		AH,89h
 						JE		XMS_ALLOC_MEMORY
+						CMP		AH,0AH
+						JE		XMS_FREE_MEMORY
 
 						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_GETVERSION:
 						MOV		AH,3	; Pretend to be Version 3
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 XMS_INQUIRE_AVAILABLE_MEMORY:
+						PUSH	ECX
 						PUSH	EBX
+						PUSh	ESI
 
-						CALL	GET_MEMORY_CAPACITY
-						;Output  EDX=RAM size in bytes.
-						;        BX=Dextroyed
-						;        AX=Destroyed
+						CALL	XMS_FIND_LARGEST_BLOCK
+						; Return CF=0
+						;        EAX=Physical address of the largest unused block
+						;        ECX=Length of the largest unused block
+						;        Or CF=1,ECX=EAX=0 if none available.
+						;        ESI,EBX,EDX destroyed
+						JB		XMS_INQUIRE_AVAILABLE_NOMEM
 
-						; Nobody else is using upper memory.  Therefore, everything 0C0000h and above is available.
+						MOV		EAX,ECX
+						SHR		EAX,10	; Make it in KB.
 
-						SUB		EDX,0C0000h
-						SHR		EDX,10	; Available continuous memory in KB
-						MOV		EAX,EDX	; Available memoroy in KB
-						XOR		ECX,ECX	; Free386 seems to excpet ECX to be zero.
+						CALL	XMS_GET_TOTAL_FREE_MEM
+						;   ECX=Highest ending physical address
+						;   EDX=Total amount of free memory
+						;   Registers are saved.
+						SHR		EDX,10	; Make it in KB
 
+						POP		ESI
 						POP		EBX
+						POP		ECX
 						XOR		BL,BL
-
 						RETF
 
+XMS_INQUIRE_AVAILABLE_NOMEM:
+						CALL	XMS_GET_TOTAL_FREE_MEM
+						XOR		EAX,EAX
+						XOR		EDX,EDX
+						POP		ESI
+						POP		EBX
+						POP		ECX
+						MOV		BL,0A0H
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 XMS_ALLOC_MEMORY:
+						; Input	EDX=Requested size in KB
+						PUSH	SI
+						PUSH	DI
+						PUSH	EBX
+						PUSH	EAX
+						PUSH	EDX
+
+						CALL	XMS_FIND_AVAIL_HANDLE
+						JB		XMS_ALLOC_MEMORY_NO_HANDLE
+
+						PUSH	BX
+						CALL	XMS_FIND_LARGEST_BLOCK
+						POP		BX	; Save handle
+						; Return CF=0
+						;        EAX=Physical address of the largest unused block
+						;        ECX=Length of the largest unused block
+						;        Or CF=1,ECX=EAX=0 if none available.
+						;        ESI,EBX,EDX destroyed
+						JB		XMS_ALLOC_MEMORY_FAIL
+
+						POP		EDX
+						PUSH	EDX
+						SHL		EDX,10
+						CMP		EDX,ECX
+						JA		XMS_ALLOC_MEMORY_FAIL
+
+
+						MOV		ECX,EDX
+						; Input:
+						;         EAX Physical address of the block
+						;         ECX Size of the aft block
+						PUSH	BX
+						CALL	XMS_DIVIDE_BLOCK
+						POP		BX
+						; Output:
+						;         CF=0 EAX Physical address of the block that has ECX bytes
+						;         CF=1 Could not divide.  Block is used, or ECX is greater than the block size.
+						;         ESI,EDI,EBX destroyed.  ECX rounded up to 4KB border.
+						JB		XMS_ALLOC_MEMORY_FAIL	; Not supposed to
+
+
+						; EAX is the physical address of the memory block.
+						MOV		CS:[XMS_HANDLE_TO_PHYSMEM+BX],EAX
+						CALL	XMS_MARK_BLOCK_USED	; Input EAX=physical memory
+
+
+						POP		EDX
+						MOV		DX,BX	; DX is handle
+						POP		EAX
+						POP		EBX
+						POP		DI
+						POP		SI
+
 						; Free386 allocates all memory.  Sure.  I give it to Free386.  Nobody else is supposed to
 						; touch the upper memory.
 						MOV		AX,1	; Success
-						MOV		DX,1
 						RETF
 
+XMS_ALLOC_MEMORY_FAIL:
+						POP		EDX
+						POP		EAX
+						POP		EBX
+						POP		DI
+						POP		SI
+						XOR		AX,AX
+						MOV		BL,0A0H
+						RETF
+
+XMS_ALLOC_MEMORY_NO_HANDLE:
+						POP		EDX
+						POP		EAX
+						POP		EBX
+						POP		DI
+						POP		SI
+						XOR		AX,AX
+						MOV		BL,0A1H
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;
 
 XMS_LOCK:
-						; OK.  Everything is locked.  Locked from the beginning.
+						CMP		DX,4*XMS_MAX_MEMORY_BLOCKS
+						JAE		XMS_LOCK_INVALID_HANDLE
+
+						PUSH	EBX
+						MOV		BX,DX
+						MOV		EBX,CS:[XMS_HANDLE_TO_PHYSMEM+BX]
+						AND		EBX,EBX
+						JE		XMS_LOCK_INVALID_HANDLE_AFTER_PUSHEBX
+
+						MOV		AX,BX	; AX is LOWORD temporarily
+						ROL		EBX,16
+						MOV		DX,BX	; DX is HIWORD
+						POP		EBX		; Recover EBX HIWORD
+						MOV		BX,AX	; BX is LOWORD now.
+
 						MOV		AX,1	; Success
-						MOV		DX,XMS_START_HIWORD
-						MOV		BX,XMS_START_LOWORD
+						RETF
+
+XMS_LOCK_INVALID_HANDLE_AFTER_PUSHEBX:
+						POP		EBX
+XMS_LOCK_INVALID_HANDLE:
+						MOV		AX,0
+						MOV		BL,0A2h
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+XMS_FREE_MEMORY:
+						CMP		DX,4*XMS_MAX_MEMORY_BLOCKS
+						JAE		XMS_FREE_INVALID_HANDLE
+
+						PUSH	EBX
+						PUSH	EAX
+						MOV		BX,DX
+						MOV		EAX,CS:[XMS_HANDLE_TO_PHYSMEM+BX]
+						CALL	XMS_FREE_BLOCK
+						XOR		EAX,EAX
+						MOV		DWORD CS:[XMS_HANDLE_TO_PHYSMEM+BX],EAX
+						POP		EAX
+						POP		EBX
+						MOV		AX,1
+						RETF
+
+XMS_FREE_INVALID_HANDLE:
+						XOR		AX,AX
+						MOV		BL,0A2h
 						RETF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

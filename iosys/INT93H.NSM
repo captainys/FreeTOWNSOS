@@ -151,6 +151,74 @@ INT49H_CD_INT_DATA_BLOCK:
 						DW		INT49H_CD_INT_HANDLER	; in INT93_CD.NSM
 						DW		0
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_TIMER_DATABLOCK:
+						DB		1	; One-Shot, Callback
+						DB		0
+						DW		INT93H_WAIT_ONE_SEC_CALLBACK
+						DW		0	; CS
+						DW		0
+						DW		1
+
+INT93H_TIMER_DID_COME_IN:
+						DB		0
+
+INT93H_WAIT_ONE_SEC_CALLBACK:
+						MOV		BYTE CS:[INT93H_TIMER_DID_COME_IN],1
+						RETF
+
+
+INT93H_WAIT_ONE_SEC:
+						PUSHF
+						PUSH	DS
+						PUSH	DI
+						PUSH	AX
+
+						PUSH	CS
+						POP		DS
+						MOV		DI,INT93H_TIMER_DATABLOCK
+
+						MOV		BYTE [INT93H_TIMER_DID_COME_IN],0
+						MOV		WORD [DI],1 ; One-Shot, Callback
+						MOV		[DI+4],CS
+						MOV		WORD [DI+8],100	; 100 times 10ms
+						MOV		AH,TIMERBIOS_CMD_10H_REGISTER_TIMER_UNDOC
+						INT		97H
+						AND		AH,AH
+						JNE		INT93H_WAIT_ONE_SEC_TIMER_UNAVAILABLE
+
+						STI
+INT93H_WAIT_ONE_SEC_LOOP:
+						CMP		BYTE [INT93H_TIMER_DID_COME_IN],0
+						JE		INT93H_WAIT_ONE_SEC_LOOP
+
+INT93H_WAIT_ONE_SEC_EXIT:
+						POP		AX
+						POP		DI
+						POP		DS
+						POPF
+						RET
+
+
+; If timer is not available, the best thing I can do is just use I/O 06CH, which is not available in 1st gen,
+; but 1st gen 386DX + massive memory wait will anyway take 1us per iteration.
+INT93H_WAIT_ONE_SEC_TIMER_UNAVAILABLE:
+						STI
+						PUSH	ECX
+						MOV		ECX,1000000
+INT93H_WAIT_ONE_SEC_TIMER_UNAVAILABLE_LOOP:
+						OUT		06CH,AL
+						LOOP	INT93H_WAIT_ONE_SEC_TIMER_UNAVAILABLE_LOOP
+						POP		ECX
+
+						JMP		SHORT INT93H_WAIT_ONE_SEC_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 						%INCLUDE "INT93H_FD.NSM"
 						%INCLUDE "INT93H_HD.NSM"
 						%INCLUDE "INT93H_CD.NSM"

@@ -880,6 +880,7 @@ CONFIG_INIT_STATUS		DW		0			; +03H Return Code
 						DB		8 dup(0)	; +05H Not used for Init
 CONFIG_INIT_UNITS		DB		0			; +0DH Number of units (Output)
 CONFIG_INIT_END_RES		DD		0			; +0EH End of resident code (Output)
+CONFIG_INIT_BPB_ARRAY:
 CONFIG_INIT_CMDLINE		DD		0			; +12H Command Line (Input) -> BPB array pointer (Output)
 CONFIG_INIT_FIRST_DRV	DB		0			; +16H First drive
 						DW		0			; +17H Looks like DOS 4.0 uses this byte, just in case.
@@ -919,22 +920,72 @@ DO_CONFIG_DEVICE:
 
 						; FS points to the device driver.
 						MOV		FS,CS:[DEVICE_LOAD_POINT]
-						MOV		BX,FS:[SYSDEV_DEVFLAGS]
-						TEST	BX,8000H
-						JE		DO_CONFIG_DEVICE_EXIT	; Block Device not supported yet.
 
 						; ES is already CS
 						MOV		BX,CONFIG_INIT_REQ
+						MOV		BYTE CS:[CONFIG_INIT_UNITS],0
+						MOV		BYTE CS:[CONFIG_INIT_FIRST_DRV],0
+						MOV		CS:[CONFIG_INIT_END_RES],FS
 						CALL	CALL_STRATEGY_AND_INTERRUPT
 
 						CMP		WORD CS:[CONFIG_INIT_STATUS],0100h	; Status Code=Done
 						JNE		DO_CONFIG_DEVICE_EXIT
 
+						; Re-load FS just in case.
+						MOV		FS,CS:[DEVICE_LOAD_POINT]
 
 						MOV		BX,WORD CS:[CONFIG_INIT_END_RES]
 						ADD		BX,15
 						SHR		BX,4
 						ADD		BX,WORD CS:[CONFIG_INIT_END_RES+2]
+						AND		BX,BX
+						JE		DO_CONFIG_DEVICE_EXIT
+
+						MOV		CS:[DEVICE_LOAD_POINT],BX
+						MOV		CS:[DEVICE_LOAD_POINT+2],BX
+
+						; FS is pointing to the derive drive just loaded.
+						; BX is the next load point.
+						TEST	WORD FS:[SYSDEV_DEVFLAGS],8000H
+						JNE		DO_CONFIG_DEVICE_EXIT
+
+						; Do Block Dev.
+						; TSUGARU_DEBUG
+
+ 						CMP		BYTE CS:[CONFIG_INIT_UNITS],0
+						JE		DO_CONFIG_DEVICE_EXIT
+ 						LDS		SI,CS:[CONFIG_INIT_BPB_ARRAY]
+						MOV		SI,DS:[SI]	; CONFIG_INIT_BPB_ARRAY is like a double-pointer.
+ 						MOV		ES,CS:[DEVICE_LOAD_POINT]
+ 						XOR		BP,BP
+DO_CONFIG_BLOCKDEV_LOOP:
+						MOV		AH,53H	; Make DPB
+						INT		21H
+
+						MOV		CL,CS:[CONFIG_INIT_FIRST_DRV]
+						CALL	DO_CONFIG_FIND_AVAILABLE_CDS
+						JB		DO_CONFIG_DEVICE_EXIT
+
+						MOV		WORD ES:[BP+DPB_PTR_TO_DEV_DRIVER],0
+						MOV		WORD ES:[BP+DPB_PTR_TO_DEV_DRIVER+2],FS
+						MOV		CS:[CONFIG_INIT_FIRST_DRV],CL
+
+						MOV		ES:[BP+DPB_DRIVE_CODE],CL
+						MOV		WORD GS:[DI+CDS_DRIVE_TYPE],CDS_TYPE_VALID
+						MOV		GS:[DI+CDS_DRIVE_PARAM_BLOCK],BP
+						MOV		GS:[DI+CDS_DRIVE_PARAM_BLOCK+2],ES
+
+						ADD		SI,BIOS_PARAMETER_BLOCK_size
+						ADD		BP,DRIVE_PARAM_BLOCK_size
+
+						DEC		BYTE CS:[CONFIG_INIT_UNITS]
+						JNE		DO_CONFIG_BLOCKDEV_LOOP
+
+						ADD		BP,15
+						SHR		BP,4
+						MOV		BX,ES
+						ADD		BX,BP
+
 						MOV		CS:[DEVICE_LOAD_POINT],BX
 						MOV		CS:[DEVICE_LOAD_POINT+2],BX
 
@@ -961,6 +1012,63 @@ CALL_STRATEGY_AND_INTERRUPT:
 
 						ADD		SP,4
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input:  CL=Unit number to start search from
+; Output: CL=Unit number available
+;         GS:DI=CDS
+;         CF=0 Found one available.
+;         CF=1 Not found.
+;         DS,SI,ES,BP preserved.
+DO_CONFIG_FIND_AVAILABLE_CDS:
+						PUSH	DS
+						PUSH	SI
+						PUSH	ES
+						PUSH	BP
+
+						MOV		AH,19H		; Get Current Drive
+						INT		21H
+						MOV		AH,0EH		; Set Current Drive
+						INT		21H
+						; Now AL is the number of potential drive letters.
+
+						MOV		CH,AL
+
+						CMP		CL,CH
+						JAE		DO_CONFIG_NO_AVAILABLE_CDS
+
+						MOV		AH,52H		; Get List of Lists
+						INT		21H
+						LGS		DI,ES:[BX+SYSVARS_FIRST_CDS]
+
+						MOV		AL,CL
+						MOV		AH,CURRENT_DIR_STRUCT_size
+						MUL		AH
+
+						ADD		DI,AX
+DO_CONFIG_FIND_AVAIL_CDS_LOOP:
+						CMP		WORD GS:[DI+CDS_DRIVE_TYPE],0
+						JE		DO_CONFIG_FOUND_AVAIL_CDS
+						ADD		DI,CURRENT_DIR_STRUCT_size
+						INC		CL
+						CMP		CL,CH
+						JB		DO_CONFIG_FIND_AVAIL_CDS_LOOP
+						JMP		DO_CONFIG_NO_AVAILABLE_CDS
+
+DO_CONFIG_FOUND_AVAIL_CDS:
+						CLC
+
+DO_CONFIG_FIND_AVAIL_CDS_EXIT:
+						POP		BP
+						POP		ES
+						POP		SI
+						POP		DS
+						RET
+
+DO_CONFIG_NO_AVAILABLE_CDS:
+						STC
+						JMP		DO_CONFIG_FIND_AVAIL_CDS_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

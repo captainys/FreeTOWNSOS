@@ -1,0 +1,506 @@
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+MAX_SIZE_IN_KB			EQU		4096
+
+HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
+						DW	0FFFFh
+HEADER_ATTRIBWORD		DW	0800h   ; BlockDev|open/close/removable media
+HEADER_STRATEGY_PTR		DW	STRATEGY
+HEADER_INTERRUPT_PTR	DW	INTERRUPT
+HEADER_NAME				DB	"RAMDRIVE"
+
+XMS_ENTRY				DD	0
+XMS_HANDLE				DW	0	; Just in case
+XMS_PHYS_ADDR			DD	0
+
+REQHDR_PTR				DD	0
+
+DRIVE_SIZE_IN_KB		DB	96
+DRIVE_LETTER			DB	'R'
+
+SAVE_IO_404H			DB	0
+SAVE_IO_480H			DB	0
+
+
+BPB_ARRAY				DW		RAMDRIVE_BPB
+
+
+RAMDRIVE_BPB:			DW		400H	; bytesPerSect
+						DB		1		; sectPerCluster
+						DW		1		; reservedSectors
+						DB		2		; #FATs
+						DW		0100H	; #rootDirEntries
+						DW		0500H	; #sectors including reserved sectors
+						DB		0FDh	; mediaDesc
+						DW		3		; #sectPerFAT
+						DW		1		; #sectPerTrack
+						DW		1		; #heads
+						DW		0		; #hiddenSect
+						DD		0		; 32-bit #sectors
+
+
+STRATEGY:
+						MOV		CS:[REQHDR_PTR],BX
+						MOV		CS:[REQHDR_PTR+2],ES
+						RETF
+
+INTERRUPT:
+						SAVE_WORLD
+						CALL	UMB_RAM_MODE
+
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JE		INIT
+						CMP		AL,DEVREQ_CMD_MEDIA_CHECK
+						JE		MEDIA_CHECK
+						CMP		AL,DEVREQ_CMD_BUILD_BPB
+						JE		BUILD_BPB
+						CMP		AL,DEVREQ_CMD_READ
+						JE		READ
+						CMP		AL,DEVREQ_CMD_WRITE
+						JE		WRITE
+
+						TSUGARU_DEBUG
+
+RETURN:
+						CALL	UMB_RESTORE_MAPPING
+						RESTORE_WORLD
+						RETF
+
+MEDIA_CHECK:
+						MOV		BYTE ES:[BX+REQ_MEDIACHECK_CODE_RETURN],MEDIACHECK_CODE_UNCHANGED
+						MOV		DWORD ES:[BX+REQ_MEDIACHECK_VOLUME_LABEL_RETURN],0  ; How can I get this???
+						JMP		RETURN
+
+
+BUILD_BPB:
+						TSUGARU_DEBUG
+						JMP		RETURN
+
+READ:
+						CALL	GET_PHYSADDR
+						; Output:
+						;   ESI Physical Address
+						;   ECX Bytes
+
+						MOVZX	EDI,WORD ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOVZX	EAX,WORD ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						SHL		EDI,4
+						ADD		EDI,EAX
+
+						; Input
+						;   ESI      Source Physical Address
+						;   EDI      Destination Physical Address
+						;   ECX      Transfer size
+						CALL	PHYSMEM_TRANSFER
+						JMP		RETURN
+
+
+WRITE:
+						CALL	GET_PHYSADDR
+						; Output:
+						;   ESI Physical Address
+						;   ECX Bytes
+
+						MOVZX	EDI,WORD ES:[BX+REQ_READ_WRITE_BUFFER_SEG]
+						MOVZX	EAX,WORD ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						SHL		EDI,4
+						ADD		EDI,EAX
+						XCHG	ESI,EDI
+
+						; Input
+						;   ESI      Source Physical Address
+						;   EDI      Destination Physical Address
+						;   ECX      Transfer size
+						CALL	PHYSMEM_TRANSFER
+						JMP		RETURN
+
+
+; Input: ES:BX=Request Header
+; Output:  ESI=Physical Address  ECX=Byte count
+GET_PHYSADDR:
+						MOV		AX,ES:[BX+REQ_READ_WRITE_LBA]
+						MOV		DX,WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MUL		DX
+						MOV		SI,DX
+						SHL		ESI,16
+						MOV		SI,AX
+						ADD		ESI,CS:[XMS_PHYS_ADDR]
+
+						MOV		AX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
+						MOV		DX,WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MUL		DX
+						MOV		CX,DX
+						SHL		ECX,16
+						MOV		CX,AX
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+UMB_RAM_MODE:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,404H
+						IN		AL,DX
+						AND		AL,80H
+						MOV		CS:[SAVE_IO_404H],AL
+						MOV		AL,80h
+						OUT		DX,AL
+
+						MOV		DX,480H
+						IN		AL,DX
+						AND		AL,3
+						MOV		CS:[SAVE_IO_480H],AL
+						MOV		AL,3
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+UMB_RESTORE_MAPPING:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,404H
+						MOV		AL,CS:[SAVE_IO_404H]
+						OUT		DX,AL
+
+						MOV		DX,480H
+						MOV		AL,CS:[SAVE_IO_480H]
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+						%INCLUDE "RDHIGH.NSM"
+
+
+END_OF_RESIDENT_CODE:
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+
+
+; DEVICE=RAMDRIVE.SYS /L:R /S:256
+;  /L  Drive letter
+;  /S  Size in KB
+INIT:
+						CALL	PHYSMEM_TRANSFER_INITIALIZE
+
+						MOV		AX,4300H	; XMS installation check
+						INT		2FH
+						CMP		AL,80H
+						JNE		INIT_XMS_NOT_AVAILABLE
+
+						MOV		AX,4310H	; Get XMS Entry
+						INT		2FH
+						MOV		CS:[XMS_ENTRY],BX
+						MOV		CS:[XMS_ENTRY+2],ES
+
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_RESIDENT_CODE
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
+
+						MOV		CL,CS:[DRIVE_LETTER]
+						SUB		CL,'A'
+						MOV		ES:[BX+REQ_INIT_DRIVE_CODE_FIRST_UNIT],CL
+
+						LDS		SI,ES:[BX+REQ_INIT_CMDLINE]
+
+INIT_OPTION_LOOP:
+						LODSB
+						CMP		AL,'/'
+						JE		INIT_OPTION_SLASH
+						CMP		AL,' '
+						JE		INIT_OPTION_LOOP
+						CMP		AL,TAB
+						JE		INIT_OPTION_LOOP
+						CMP		AL,CR
+						JE		INIT_OPTION_END
+						CMP		AL,LF
+						JE		INIT_OPTION_END
+						CMP		AL,0
+						JE		INIT_OPTION_END
+
+						MOV		DX,INIT_MSG_ERROR_IN_PARAM
+
+; Input DX=Message
+INIT_ERROR:
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],0
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
+						PUSH	CS
+						POP		DS
+						MOV		AH,9
+						INT		21H
+						JMP		RETURN
+
+INIT_OPTION_END:
+						MOV		AH,88h	; XMS Inquire Available Memory
+						CALL	FAR [CS:XMS_ENTRY]
+						MOV		EBX,EAX	; EBX is available memory in KB.
+
+						MOVZX	EAX,WORD CS:[DRIVE_SIZE_IN_KB]
+						CMP		AX,MAX_SIZE_IN_KB
+						MOV		DX,INIT_MSG_ERROR_TOO_LARGE
+						JA		INIT_ERROR
+						CMP		EAX,EBX
+						JA		INIT_ERROR
+
+						CALL	INIT_SETUP_BPB
+
+						MOVZX	EDX,WORD CS:[DRIVE_SIZE_IN_KB]
+						MOV		AH,89H ; XMS Alloc Memory
+						CALL	FAR [CS:XMS_ENTRY]	; Not supposed to fail because it checked availability above.
+						MOV		CS:[XMS_HANDLE],DX
+
+						MOV		AH,0CH ; XMS Lock Memory
+						CALL	FAR [CS:XMS_ENTRY]	; Not supposed to fail.
+						SHL		EDX,16
+						MOV		DX,BX
+						MOV		CS:[XMS_PHYS_ADDR],EDX
+
+						; Input
+						;   ESI      Source Physical Address
+						;   EDI      Destination Physical Address
+						;   ECX      Transfer size
+
+						CALL	MAKE_INITIAL_DISK_IMAGE
+						MOVZX	ECX,BX
+						MOV		EDI,CS:[XMS_PHYS_ADDR]
+						MOV		SI,CS
+						MOVZX	ESI,SI
+						SHL		ESI,4
+						ADD		ESI,INIT_DISK_IMAGE
+						CALL	PHYSMEM_TRANSFER
+
+
+						LES		BX,CS:[REQHDR_PTR]	; Re-fetch REQHDR
+						MOV		BYTE ES:[BX+REQ_INIT_NUM_UNIT_RETURN],1
+						MOV		ES:[BX+REQ_INIT_BPB_ARRAY_RETURN+2],CS
+						MOV		WORD ES:[BX+REQ_INIT_BPB_ARRAY_RETURN],BPB_ARRAY
+						JMP		RETURN
+
+
+INIT_OPTION_SLASH:
+						LODSB
+						CMP		AL,'L'
+						JE		INIT_OPTION_DRIVE_LETTER
+						CMP		AL,'S'
+						JE		INIT_OPTION_SIZE
+
+						MOV		DX,INIT_MSG_ERROR_UNDEFINED_OPTION
+						JMP		INIT_ERROR
+
+INIT_OPTION_DRIVE_LETTER:
+						LODSB
+						CMP		AL,':'
+
+						MOV		DX,INIT_MSG_ERROR_MISSING_COLON
+						JNE		INIT_ERROR
+
+						LODSB
+						AND		AL,0DFh	; Force it a capital letter
+						MOV		CS:[DRIVE_LETTER],AL
+						SUB		AL,'A'
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		BYTE ES:[BX+REQ_INIT_DRIVE_CODE_FIRST_UNIT],AL
+						JMP		INIT_OPTION_LOOP
+
+INIT_OPTION_SIZE:
+						LODSB
+						CMP		AL,':'
+
+						MOV		DX,INIT_MSG_ERROR_MISSING_COLON
+						JNE		INIT_ERROR
+
+						CALL	ATOI
+						MOV		CS:[DRIVE_SIZE_IN_KB],AX
+						JMP		INIT_OPTION_LOOP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_SETUP_BPB:
+						MOVZX	EAX,WORD CS:[DRIVE_SIZE_IN_KB]
+						SHL		EAX,10	; KB to Bytes
+						SHLD	EDX,EAX,16
+						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MOV		CS:[RAMDRIVE_BPB+BPB_TOTALNUM_SECT],AX
+
+						; Number of clusters=number of sectors divided by sectors per cluster.
+						MOVZX	BX,BYTE CS:[RAMDRIVE_BPB+BPB_SECTOR_PER_CLUSTER]
+						XOR		DX,DX
+						ADD		AX,BX										; Round Up
+						DEC		AX											; Round Up
+						DIV		BX
+
+						; AX is number of clusters.  Plus 2 (FFEh, FFFh) Times 12(bits) divided by 8(bits) is number of bytes for FAT.
+						ADD		AX,2
+						MOV		DX,12
+						MUL		DX
+
+						SHL		EDX,16
+						MOV		DX,AX
+						SHR		EDX,3
+						; EDX is number of bytes for FAT.
+
+						; 48KB drive, 1KB sector, 1 sector per cluster -> 48 clusters
+						; ((48+2)*12+7)/8=75 bytes
+
+						MOVZX	EAX,WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						DEC		EAX
+						ADD		EAX,EDX
+						XOR		DX,DX
+						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+
+						MOV		CS:[RAMDRIVE_BPB+BPB_SECT_PER_FAT],AX
+
+						; There cannot be more files than number of clusters.
+						; Therefore limit max number of files to the number of sectors.
+						MOV		AX,WORD CS:[DRIVE_SIZE_IN_KB]
+						CMP		AX,256
+						JLE		INIT_SETUP_BPB_RETURN
+						MOV		AX,256						; Max 256 files.
+INIT_SETUP_BPB_RETURN:
+						MOV		CS:[RAMDRIVE_BPB+BPB_NUM_ROOT_DIR_ENT],AX
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_XMS_NOT_AVAILABLE:
+						MOV		DX,INIT_MSG_XMS_NOT_AVAILABLE
+						JMP		INIT_ERROR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ATOI:
+						MOV		CX,0
+ATOI_LOOP:
+						LODSB
+						CMP		AL,'0'
+						JB		ATOI_RETURN
+						CMP		AL,'9'
+						JA		ATOI_RETURN
+
+						MOV		DX,CX
+						SHL		DX,3
+						ADD		CX,CX
+						ADD		CX,DX
+
+						SUB		AL,'0'
+						MOVZX	AX,AL
+						ADD		CX,AX
+						JMP		ATOI_LOOP
+
+ATOI_RETURN:
+						MOV		AX,CX
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Return: BX=Number of bytes to be transferred to the RAM drive.
+MAKE_INITIAL_DISK_IMAGE:
+						; Boot Sector Just in case
+						CLD
+
+						MOVZX	BX,BYTE CS:[RAMDRIVE_BPB+BPB_RESERVED_SECTOR_CT]
+						MOV		AL,CS:[RAMDRIVE_BPB+BPB_NUM_FATS]
+						MOV		AH,CS:[RAMDRIVE_BPB+BPB_SECT_PER_FAT]
+						MUL		AH
+						ADD		BX,AX
+
+						MOV		AX,CS:[RAMDRIVE_BPB+BPB_NUM_ROOT_DIR_ENT]
+						MOV		DX,DIRECTORY_ENTRY_size
+						MUL		DX
+						ADD		AX,CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						DEC		AX
+						XOR		DX,DX
+						DIV		WORD CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						ADD		BX,AX
+
+						; BX is number of sectors including IPL, FAT, Back-Up FAT, and Root Dir.
+
+						MOV		AX,BX
+						MOV		DX,CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MUL		DX
+
+						MOV		BX,AX	; BX is number of bytes to be transferred to the RAM drive.
+						MOV		CX,AX
+						SHR		CX,2
+						XOR		EAX,EAX
+
+						MOV		DI,CS
+						MOV		ES,DI
+						MOV		DS,DI
+						MOV		DI,INIT_DISK_IMAGE
+						REP		STOSD
+
+
+						MOV		DI,INIT_DISK_IMAGE
+
+						MOV		DWORD CS:[DI],344C5049h	; 'IPL4'
+						MOV		BYTE CS:[DI+4],0CBH  ; RETF
+
+						ADD		DI,BPB_POS_IN_IPL
+						MOV		CX,BIOS_PARAMETER_BLOCK_size
+						MOV		SI,RAMDRIVE_BPB
+						REP		MOVSB
+
+
+						; First FAT
+						MOV		DI,INIT_DISK_IMAGE
+						ADD		DI,CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MOV		DWORD CS:[DI],00FFFFFEh ; FFEh, FFFh
+
+
+						; Second (Back-up) FAT
+						MOV		AX,CS:[RAMDRIVE_BPB+BPB_BYTES_PER_SECTOR]
+						MOVZX	DX,BYTE CS:[RAMDRIVE_BPB+BPB_SECT_PER_FAT]
+						MUL		DX
+						ADD		DI,AX
+						MOV		DWORD CS:[DI],00FFFFFEh ; FFEh, FFFh
+
+
+						; Still AX is #FAT times sect_per_fat
+						ADD		DI,AX
+						MOV		EDX,CS:[INIT_VOLUME_LABEL]
+						MOV		CS:[DI],EDX
+						MOV		EDX,CS:[INIT_VOLUME_LABEL+4]
+						MOV		CS:[DI+4],EDX
+						MOV		EDX,CS:[INIT_VOLUME_LABEL+8]
+						MOV		CS:[DI+8],EDX
+						MOV		BYTE CS:[DI+DIRENT_ATTR],28h
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_MSG_ERROR_IN_PARAM			DB	"Error in the command option.$",0
+INIT_MSG_ERROR_TOO_LARGE		DB	"Error: Max size if 4MB.$",0
+INIT_MSG_ERROR_UNDEFINED_OPTION	DB	"Error: Undefined option.$",0
+INIT_MSG_ERROR_MISSING_COLON	DB	"Error: Missing colon after the option.$",0
+INIT_MSG_XMS_NOT_AVAILABLE		DB	"Error: XMS drive unavailable.$",0
+
+INIT_VOLUME_LABEL				DB	"RAMDRIVE    "
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_DISK_IMAGE			DB		0

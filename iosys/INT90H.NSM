@@ -159,6 +159,8 @@ INT41H_DATA_IS_SECOND_BYTE:
 						CMP		BYTE CS:[BIOS_KEY_LOCK],1
 						JE		INT41H_HANDLER_EXIT	; In Encode Mode and Key Locked, don't push to the buffer.
 
+						CMP		AL,4BH
+						JE		IS_DEL_KEY_IN_ENCODE_MODE
 						CMP		AL,5DH
 						JB		NOT_PF_KEY
 						CMP		AL,66H
@@ -196,6 +198,18 @@ INT41H_MATRIX_UPDATE_DONE:
 
 INT41H_HANDLER_EXIT:
 						RETF
+
+
+
+IS_DEL_KEY_IN_ENCODE_MODE:
+						; Need to return ESC sequence 1Bh 56h.
+						MOV		AX,8001H	; Scan code 01 is ESC.  See FM TOWNS Technical Databook p.235
+						CALL	PUSH_BACK_KEYCODE
+						MOV		AX,8060H	; Scan code 60H is ASCII 56H.
+						CALL	PUSH_BACK_KEYCODE
+						RETF
+
+
 
 INT41H_HANDLER_DUMMY_READ_AND_EXIT:
 						MOV		DX,IO_KEYBOARD_DATA

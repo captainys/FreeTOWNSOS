@@ -7,6 +7,8 @@
 
 CD_EMULATION_SCSI_EN	DB		0	; SCSI-CD Emulation enabled.
 CD_EMULATION_SCSI_DEV	DB		0	; BIOS Device CODE.  0B?H for SCSI ID ?.
+CD_EMULATION_CDDA_CACHE	DB		0,0,0,0,0
+
 
 ; Disc Change should be cached because the disc-change status code may be consumed by any of the BIOS function,
 ; such as CDDA functions.  If the disc-change status code is consumed before MSCDEX checks the disc change,
@@ -285,25 +287,13 @@ INT93H_CD_05H_READ_LBA:
 
 						MOV		WORD CS:[CDC_PARAM+6],0
 
-						; Tentative
-						MOV		CS:[CDC_READ_POINTER_PHYS],DI
-						MOV		CS:[CDC_READ_POINTER_PHYS+2],SI
+; 15H will also jump here.
+INT93H_CD_READ_AFTER_MSF_SET:
+						CALL	INT93H_CD_GET_READ_PHYS_ADDR
+						; Output EDI=Physical Address
+						;        EAX destroyed
+						MOV		CS:[CDC_READ_POINTER_PHYS],EDI
 
-						MOV		CH,[BP+SAVED_ECX+1]
-						CMP		CH,0FFH
-						JE		INT93H_CD_REALLY_READ
-
-						MOVZX	ESI,WORD [BP+SAVED_DS]
-						SHL		ESI,4
-						MOVZX	EDI,WORD [BP+SAVED_EDI]
-						ADD		ESI,EDI
-
-						MOV		CS:[CDC_READ_POINTER_PHYS],ESI
-
-
-
-; 14H will also jump here.
-INT93H_CD_REALLY_READ:
 						CLI
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
@@ -408,10 +398,16 @@ INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS:
 						CALL	CDC_GET_STATUS
 						JC		INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS
 
-						CMP		AX,0800H	; Media Changed
+						CMP		AX,0800H	; Media Changed - My memo tells it is 00 08 00 00.  But, doesn't work in real hardware.
+						JE		INT93H_CD_0FH_DISC_DID_CHANGE
+
+						CMP		AX,0821H	; Media Changed - Based on the tests on real MX, 21 08 00 00 is the media-change status.
 						JE		INT93H_CD_0FH_DISC_DID_CHANGE
 
 						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		INT93H_CD_0FH_DISC_DID_CHANGE	; Take it as a media change.
+
+						CMP		AX,0921H	; 21 09 00 00 Drive Not Ready
 						JE		INT93H_CD_0FH_DISC_DID_CHANGE	; Take it as a media change.
 
 						CMP		AL,21H
@@ -422,13 +418,86 @@ INT93H_CD_0FH_CHECK_DISC_CHANGE_WAIT_STATUS:
 
 						MOV		BYTE CS:[ERROR_CODE],0
 						MOV		BYTE [BP+SAVED_EDX],DL
+						OR		DL,DL
+						JE		INT93H_EXIT
+						CALL	INT93H_CD_TOC_READ_DUMMY
 						JMP		INT93H_EXIT
 
 INT93H_CD_0FH_DISC_DID_CHANGE:
+						CALL	INT93H_CD_TOC_READ_DUMMY
+
 						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],0
 						MOV		BYTE CS:[ERROR_CODE],0
 						MOV		BYTE [BP+SAVED_EDX],1
 						JMP		INT93H_EXIT
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Apparently, status 00 08 00 00 or 21 08 00 00 is returned only if the media changed since the last TOC read.
+; Based on an experiment done with my real TOWNS II MX.
+INT93H_CD_TOC_READ_DUMMY:
+						CLI
+
+						CALL	CDC_CLEAR_STATUS_QUEUE
+
+						CALL	CDC_WAIT_READY	; It destroys AX and DX
+
+						CDC_ZERO_PARAMETER		; It destroys EAX
+						CALL	CDC_PUSH_PARAMETERS_BCD
+
+						MOV		DX,IO_CDC_COMMAND
+						MOV		AL,CDCCMD_TOCREAD+CDCCMD_STATUSREQ
+						OUT		DX,AL
+
+						XOR		BX,BX	; Use as the last track number.
+
+CDC_TOCDUMMYREAD_LOOP:
+						CALL	CDC_GET_STATUS	; This destroys DX
+						CMP		AX,0900H	; 00 09 00 00 Drive Not Ready
+						JE		CDC_TOCDUMMYREAD_END
+						CMP		AX,0800H	; Media Changed
+						JE		CDC_TOCDUMMYREAD_END
+						CMP		AL,21H
+						JE		CDC_TOCDUMMYREAD_END
+						AND		AL,AL
+						JE		CDC_TOCDUMMYREAD_LOOP
+
+						CMP		AL,16H
+						JE		CDC_TOCDUMMYREAD_16H
+						CMP		AL,17H
+						JE		CDC_TOCDUMMYREAD_17H
+						JMP		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
+
+CDC_TOCDUMMYREAD_16H:
+						MOV		ECX,EAX
+						ROR		ECX,8
+						JMP		CDC_TOCDUMMYREAD_LOOP
+
+CDC_TOCDUMMYREAD_17H:
+						CMP		CH,0A1H		; Last track number
+						JNE		CDC_TOCDUMMYREAD_17H_NOT_A1H
+						MOV		BL,AH		; BL is the last track number in BCD
+						JMP		CDC_TOCDUMMYREAD_LOOP
+
+CDC_TOCDUMMYREAD_17H_NOT_A1H:
+						; CH can be A0, A1, A2, or TT.
+
+						CMP		CH,BL
+						JNE		CDC_TOCDUMMYREAD_LOOP
+
+						; Sequence (all hexadecimal)
+						; 16 xx A0 xx (ECX=xxA0xx16)
+						; 17 TT xx xx (EAX=xxxxTT17)   TT is the first track in BCD
+						; 16 xx A1 xx (ECX=xxA1xx16)
+						; 17 TT xx xx (EAX=xxxxTT17)   TT is the last track in BCD
+						; 16 xx A2 xx (ECX=xxA2xx16)
+						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,frm of the total disc in BCD
+						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 4xh for data track. TT is the track number
+						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,from of the track.
+
+CDC_TOCDUMMYREAD_END:
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -439,8 +508,41 @@ INT93H_CD_14H_SEEK_MSF:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_15H_READ_MSF:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		DL,[BP+SAVED_ECX]	; Incoming CL is MIN
+						MOV		AX,[BP+SAVED_EDX]	; Incoming AH,AL are SEC,FRM
+
+						MOV		CS:[CDC_PARAM  ],DL
+						MOV		CS:[CDC_PARAM+1],AH
+						MOV		CS:[CDC_PARAM+2],AL
+
+						; Input
+						;	DL		MIN
+						;	AH		SEC
+						;	AL		FRM
+						CALL	MSF2HSG
+						; Output:
+						;	DH		0
+						;	DL		High-byte of HSG
+						;	AH		Mid-byte of HSG
+						;	AL		Low-byte of HSG
+
+						MOV		BX,[BP+SAVED_EBX]
+						OR		BX,BX
+						JE		INT93H_EXIT_NO_ERROR
+
+						DEC		BX
+						ADD		AX,BX
+						ADC		DL,0
+
+						CALL	HSG2MSF
+
+						MOV		CS:[CDC_PARAM+3],DL
+						MOV		CS:[CDC_PARAM+4],AH
+						MOV		CS:[CDC_PARAM+5],AL
+
+						MOV		WORD CS:[CDC_PARAM+6],0
+
+						JMP		INT93H_CD_READ_AFTER_MSF_SET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -482,6 +584,7 @@ CDDA_PLAY_CH_CHECKED:
 						XOR		AX,AX
 						AND		CH,CH
 						JE		CDDA_PLAY_NO_REPEAT		; I don't know how to do repeat N times.
+														; Linux source suggests param[6]=9 and param[7]=repeat_count-1
 						MOV		AL,1					; Set repeat flag
 CDDA_PLAY_NO_REPEAT:
 						MOV		CS:[CDC_PARAM+6],AX
@@ -493,17 +596,25 @@ CDDA_PLAY_ISSUE_CDC_COMMAND:
 						CALL	CDC_PUSH_PARAMETERS_BCD
 
 						MOV		DX,IO_CDC_COMMAND
-						MOV		AL,CDCCMD_CDDAPLAY+CDCCMD_IRQ+CDCCMD_STATUSREQ
+						MOV		AL,CDCCMD_CDDAPLAY+CDCCMD_STATUSREQ
 						OUT		DX,AL
 
 CDDA_PLAY_STATUS_LOOP:
 						CALL	CDC_GET_STATUS
+						JB		CDDA_PLAY_STATUS_LOOP  ; This line was missing and CDDA never played on real 2F.
 
 						CMP		AL,21H		; Error
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 
 						CMP		AL,00H		; Command done
 						JNE		CDDA_PLAY_STATUS_LOOP
+
+						; Real FM TOWNS 2F did not start playing until command A0 is sent after CDDA Play command is sent ?
+						; Not really.
+						; What I found was MX just starts playing CDDA without waiting for the status bytes are all read.
+						; 2F waits until status bytes are read until playing CDDA.
+						; MX cannot read TOC while playing CDDA.  At least it needed to PAUSE.
+						; 2F was able to read TOC without stopping CDDA.
 
 						JMP		INT93H_EXIT_NO_ERROR
 
@@ -605,6 +716,7 @@ CDDA_GET_STATUS_PLAYING:
 
 						CALL	CDC_WAIT_READY	; It destroys AX and DX
 						CDC_ZERO_PARAMETER		; It destroys EAX
+						MOV		BYTE CS:[CDC_PARAM],1
 						CALL	CDC_PUSH_PARAMETERS_BCD
 
 						MOV		DX,IO_CDC_COMMAND
@@ -777,6 +889,7 @@ CDC_TOCREAD_17H_NOT_A2H:
 						MOV		ESI,EAX
 						MOV		AL,AH
 						CALL	BCD2BIN_AL
+						AND		CL,0F0H	; Apparently low-4 bits need to be ignored.
 						CMP		CL,40H
 						JNE		CDC_TOCREAD_17H_NOT_DATATRK
 
@@ -809,7 +922,7 @@ CDC_TOCREAD_17H_STORE:
 						; 17 TT xx xx (EAX=xxxxTT17)   TT is the last track in BCD
 						; 16 xx A2 xx (ECX=xxA2xx16)
 						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,frm of the total disc in BCD
-						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 40h for data track. TT is the track number
+						; 16 DT TT xx (ECX=xxTTDT16)   DT is 0 for audio track, 4xh for data track. TT is the track number
 						; 17 MM SS FF (EAX=FFSSMM17)   MM,SS,FF are min,sec,from of the track.
 
 						MOV		BYTE CS:[ERROR_CODE],0
@@ -840,9 +953,9 @@ CDC_CDDA_PSUE_LOOP:
 						CMP		AL,21H
 						JE		INT93H_CD_CDC_ERROR_TO_BIOS_ERROR_EXIT
 						CMP		AL,12H
-						JNE		CDC_TOCREAD_LOOP
+						JNE		CDC_CDDA_PSUE_LOOP
 
-						JMP		INT93H_EXIT
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1057,6 +1170,29 @@ CDC_CLEAR_STATUS_QUEUE:
 						JNC		CDC_CLEAR_STATUS_QUEUE
 						RET
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Output EDI=Physical Address
+;        EAX destroyed
+INT93H_CD_GET_READ_PHYS_ADDR:
+						MOVZX	DI,BYTE [BP+SAVED_ECX+1]
+						CMP		DI,0FFH
+						JE		INT93H_CD_GET_READ_PHYS_ADDR_DIRECT
+
+						MOVZX	EAX,WORD [BP+SAVED_DS]
+						SHL		EAX,4
+						MOVZX	EDI,WORD [BP+SAVED_EDI]
+						ADD		EDI,EAX
+
+						RET
+
+INT93H_CD_GET_READ_PHYS_ADDR_DIRECT:
+						; Special mode SI|DI is the physical address.
+						MOV		DI,WORD [BP+SAVED_ESI]
+						SHL		EDI,16
+						MOV		DI,WORD [BP+SAVED_EDI]
+
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1130,30 +1266,17 @@ INT93H_CD_EMU_03H_RESTORE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_04H_SEEK_LBA:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						; In fact, it doens't have to do anything.
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_05H_READ_LBA:
-						MOV		CH,[BP+SAVED_ECX+1]
-						CMP		CH,0FFH
-						JE		INT93H_CD_EMU_05H_READ_LBA_SPECIAL
+						; Input incoming registers
+						CALL	INT93H_CD_GET_READ_PHYS_ADDR
+						; Output EDI=Physical Address
+						;        EAX destroyed
 
-						MOVZX	EAX,WORD [BP+SAVED_DS]
-						SHL		EAX,4
-						MOVZX	EDI,WORD [BP+SAVED_EDI]
-						ADD		EDI,EAX
-
-						JMP		INT93H_CD_EMU_05H_READ_LBA_CONTINUE
-
-INT93H_CD_EMU_05H_READ_LBA_SPECIAL:
-						; Special mode SI|DI is the physical address.
-						MOV		DI,WORD [BP+SAVED_ESI]
-						SHL		EDI,16
-						MOV		DI,WORD [BP+SAVED_EDI]
-
-INT93H_CD_EMU_05H_READ_LBA_CONTINUE:
 						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
 						AND		CL,7
 
@@ -1181,7 +1304,7 @@ INT93H_CD_EMU_05H_READ_LBA_CONTINUE:
 
 						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
 						MOV		BYTE CS:[ERROR_CODE],80h
-						MOV		BYTE CS:[ERROR_DETAIL],1
+						MOV		WORD CS:[ERROR_DETAIL],1
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1216,19 +1339,119 @@ INT93H_CD_EMU_0FH_CHECK_DISC_CHANGE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_14H_SEEK_MSF:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						; Actually do not have to do anything.
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_15H_READ_MSF:
-						TSUGARU_DEBUG
+						; Input incoming registers
+						CALL	INT93H_CD_GET_READ_PHYS_ADDR
+						; Output EDI=Physical Address
+						;        EAX destroyed
+
+						MOV		DL,[BP+SAVED_ECX]	; Incoming CL is MIN
+						MOV		AX,[BP+SAVED_EDX]	; Incoming DH,DL are SEC,FRM
+
+						; Input
+						;	DL		MIN
+						;	AH		SEC
+						;	AL		FRM
+						CALL	MSF2HSG
+						; Output:
+						;	DH		0
+						;	DL		High-byte of HSG
+						;	AH		Mid-byte of HSG
+						;	AL		Low-byte of HSG
+
+						SHL		EDX,16
+						MOV		DX,AX
+
+						; TOWNS's MSF starts with 00:02:00 or 150 frames.  Therefore, need to subtract.
+						SUB		EDX,150
+
+						MOV		BX,[BP+SAVED_EBX]
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+
+						PUSH	CS
+						POP		DS
+
+						; Input
+						;   CL    SCSI ID
+						;   EDX   Starting Sector
+						;   BX    Number of Sectors
+						;   EDI   Data Buffer Physical Address
+						;   DS=CS
+						; Output
+						;   CF    Set if error
+						CALL	SCSI_READ_SECTOR
+						JNC		INT93H_EXIT_NO_ERROR
+
+						MOV		BYTE CS:[DISC_CHANGE_FLAG_CACHE],1
+						MOV		BYTE CS:[ERROR_CODE],80h
+						MOV		WORD CS:[ERROR_DETAIL],1
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_50H_CDDA_PLAY:
-						TSUGARU_DEBUG
+						MOV		CH,[BP+SAVED_ECX+1]
+						CMP		CH,0
+						JE		SHORT INT93H_CD_EMU_50H_CH_OK
+						CMP		CH,0FEH
+						JAE		SHORT INT93H_CD_EMU_50H_CH_OK	; 0FEh or 0FFh
+
+						; Parameter Error
+						MOV		BYTE CS:[ERROR_CODE],080H
+						MOV		WORD CS:[ERROR_DETAIL],2
+						JMP		INT93H_EXIT
+
+INT93H_CD_EMU_50H_CH_OK:
+						; Cache first, and use cache for SCSI command >>
+						; DOS Extender Call Back may overwrite the Protected-Mode shared buffer.
+						MOV		ES,[BP+SAVED_DS]
+						MOV		DI,[BP+SAVED_EDI]
+
+						MOV		ECX,ES:[DI]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE],ECX
+						MOV		CX,ES:[DI+4]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],CX
+						; Cache first <<
+
+						; 71H and 72H will call after setting CS:[CD_EMULATION_CDDA_CACHE]
+INT93H_CD_EMU_50H_71H_72H_START_CDDA:
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JC		INT93H_EXIT
+
+						MOV		BYTE CS:[ERROR_CODE],10H	; Maybe Is Already Playing Error.
+
+						MOV		AL,CS:[SCSI_DATABUF+1]
+						CMP		AL,11H ; 11H=PLAYING
+						JE		INT93H_EXIT
+
+
+						CALL	INT93H_CD_EMU_ENABLE_LINE_IN
+
+						MOV		BYTE CS:[ERROR_CODE],80H
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+
+						MOV		EAX,CS:[CD_EMULATION_CDDA_CACHE]
+						AND		EAX,0FFFFFFH
+						MOV		EDX,CS:[CD_EMULATION_CDDA_CACHE+2]
+						SHR		EDX,8
+
+						; Input
+						;    CL   	SCSI ID
+						;    EAX	Start MSF 00|FF|SS|MM
+						;    EDX	End MSF   00|FF|SS|MM
+						CALL	SCSI_START_PLAY
+						JC		INT93H_EXIT
+
+						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1484,8 +1707,50 @@ INT93H_CD_EMU_54H_IS_AUDIO_TRACK:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_55H_CDDA_PAUSE:
-						TSUGARU_DEBUG
-						JMP		INT93H_EXIT
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_READ_SUB_CHANNEL_CDROM_CUR_POS
+						JC		INT93H_EXIT
+
+						; [SCSI_DATA_BUF+1]  Audio Status
+						;   11H  Playing
+						;   12H  Paused
+						;   13H  Completed
+						;   14H  Stopped due to error
+						;   15H  No current audio status
+						; [SCSI_DATA_BUF+6]  Track
+						; [SCSI_DATA_BUF+7]  Index
+						; [SCSI_DATA_BUF+8]  Absolute CD Addr MSB
+						; [SCSI_DATA_BUF+9]  Absolute CD Addr
+						; [SCSI_DATA_BUF+10]  Absolute CD Addr LSB
+						; [SCSI_DATA_BUF+11]  Track relative CD Addr MSB
+						; [SCSI_DATA_BUF+12]  Track relative CD Addr
+						; [SCSI_DATA_BUF+13]  Track relative CD Addr LSB
+
+						MOV		BYTE CS:[ERROR_CODE],80H
+						JC		INT93H_EXIT
+
+						; [SCSI_DATA_BUF+1]  Audio Status
+						;   11H  Playing
+						;   12H  Paused
+
+						MOV		BYTE CS:[ERROR_CODE],DISKBIOS_ERROR_CD_ALREADY_PAUSED
+						MOV		AL,CS:[SCSI_DATABUF+1]
+						CMP		AL,12h
+						JE		INT93H_EXIT
+
+						; Apparently should return no error if not playing.
+						CMP		AL,11H
+						JNE		INT93H_EXIT_NO_ERROR
+
+						MOV		CL,CS:[CD_EMULATION_SCSI_DEV]
+						AND		CL,7
+						CALL	SCSI_PAUSE
+
+						MOV		BYTE CS:[ERROR_CODE],80H
+						JC		INT93H_EXIT
+
+						JMP		INT93H_EXIT_NO_ERROR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1505,16 +1770,49 @@ INT93H_CD_EMU_70H_NOP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_71H_EXT_CDDA_PLAY:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
+						; Input to INT 71H
+						;     BL Starting time M (In BCD if AH=72H)
+						;     BH Starting time S (In BCD if AH=72H)
+						;     CL Starting time F (In BCD if AH=72H)
+						;     CH Ending time M (In BCD if AH=72H)
+						;     DL Ending time S (In BCD if AH=72H)
+						;     DH Ending time F (In BCD if AH=72H)
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE],BX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+2],CX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],DX
+
+						JMP		INT93H_CD_EMU_50H_71H_72H_START_CDDA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INT93H_CD_EMU_72H_EXT_CDDA_PLAY_BCD:
-						TSUGARU_DEBUG
-						MOV		BYTE [BP+SAVED_EAX+1],80H
-						JMP		INT93H_EXIT
+						;     BL Starting time M (In BCD if AH=72H)
+						;     BH Starting time S (In BCD if AH=72H)
+						;     CL Starting time F (In BCD if AH=72H)
+						;     CH Ending time M (In BCD if AH=72H)
+						;     DL Ending time S (In BCD if AH=72H)
+						;     DH Ending time F (In BCD if AH=72H)
+
+						MOV		BX,[BP+SAVED_EBX]
+						MOV		CX,[BP+SAVED_ECX]
+						MOV		DX,[BP+SAVED_EDX]
+						MOV		CS:[CD_EMULATION_CDDA_CACHE],BX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+2],CX
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+4],DX
+
+						XOR		BX,BX
+INT93H_CD_EMU_72H_BCD2BIN:
+						MOV		AL,CS:[CD_EMULATION_CDDA_CACHE+BX]
+						CALL	BCD2BIN_AL
+						MOV		CS:[CD_EMULATION_CDDA_CACHE+BX],AL
+						INC		BX
+						CMP		BX,6
+						JNE		INT93H_CD_EMU_72H_BCD2BIN
+
+						JMP		INT93H_CD_EMU_50H_71H_72H_START_CDDA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1596,5 +1894,36 @@ MSF2HSG:
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LINE_IN_VOLUME			EQU		3FH		; 3FH is maximum.
+
+INT93H_CD_EMU_ENABLE_LINE_IN:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,04E1H	; LINE-IN Volume Control
+						;IOWrite Port:000004E1 Value:04
+						;IOWrite Port:000004E0 Value:3E
+						;IOWrite Port:000004E1 Value:05
+						;IOWrite Port:000004E0 Value:3E
+						MOV		AL,4
+						OUT		DX,AL
+
+						DEC		DL
+						MOV		AL,LINE_IN_VOLUME
+						OUT		DX,AL
+
+						INC		DL
+						MOV		AL,5
+						OUT		DX,AL
+
+						DEC		DL
+						MOV		AL,LINE_IN_VOLUME
+						OUT		DX,AL
+
+						POP		AX
+						POP		DX
+						RET
+
 
 						%INCLUDE "LIB.NSM"

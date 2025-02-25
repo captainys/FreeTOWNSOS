@@ -1,5 +1,9 @@
 						.386p
 
+						PUBLIC		EGB_PUTBLOCK_1BIT_TO_8BIT_PSET
+						PUBLIC		EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ
+						PUBLIC		EGB_PUTBLOCK_1BIT_TO_8BIT_AND
+
 						PUBLIC		EGB_PUTBLOCK_8_MATTE
 
 						PUBLIC		EGB_PUTBLOCK_16_MATTE
@@ -10,6 +14,136 @@
 						ASSUME CS:CODE
 
 CODE					SEGMENT
+
+
+
+EGB_PUTBLOCK_1BIT_MACRO	MACRO
+						LOCAL	XLOOP
+						LOCAL	LOADED_AL
+						LOCAL	YLOOP
+						LOCAL	BREAKY
+						LOCAL	ROUNDED_UP
+
+						PUSH	EBP
+						MOV		EBP,ESP
+						PUSH	ESI
+						PUSH	EDI
+						PUSH	EBX
+						PUSH	ECX
+						PUSH	EDX
+						PUSH	DS
+						PUSH	ES
+
+; EBP+40	bytesPerLine
+; EBP+36	YCount
+; EBP+32	XCount
+; EBP+28	BGCOL
+; EBP+24	FGCOL
+; EBP+16	Far Ptr SRC
+; EBP+8		Far Ptr VRAM
+; EBP+4		Return EIP
+; EBP+0		PREV EBP
+
+						CLD
+						LES		EDI,[EBP+8] ; VRAM_PTR]
+						LDS		ESI,[EBP+16] ; SRC_PTR]
+						MOV		EDX,[EBP+24] ; FGCOL]
+						MOV		EBX,[EBP+28] ; BGCOL]
+
+						MOV		ECX,[EBP+32] ; XCOUNT]
+						JECXZ	BREAKY
+						MOV		ECX,[EBP+36] ; YCOUNT]
+						JECXZ	BREAKY
+YLOOP:
+						PUSH	ECX
+						PUSH	EDI
+
+						MOV		ECX,[EBP+32] ; XCOUNT]
+						MOV		AH,1	; Let it LODSB for the first time.
+XLOOP:
+						DEC		AH
+						JNE		LOADED_AL
+						MOV		AH,8
+						LODSB
+LOADED_AL:
+						SHL		AL,1
+
+						PER_PIXEL_OP
+
+						LOOP	XLOOP
+
+						POP		EDI
+						POP		ECX
+
+						CMP		AH,1
+						JE		ROUNDED_UP
+						INC		ESI
+						MOV		AH,1	; Let it LODSB next
+ROUNDED_UP:
+						ADD		EDI,[EBP+40] ; BYTES_PER_LINE]
+						LOOP	YLOOP
+
+BREAKY:
+						POP		ES
+						POP		DS
+						POP		EDX
+						POP		ECX
+						POP		EBX
+						POP		EDI
+						POP		ESI
+						POP		EBP
+						RET
+						ENDM
+
+
+; PSET, 8-bit color
+PER_PIXEL_OP			MACRO
+						LOCAL	EXIT
+						; EDX FGCol
+						; EBX BGCol
+						JNC		EXIT
+						MOV		ES:[EDI],DL
+EXIT:
+						INC		EDI
+						ENDM
+
+EGB_PUTBLOCK_1BIT_TO_8BIT_PSET	PROC
+						EGB_PUTBLOCK_1BIT_MACRO
+EGB_PUTBLOCK_1BIT_TO_8BIT_PSET	ENDP
+
+
+; OPAQUE, 8-bit color
+PER_PIXEL_OP			MACRO
+						LOCAL	BG,EXIT
+						; EDX FGCol
+						; EBX BGCol
+						JNC		BG
+						MOV		ES:[EDI],DL
+						JMP		EXIT
+BG:
+						MOV		ES:[EDI],BL
+EXIT:
+						INC		EDI
+						ENDM
+
+EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ	PROC
+						EGB_PUTBLOCK_1BIT_MACRO
+EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ	ENDP
+
+; AND, 8-bit color
+PER_PIXEL_OP			MACRO
+						LOCAL	EXIT
+						; EDX FGCol
+						; EBX BGCol
+						JC		EXIT
+						MOV		BYTE PTR ES:[EDI],0
+EXIT:
+						INC		EDI
+						ENDM
+
+EGB_PUTBLOCK_1BIT_TO_8BIT_AND	PROC
+						EGB_PUTBLOCK_1BIT_MACRO
+EGB_PUTBLOCK_1BIT_TO_8BIT_AND	ENDP
 
 
 

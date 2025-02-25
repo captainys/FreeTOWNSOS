@@ -447,22 +447,64 @@ void SND_KEY_ON(
 					loopStartAddr=sound->addrInWaveRAM+sound->snd.loopStart;
 				}
 
-				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-
-				_outb(TOWNSIO_SOUND_PCM_ST,(sound->addrInWaveRAM>>8));
-				_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
-				_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
-				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);
-				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // I'll be worried about loop sometime in the future.
-
-				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);
-				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);
-
 				unsigned char keyFlag=(1<<ch);
 				stat->PCMKey|=keyFlag;
-				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);  // 4F8
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel  4F7
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_ST,(sound->addrInWaveRAM>>8));  // 4F6
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSL,(unsigned char)loopStartAddr); // 4F4 I'll be worried about loop sometime in the future.
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSH,loopStartAddr>>8);  // 4F5
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);  // 4F2
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);  // 4F3
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_ENV,curVol);  // 4F0
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_PAN,stat->PCMCh[ch].pan);  // 4F1
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
 				stat->PCMKey&=~keyFlag;
-				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);
+				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey);  // 4F8
 			}
 		}
 	}
@@ -1856,47 +1898,119 @@ void SND_25H_2EH_PCM_VOICE_PLAY(
 
 			unsigned short ST=info->voiceChannelBank[ch];
 
-			// 
+			// Just in case.  Explicitly stop the channel.
+
+			_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey|keyFlag);  // 4F8
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+
+			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // 4F7  Select PCM Channel
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
 
 			// ST is the high-byte of the starting address, therefore, ST<<=12 to make it full address,
 			// and then ST>>=8 to take high-byte.  Overall, ST<<=4;
 			ST<<=4;
-
-			_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-			_outb(TOWNSIO_SOUND_PCM_ENV,info->PCMCh[ch].playVol);  // 0-255?
-			_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // Pan setting.
-
-			_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8);
-			_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride);
-
-			_outb(TOWNSIO_SOUND_PCM_ST,ST); // Starting address high-byte
+			_outb(TOWNSIO_SOUND_PCM_ST,ST); // 4F6  Starting address high-byte
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
 
 			if(sndData->totalBytes<=PCM_BANK_SIZE)
 			{
 				unsigned short endAddr=ST;
 				endAddr<<=8;
 				endAddr+=0xFFF;
-				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
-				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
+				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // 4F4  Loop start address low-byte
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // 4F5  Loop start address high-byte
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
 			}
 			else if(sndData->totalBytes<=PCM_BANK_SIZE*2-256)
 			{
 				unsigned short endAddr=ST;
 				endAddr<<=8;
 				endAddr+=0x1FFF;
-				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
-				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
+				_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // 4F4  Loop start address low-byte
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // 4F5  Loop start address high-byte
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
 			}
 			else
 			{
-				_outb(TOWNSIO_SOUND_PCM_LSH,ST); // Loop start address high-byte
-				_outb(TOWNSIO_SOUND_PCM_LSL,0); // Loop start address low-byte
+				_outb(TOWNSIO_SOUND_PCM_LSL,0); // 4F4  Loop start address low-byte
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				_outb(TOWNSIO_SOUND_PCM_LSH,ST); // 4F5  Loop start address high-byte
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
 			}
 
+			_outb(TOWNSIO_SOUND_PCM_FDL,(unsigned char)stride); // 4F2
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			_outb(TOWNSIO_SOUND_PCM_FDH,stride>>8); // 4F3
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+
+			_outb(TOWNSIO_SOUND_PCM_PAN,info->PCMCh[ch].pan);  // 4F1 Pan setting.
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			_outb(TOWNSIO_SOUND_PCM_ENV,info->PCMCh[ch].playVol);  // 4F0  0-255?
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+
 			_outb(TOWNSIO_SOUND_PCM_INT_MASK,info->voiceModeINTMask);
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
+			DUMMY_JMP
 
 			info->PCMKey&=~keyFlag;
-			_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);
+			_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,info->PCMKey);  // 4F8
 		}
 	}
 
@@ -1917,12 +2031,12 @@ void SND_FM_INIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	// This function does not require a work area.  FM TOWNS Technical Databook p.430
+
+	// Stop YM2612 Timers
+	YM2612_Write(0,0x27,YM_REG27H_TMA_RESET|YM_REG27H_TMB_RESET);
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
 }
 
 void SND_FM_REGWRITE(
@@ -2088,34 +2202,34 @@ void SND_43H_ELEVOL_SET(
 		// Left volume
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_1_COM,(((~vol)>>2)&0x10)|5);
-		_outb(TOWNSIO_ELEVOL_1_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_1_DATA,(vol>>1)&0x3f);
 		// Right volume
 		vol=(EDX&0x7f);
 		_outb(TOWNSIO_ELEVOL_1_COM,(((~vol)>>2)&0x10)|4);
-		_outb(TOWNSIO_ELEVOL_1_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_1_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0xc;
 		break;
 	case 1: // CD IN
 		// Left volume
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|5);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		// Right volume
 		vol=(EDX&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|4);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0x30;
 		break;
 	case 2: // MIC IN
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|6);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0x40;
 		break;
 	case 3: // MODEM IN
 		vol=((EDX>>8)&0x7f);
 		_outb(TOWNSIO_ELEVOL_2_COM,(((~vol)>>2)&0x10)|7);
-		_outb(TOWNSIO_ELEVOL_2_DATA,vol&0x3f);
+		_outb(TOWNSIO_ELEVOL_2_DATA,(vol>>1)&0x3f);
 		sysInfo->elevol_mute|=0x80;
 		break;
 	}
@@ -2430,6 +2544,11 @@ void SND_PCM_Envelope_Handler(void)
 			//{
 				unsigned short vol=stat->PCMCh[ch].playVol*stat->PCMCh[ch].envL/127;
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
+				DUMMY_JMP
 				_outb(TOWNSIO_SOUND_PCM_ENV,vol);
 			//}
 		}
@@ -2510,12 +2629,22 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 					waveRAM[0xFFF]=PCM_LOOP_STOP_CODE;
 
 					_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+					DUMMY_JMP
+					DUMMY_JMP
+					DUMMY_JMP
+					DUMMY_JMP
+					DUMMY_JMP
 
 					unsigned short endAddr=stat->PCMCh[ch].nextFillBank;
 					endAddr<<=12;
 					endAddr+=0xFFF;
-					_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
 					_outb(TOWNSIO_SOUND_PCM_LSL,endAddr); // Loop start address low-byte
+					DUMMY_JMP
+					DUMMY_JMP
+					DUMMY_JMP
+					DUMMY_JMP
+					DUMMY_JMP
+					_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
 				}
 
 				stat->PCMCh[ch].curPos+=transferSize;

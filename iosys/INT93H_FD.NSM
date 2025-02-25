@@ -893,25 +893,15 @@ INT93H_FD_24H_NO_CHANGE:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; AL drive number
 INT93H_FD_MOTOR_ON_WAIT_AND_SET_FLAG:
-						PUSH	EBX
-
-						MOVZX	BX,AL
 						CMP		BYTE CS:[INT93_FD_MOTOR],0
 						JNE		INT93H_FD_MOTOR_ON_WAITED
 
-						; If motor was not on, wait for at least 1000sec
-						MOV		EBX,1000000
-INT93H_FD_MOTOR_ON_WAIT_LOOP:
-						OUT		06CH,AL
-						DEC		EBX
-						JNE		INT93H_FD_MOTOR_ON_WAIT_LOOP
-
+						; If motor was not on, wait for at least 1000millisec
+						CALL	INT93H_WAIT_ONE_SEC
 						MOV		BYTE CS:[INT93_FD_MOTOR],1
 
 INT93H_FD_MOTOR_ON_WAITED:
-						POP		EBX
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

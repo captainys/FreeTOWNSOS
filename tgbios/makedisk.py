@@ -158,6 +158,35 @@ def Run(argv):
 		PrintOutput()
 		quit()
 
+
+	proc=subprocess.Popen(["./makefd",
+		"-o",		"RUNNERFD.bin",
+		"-ipl",		"../iosys/FD_IPL.bin",
+		"-ipliosys",	"IO.SYS","20h",
+		"-i",		"../resources/IO.SYS",
+		"-i",		"../resources/YSDOS.SYS",
+		"-i",		"../resources/YAMAND.COM",
+		"-i",		"../resources/RUNNERFD/CONFIG.SYS",
+		"-i",		"../resources/RUNNERFD/AUTOEXEC.BAT",
+		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../resources/FORCE31K.COM",
+		"-i",		"../resources/MINVCPI.SYS",
+		"-i",		"../resources/FAKENSDD.SYS",
+		"-i",		"../resources/SYSXXXX0.COM",
+		"-i",		"../resources/SUCCESS.EXE",
+		"-i",		"../resources/FAIL.EXE",
+		"-i",		"../externals/ORICON/ORICON.COM",
+		"-i",		"../externals/Free386/free386.com",
+		"-i",		"TGBIOS.SYS",
+		"-i",		"TGBIOS.BIN",
+	])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error building FDIMG.bin")
+		PrintOutput()
+		quit()
+
+
 	proc=subprocess.Popen(["./makehd",
 		"-o",		"HDIMG.h0",
 		"-p",		"8", "TSUGARU_OS",
@@ -214,6 +243,7 @@ def Run(argv):
 		"-F",		"../resources/MINVCPI.SYS",
 		"-F",		"../resources/FAKENSDD.SYS",
 		"-F",		"../resources/SYSXXXX0.COM",
+		"-F",		"../resources/RAMDRIVE.SYS",
 		"-F",		"../externals/ORICON/ORICON.COM",
 		"-F",		"../externals/Free386/free386.com",
 		"-F",		"TGBIOS.SYS",
@@ -229,6 +259,7 @@ def Run(argv):
 	CopyToResources("TGBIOS.SYS")
 	CopyToResources("TGBIOS.BIN")
 	CopyToResources("FDIMG.BIN")
+	CopyToResources("RUNNERFD.BIN")
 	CopyToResources("FDIMG_USEROM.BIN")
 	CopyToResources("HDIMG.h0")
 	CopyToResources("CDIMG.ISO")

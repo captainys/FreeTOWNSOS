@@ -1862,10 +1862,10 @@ void EGB_22H_GETBLOCK1BIT(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-#define EGB_PUTBLOCK_BW_8BIT_INLINE(operator) \
+#define EGB_PUTBLOCK_BW_8BIT_INLINE(colorType,operator,vramIncrement) \
 {\
-	unsigned char fgCol=color[EGB_FOREGROUND_COLOR];\
-	unsigned char bgCol=color[EGB_BACKGROUND_COLOR];\
+	colorType fgCol=color[EGB_FOREGROUND_COLOR];\
+	colorType bgCol=color[EGB_BACKGROUND_COLOR];\
 	unsigned char bitCount,bits;\
 	unsigned int xCount,xCount0=p1.x+1-p0.x;\
 	for(y=p0.y; y<=p1.y; ++y)\
@@ -1876,7 +1876,7 @@ void EGB_22H_GETBLOCK1BIT(
 		for(xCount=xCount0; 0!=xCount; --xCount)\
 		{\
 			{operator;}\
-			++vram;\
+			vramIncrement;\
 			bits<<=1;\
 			if(0==(--bitCount))\
 			{\
@@ -1893,6 +1893,10 @@ void EGB_22H_GETBLOCK1BIT(
 	fgCol;\
 	bgCol;\
 }
+
+extern void EGB_PUTBLOCK_1BIT_TO_8BIT_PSET(_Far unsigned char *vram,_Far unsigned char *src,unsigned int fgCol,unsigned int bgCol,unsigned int XCount,unsigned int YCount,unsigned int bytesPerLine);
+extern void EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ(_Far unsigned char *vram,_Far unsigned char *src,unsigned int fgCol,unsigned int bgCol,unsigned int XCount,unsigned int YCount,unsigned int bytesPerLine);
+extern void EGB_PUTBLOCK_1BIT_TO_8BIT_AND(_Far unsigned char *vram,_Far unsigned char *src,unsigned int fgCol,unsigned int bgCol,unsigned int XCount,unsigned int YCount,unsigned int bytesPerLine);
 
 unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 	_Far struct EGB_ScreenMode *scrnMode,
@@ -2055,117 +2059,91 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 				}
 				break;
 			case 8:
+				{
+					unsigned char fgCol=color[EGB_FOREGROUND_COLOR]&0xFF;
+					unsigned char bgCol=color[EGB_BACKGROUND_COLOR]&0xFF;
+					switch(drawingMode)
+					{
+					case EGB_FUNC_OPAQUE:
+						EGB_PUTBLOCK_1BIT_TO_8BIT_OPQ(vram,src,fgCol,bgCol,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine);
+						break;
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_MATTE:
+						EGB_PUTBLOCK_1BIT_TO_8BIT_PSET(vram,src,fgCol,bgCol,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine);
+						break;
+					case EGB_FUNC_AND:
+						EGB_PUTBLOCK_1BIT_TO_8BIT_AND(vram,src,fgCol,bgCol,p1.x+1-p0.x,p1.y+1-p0.y,scrnMode->bytesPerLine);
+						break;
+					case EGB_FUNC_OR:
+						EGB_PUTBLOCK_BW_8BIT_INLINE(
+						unsigned char,
+						{
+							if(bits&0x80)
+							{
+								*vram|=fgCol;
+							}
+						},
+						++vram);
+						break;
+					default:
+						TSUGARU_BREAK;
+						break;
+					}
+				}
+				break;
+			case 16:
 				switch(drawingMode)
 				{
 				case EGB_FUNC_OPAQUE:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned short,
 					{
 						if(bits&0x80)
 						{
-							*vram=fgCol;
+							*((_Far unsigned short *)vram)=fgCol;
 						}
 						else
 						{
-							*vram=bgCol;
+							*((_Far unsigned short *)vram)=bgCol;
 						}
-					});
+					},
+					vram+=2
+					);
 					break;
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_MATTE:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned short,
+					if(bits&0x80)
 					{
-						if(bits&0x80)
-						{
-							*vram=fgCol;
-						}
-					});
+						*((_Far unsigned short *)vram)=fgCol;
+					},
+					vram+=2
+					);
 					break;
 				case EGB_FUNC_AND:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned short,
+					if(!(bits&0x80))
 					{
-						if(!(bits&0x80))
-						{
-							*vram=0;
-						}
-					});
+						*((_Far unsigned short *)vram)=0;
+					},
+					vram+=2
+					);
 					break;
 				case EGB_FUNC_OR:
 					EGB_PUTBLOCK_BW_8BIT_INLINE(
+					unsigned short,
+					if(bits&0x80)
 					{
-						if(bits&0x80)
-						{
-							*vram|=fgCol;
-						}
-					});
+						*((_Far unsigned short *)vram)|=fgCol;
+					},
+					vram+=2
+					);
 					break;
 				default:
 					TSUGARU_BREAK;
 					break;
-				}
-				break;
-			case 16:
-				{
-					unsigned short fgCol=color[EGB_FOREGROUND_COLOR];
-					unsigned short bgCol=color[EGB_BACKGROUND_COLOR];
-					unsigned char bitCount,bits;
-					for(y=p0.y; y<=p1.y; ++y)
-					{
-						nextVram=vram+scrnMode->bytesPerLine;
-						bits=*src;
-						bitCount=0;
-						for(x=p0.x; x<=p1.x; ++x)
-						{
-							switch(drawingMode)
-							{
-							case EGB_FUNC_OPAQUE:
-								if(bits&0x80)
-								{
-									*((_Far unsigned short *)vram)=fgCol;
-								}
-								else
-								{
-									*((_Far unsigned short *)vram)=bgCol;
-								}
-								break;
-							case EGB_FUNC_PSET:
-							case EGB_FUNC_MATTE:
-								if(bits&0x80)
-								{
-									*((_Far unsigned short *)vram)=fgCol;
-								}
-								break;
-							case EGB_FUNC_AND:
-								if(!(bits&0x80))
-								{
-									*((_Far unsigned short *)vram)=0;
-								}
-								break;
-							case EGB_FUNC_OR:
-								if(bits&0x80)
-								{
-									*((_Far unsigned short *)vram)|=fgCol;
-								}
-								break;
-							default:
-								TSUGARU_BREAK;
-								break;
-							}
-							vram+=2;
-
-							bits<<=1;
-							++bitCount;
-							if(8==bitCount)
-							{
-								bitCount=0;
-								bits=*(++src);
-							}
-						}
-						if(0!=bitCount)
-						{
-							++src;
-						}
-						vram=nextVram;
-					}
 				}
 				break;
 			}
