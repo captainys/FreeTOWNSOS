@@ -135,7 +135,7 @@ PER_PIXEL_OP			MACRO
 						LOCAL	EXIT
 						; EDX FGCol
 						; EBX BGCol
-						JNC		EXIT
+						JC		EXIT
 						MOV		BYTE PTR ES:[EDI],0
 EXIT:
 						INC		EDI
