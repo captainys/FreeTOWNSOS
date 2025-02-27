@@ -182,7 +182,7 @@ def Run(argv):
 	])
 	proc.communicate()
 	if 0!=proc.returncode:
-		print("Error building FDIMG.bin")
+		print("Error building RUNNERFD.bin")
 		PrintOutput()
 		quit()
 
