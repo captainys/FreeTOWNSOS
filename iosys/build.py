@@ -34,7 +34,8 @@ def Run(argv):
 		"MINVCPI",
 		"FAKENSDD",
 		"SYSXXXX0",
-		"RAMDRIVE"
+		"RAMDRIVE",
+		"TGCONS",
 	]
 
 	rename=[
@@ -42,6 +43,7 @@ def Run(argv):
 		["FAKENSDD.bin","FAKENSDD.SYS"],
 		["SYSXXXX0.bin","SYSXXXX0.COM"],
 		["RAMDRIVE.bin","RAMDRIVE.SYS"],
+		["TGCONS.bin","TGCONS.SYS"],
 	]
 
 	for src in srcs:
@@ -68,6 +70,7 @@ def Run(argv):
 	CopyToResources("FAKENSDD.SYS");
 	CopyToResources("MINVCPI.SYS");
 	CopyToResources("RAMDRIVE.SYS");
+	CopyToResources("TGCONS.SYS");
 	CopyToResources("SYSXXXX0.COM");
 
 	subprocess.Popen(["./assemble"])

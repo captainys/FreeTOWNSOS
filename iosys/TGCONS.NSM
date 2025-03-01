@@ -1,0 +1,80 @@
+						CPU		386
+						BITS	16
+
+
+; TGCONS.SYS
+;  If installed, it forwards INT 91H AH=1DH to Tsugaru's console output (I/O E9h).
+
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
+						DW	0FFFFh
+HEADER_ATTRIBWORD		DW	0800h   ; BlockDev|open/close/removable media
+HEADER_STRATEGY_PTR		DW	STRATEGY
+HEADER_INTERRUPT_PTR	DW	INTERRUPT
+HEADER_NAME				DB	"TGCONS  "
+
+REQHDR_PTR				DD	0
+
+STRATEGY:
+						MOV		CS:[REQHDR_PTR],BX
+						MOV		CS:[REQHDR_PTR+2],ES
+						RETF
+
+INTERRUPT:
+						SAVE_WORLD
+
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JE		INIT
+
+						TSUGARU_DEBUG
+RETURN:
+						RESTORE_WORLD
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+ORIGINAL_INT91H_HANDLER			DD	0
+
+
+INT91H_HANDLER:
+						CMP		AH,1DH
+						JNE		INT91H_JUMP_TO_ORIGINAL
+
+						; 1DH Write 1 byte to terminal
+						OUT		0E9H,AL	; Write to the Tsugaru terminal.
+
+INT91H_JUMP_TO_ORIGINAL:
+						JMP		FAR [CS:ORIGINAL_INT91H_HANDLER]
+
+
+
+END_OF_RESIDENT_CODE:
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;f
+
+; DEVICE=HOSTCONS.SYS
+INIT:
+						MOV		AX,3591H	; Get INT Vector for 91H,  ES:BX receives the handler.
+						INT		21H
+						MOV		CS:[ORIGINAL_INT91H_HANDLER],BX
+						MOV		CS:[ORIGINAL_INT91H_HANDLER+2],ES
+
+						PUSH	CS
+						POP		DS
+						MOV		DX,INT91H_HANDLER
+						MOV		AX,2591H	; Set INT Vector for 91H,  DS:DX is handler.
+						INT		21H
+
+						LES		BX,CS:[REQHDR_PTR]
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_RESIDENT_CODE
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
+						JMP		RETURN
+
