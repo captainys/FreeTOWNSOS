@@ -169,6 +169,7 @@ def Run(argv):
 		"-i",		"../resources/RUNNERFD/CONFIG.SYS",
 		"-i",		"../resources/RUNNERFD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
+		"-i",		"../resources/TGCONS.COM",
 		"-i",		"../resources/FORCE31K.COM",
 		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../resources/FAKENSDD.SYS",
