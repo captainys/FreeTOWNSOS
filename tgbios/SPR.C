@@ -45,8 +45,7 @@ void SPR_INIT(
 
 	for(i = 0;i < 65536;i++)
 	{
-		*vram = 0x80008000;
-		vram++;
+		vram[i] = 0x80008000;
 	}
 
 	/* Clear Sprite RAM */
@@ -56,8 +55,7 @@ void SPR_INIT(
 
 	for(i = 0;i < 65536;i++)
 	{
-		*spr_ram = 0x0;
-		spr_ram++;
+		spr_ram[i] = 0x0;
 	}
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
@@ -242,9 +240,8 @@ void SPR_SETPOSITION(
 		for(x1 = 0; x1 < x3; x1++)
 		{
 			*spr_ram = x2 & 511;
-			spr_ram++;
-			*spr_ram = y2 & 511;
-			spr_ram += 3;
+			spr_ram[1] = y2 & 511;
+			spr_ram += 4;
 			x2 += x_add;
 		}
 		y2 += y_add;
@@ -294,9 +291,8 @@ void SPR_SETATTRIBUTE(
 	{
 		*spr_ram = attribute;
 		attribute += pattern_add;
-		spr_ram++;
-		*spr_ram = color_table;
-		spr_ram += 3;
+		spr_ram[1] = color_table;
+		spr_ram += 4;
 	}
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
@@ -328,9 +324,8 @@ void SPR_SETMOTION(
 	for(i = 0; i < y; i++)
 	{
 		*spr_ram = (*spr_ram + (ESI & 0xffff)) & 511; // Iron Fist (or F-BASIC386?) assumes x coord is 0 to 511.
-		spr_ram++;
-		*spr_ram = (*spr_ram + (EDI & 0xffff)) & 511; // Probably safe to keep it 0 to 511.
-		spr_ram += 3;
+		spr_ram[1] = (*spr_ram + (EDI & 0xffff)) & 511; // Probably safe to keep it 0 to 511.
+		spr_ram += 4;
 	}
 
 	SPR_SetError(EAX,SPR_NO_ERROR);
