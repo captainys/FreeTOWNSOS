@@ -1,6 +1,13 @@
 #ifndef SND_H_IS_INCLUDED
 #define SND_H_IS_INCLUDED
 
+
+#define SND_GAMEDEV_TYPE_NORMAL   0
+#define SND_GAMEDEV_TYPE_6BTN     1
+#define SND_GAMEDEV_TYPE_CPSF     2
+#define SND_GAMEDEV_TYPE_CYBER    3
+
+
 #define SND_ERROR_MASK (~0xFF00)
 #define SND_GENERAL_ERROR 0xFF00
 #define SND_NO_ERROR 0
@@ -161,6 +168,13 @@ struct SND_Status
 };
 
 _Far struct SND_Status *SND_GetStatus(void);
+
+struct SND_Global_Settings
+{
+	unsigned char gameDevTypes[2];
+};
+
+_Far struct SND_Global_Settings *SND_GetGlobalSettings(void);
 
 void SND_PCM_Voice_Mode_Interrupt(void); // Called from SNDINT.C
 void SND_PCM_Envelope_Handler(void);

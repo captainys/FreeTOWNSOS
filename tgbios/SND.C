@@ -2673,6 +2673,34 @@ void SND_NOP(
 		TSUGARU_BREAK;
 }
 
+// AH=E0H
+// DH=Port Number 0 or 1
+// DL=Device Type
+void SND_E0H_SETGLOBAL_GAMEDEV(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	unsigned char DH=EDX>>8;
+	unsigned char DL=EDX;
+	if(0==DH || 1==DH)
+	{
+		_Far struct SND_Global_Settings *global=SND_GetGlobalSettings();
+		global->gameDevTypes[DH]=DL;
+	}
+	SND_SetError(EAX,SND_NO_ERROR);
+}
+
+
 static struct SND_Status status=
 {
 	// Sound
@@ -2692,6 +2720,19 @@ _Far struct SND_Status *SND_GetStatus(void)
 	_Far struct SND_Status *ptr;
 	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
 	_FP_OFF(ptr)=(unsigned int)&status;
+	return ptr;
+}
+
+static struct SND_Global_Settings global=
+{
+	{SND_GAMEDEV_TYPE_NORMAL,SND_GAMEDEV_TYPE_NORMAL},  // unsigned char gameDevTypes[2];
+};
+
+_Far struct SND_Global_Settings *SND_GetGlobalSettings(void)
+{
+	_Far struct SND_Global_Settings *ptr;
+	_FP_SEG(ptr)=SEG_TGBIOS_DATA;
+	_FP_OFF(ptr)=(unsigned int)&global;
 	return ptr;
 }
 
