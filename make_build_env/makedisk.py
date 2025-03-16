@@ -31,7 +31,8 @@ def Run(argv):
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../resources/SUCCESS.EXE",
 		"-i",		"../resources/FAIL.EXE",
-		"-i",		"../iosys/MINVCPI.SYS",
+		"-i",		"../resources/TGCONS.SYS",
+		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../externals/Free386/free386.com",
 	])
 	proc.communicate()
