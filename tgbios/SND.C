@@ -6,6 +6,8 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+#include "PAD6.H"
+
 // What about SND_END?
 
 // "To make it compatible with MSX game pads, COM out must be zero."
@@ -2109,46 +2111,64 @@ void SND_JOY_IN_2(
 	unsigned int FS)
 {
 	unsigned char port=(EDX>>8)&1,pad;
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	_Far struct SND_Global_Settings *global=SND_GetGlobalSettings();
 
-	_outb(TOWNSIO_GAMEPORT_OUTPUT,PAD_OUT_CONST);
-	_outb(TOWNSIO_TIMER_1US_WAIT,0);
-	if(0==port)
+	switch(global->gameDevTypes[port])
 	{
-		pad=_inb(TOWNSIO_GAMEPORT_A_INPUT);
-	}
-	else
-	{
-		pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
-	}
+	default:
+	case SND_GAMEDEV_TYPE_NORMAL:
+		_outb(TOWNSIO_GAMEPORT_OUTPUT,PAD_OUT_CONST);
+		_outb(TOWNSIO_TIMER_1US_WAIT,0);
+		if(0==port)
+		{
+			pad=_inb(TOWNSIO_GAMEPORT_A_INPUT);
+		}
+		else
+		{
+			pad=_inb(TOWNSIO_GAMEPORT_B_INPUT);
+		}
 
-	pad|=0xC0;
-	// if(0==(pad&(PAD_LEFT|PAD_RIGHT)) && (PAD_UP|PAD_DOWN)==(pad&(PAD_UP|PAD_DOWN)))
-	// The second condition is based on the observation of the original TBIOS.
-	if((PAD_UP|PAD_DOWN)==(pad&0x0F)) //The above condition is same as this.
-	{
-		pad&=(~PAD_RUN);
-	}
-	// if(0==(pad&(PAD_UP|PAD_DOWN)) && (PAD_LEFT|PAD_RIGHT)==(pad&(PAD_LEFT|PAD_RIGHT)))
-	// The second condition is based on the observation of the original TBIOS.
-	if((PAD_LEFT|PAD_RIGHT)==(pad&0x0F)) // The above condition is same as this.
-	{ 
-		pad&=(~PAD_SELECT);
-	}
-	// Looks like if both UP&DOWN (or LEFT&RIGHT) are both pressed, if LEFT&RIGHT (or UP&DOWN) are both released,
-	// it won't take Run/Select button.
+		pad|=0xC0;
+		// if(0==(pad&(PAD_LEFT|PAD_RIGHT)) && (PAD_UP|PAD_DOWN)==(pad&(PAD_UP|PAD_DOWN)))
+		// The second condition is based on the observation of the original TBIOS.
+		if((PAD_UP|PAD_DOWN)==(pad&0x0F)) //The above condition is same as this.
+		{
+			pad&=(~PAD_RUN);
+		}
+		// if(0==(pad&(PAD_UP|PAD_DOWN)) && (PAD_LEFT|PAD_RIGHT)==(pad&(PAD_LEFT|PAD_RIGHT)))
+		// The second condition is based on the observation of the original TBIOS.
+		if((PAD_LEFT|PAD_RIGHT)==(pad&0x0F)) // The above condition is same as this.
+		{ 
+			pad&=(~PAD_SELECT);
+		}
+		// Looks like if both UP&DOWN (or LEFT&RIGHT) are both pressed, if LEFT&RIGHT (or UP&DOWN) are both released,
+		// it won't take Run/Select button.
 
-	// The following must be done independently.
-	// If I/O read is 030H (possible from mouse), the return should be FFh.
-	if(0==((PAD_UP|PAD_DOWN)&pad))
-	{
-		pad|=(PAD_UP|PAD_DOWN);
-	}
-	if(0==((PAD_LEFT|PAD_RIGHT)&pad))
-	{
-		pad|=(PAD_LEFT|PAD_RIGHT);
+		// The following must be done independently.
+		// If I/O read is 030H (possible from mouse), the return should be FFh.
+		if(0==((PAD_UP|PAD_DOWN)&pad))
+		{
+			pad|=(PAD_UP|PAD_DOWN);
+		}
+		if(0==((PAD_LEFT|PAD_RIGHT)&pad))
+		{
+			pad|=(PAD_LEFT|PAD_RIGHT);
+		}
+		break;
+	case SND_GAMEDEV_TYPE_6BTN:
+		{
+			unsigned int in=PAD6_in(port);
+			pad=in;
+			if(0==(in&0x200)) // Y button
+			{
+				pad&=~PAD_RUN;
+			}
+			if(0==(in&0x100)) // Z button
+			{
+				pad&=~PAD_SELECT;
+			}
+		}
+		break;
 	}
 
 

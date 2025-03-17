@@ -10,11 +10,6 @@ THISDIR=os.path.dirname(THISFILE)
 def CopyToResources(filename):
 	shutil.copyfile(filename,os.path.join("..","resources",filename))
 
-def PrintOutput():
-	fp=open(os.path.join(THISDIR,"OUTPUT.TXT"),"r")
-	for line in fp:
-		print(line)
-	fp.close()
 
 def IsTestFile(fn):
 	return fn=="EGB_PAI.BIN" or fn=="EGB_PUT.BIN" or fn.endswith(".EXP") or fn.endswith(".SND") or fn.endswith(".FMB") or fn.endswith(".PMB") or fn.endswith(".SND")
@@ -58,29 +53,36 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error bulding TGBIOS.BIN")
-		PrintOutput()
 		quit()
+
+
+
+	proc=subprocess.Popen([
+		"python",
+		os.path.join(THISDIR,"..","tgutil","makedisk.py")])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error bulding Tsugaru-BIOS Utilities")
+		quit()
+
 
 
 	proc1=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
 	proc1.communicate()
 	if 0!=proc1.returncode:
 		print("Error bulding makefd.exe")
-		PrintOutput()
 		quit()
 
 	proc2=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","/EHsc"])
 	proc2.communicate()
 	if 0!=proc2.returncode:
 		print("Error building makehd.exe")
-		PrintOutput()
 		quit()
 
 	proc3=subprocess.Popen(["cl","../util/geniso.cpp","/EHsc"])
 	proc3.communicate()
 	if 0!=proc3.returncode:
 		print("Error building geniso.exe")
-		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makefd",
@@ -106,7 +108,6 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building FDIMG.bin")
-		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makefd",
@@ -130,7 +131,6 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building FDIMG_USEROM.bin")
-		PrintOutput()
 		quit()
 
 	proc=subprocess.Popen(["./makefd",
@@ -155,7 +155,6 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building TESTFD.bin")
-		PrintOutput()
 		quit()
 
 
@@ -169,7 +168,7 @@ def Run(argv):
 		"-i",		"../resources/RUNNERFD/CONFIG.SYS",
 		"-i",		"../resources/RUNNERFD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
-		"-i",		"../resources/TGCONS.COM",
+		"-i",		"../resources/TGCONS.SYS",
 		"-i",		"../resources/FORCE31K.COM",
 		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../resources/FAKENSDD.SYS",
@@ -184,7 +183,6 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building RUNNERFD.bin")
-		PrintOutput()
 		quit()
 
 
@@ -212,7 +210,6 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building HDIMG.h0")
-		PrintOutput()
 		quit()
 
 
@@ -254,7 +251,6 @@ def Run(argv):
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error building CDIMG.ISO")
-		PrintOutput()
 		quit()
 
 	CopyToResources("TGBIOS.SYS")
@@ -265,7 +261,7 @@ def Run(argv):
 	CopyToResources("HDIMG.h0")
 	CopyToResources("CDIMG.ISO")
 
-	PrintOutput()
+	print("Build. successful.")
 
 
 
