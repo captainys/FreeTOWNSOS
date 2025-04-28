@@ -27,7 +27,7 @@ MAIN:
 							XOR		EAX,EAX
 							MOV		CS:[0],EAX
 
-							MOV		AX,CX
+							MOV		AX,CS
 							SHL		EAX,4
 							ADD		EAX,SYSINIT_TABLE
 							MOV		CS:[SYSINIT_TABLE_LINEAR_ADDR],EAX
