@@ -231,6 +231,7 @@ def Run(argv):
 		"-VOL",		"TSUGARU_OS",	# Volume Label
 		"-SYS",		"TSUGARU_OS",	# System Label
 		"-IPL",		"../iosys/CD_IPL.bin",
+		"-FBIOSLBA",
 		"-F",		"../resources/IO.SYS",
 		"-F",		"../resources/YSDOS.SYS",
 		"-F",		"../resources/YAMAND.COM",
