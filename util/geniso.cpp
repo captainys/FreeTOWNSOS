@@ -132,7 +132,44 @@ public:
 	template <class T>
 	static bool Compare(const std::pair<std::string,T> &a,const std::pair<std::string,T> &b)
 	{
-		return a.first<b.first;
+		return Make8plus3(a.first)<Make8plus3(b.first);
+	}
+	static std::string Make8plus3(std::string src)
+	{
+		if("."==src || ".."==src)
+		{
+			return src;
+		}
+
+		std::string DOS;
+		int state=0;
+		for(auto c : src)
+		{
+			if(0==state)
+			{
+				if('.'==c)
+				{
+					while(DOS.size()<8)
+					{
+						DOS.push_back(' ');
+					}
+					state=1;
+				}
+				else
+				{
+					DOS.push_back(c);
+				}
+			}
+			else
+			{
+				DOS.push_back(c);
+			}
+		}
+		while(DOS.size()<11)
+		{
+			DOS.push_back(' ');
+		}
+		return DOS;
 	}
 	void SortFiles(void);
 	void MakeDirectoryList(void);
