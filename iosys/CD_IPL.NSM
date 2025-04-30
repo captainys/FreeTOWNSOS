@@ -148,7 +148,7 @@ START_BOOT_SEQUENCE:
 
 						DB		0EAH ; JMPF
 						DW		0000H
-						DW		0050H
+						DW		IOSYS_CS
 
 
 

@@ -7,7 +7,9 @@
 unsigned char data[512*1024];
 
 
-// Segments for the BIOS are found at these offsets in segment 0050H
+const unsigned int IOSYS_CS=0x51;
+
+// Segments for the BIOS are found at these offsets in segment 0051H
 const unsigned int SEG_INT8EH=0x02;
 const unsigned int SEG_INT90H=0x04;
 const unsigned int SEG_INT91H=0x06;
@@ -132,7 +134,7 @@ int main(void)
 		if(found!=INTtoOFFSET.end())
 		{
 			auto offset=found->second;
-			*(uint16_t *)(data+offset)=0x50+file.pos.pos/16;
+			*(uint16_t *)(data+offset)=IOSYS_CS+file.pos.pos/16;
 		}
 	}
 
@@ -144,8 +146,15 @@ int main(void)
 	strcpy(first256bytes,"FBIOS      Multi-Mode Display Type    1999-99-99");
 	*(uint32_t *)(first256bytes+0x40)=ptr;
 
+	char next16bytes[16];
+	memset(next16bytes,0,sizeof(next16bytes));
+	next16bytes[0]=IOSYS_CS&0xFF;
+	next16bytes[1]=(IOSYS_CS>>8);
+
+
 	std::ofstream diskimg("../resources/IO.SYS",std::ios::binary);
 	diskimg.write(first256bytes,256);
+	diskimg.write(next16bytes,16);
 	diskimg.write((char *)data,ptr);
 
 	return 0;

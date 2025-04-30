@@ -227,7 +227,7 @@ FOUND_IOSYS:
 
 						DB		0EAH ; JMPF
 						DW		0000H
-						DW		0050H
+						DW		IOSYS_CS
 
 
 DISK_READ_ERROR:

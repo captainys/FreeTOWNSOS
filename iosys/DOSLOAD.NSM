@@ -154,6 +154,11 @@ CLONE_ENTRY:
 						POP		EAX
 
 
+
+						CALL	RESCUE_IPL_CHECK
+
+
+
 						MOV		BX,CS:[BOOT_DEVICE]
 						CMP		BL,BOOTDEV_SCSICD
 						JNE		NOT_BOOT_FROM_SCSICD
@@ -1853,6 +1858,53 @@ FLUSH_KEY_BUFFER:
 						CMP		DH,0FFH
 						JNE		FLUSH_KEY_BUFFER
 						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; If given boot device ID is internal CD, but YSSCSICD installation hook is written by the rescue IPL.
+; Use Disk BIOS extension to install SCSI to Internal redirector.
+
+RESCUE_IPL_CHECK:
+						CMP		BYTE CS:[BOOT_DEVICE],BOOTDEV_CD
+						JNE		RESCUE_IPL_CHECK_DONE
+						CMP		WORD CS:[RESCUEIPL_SIGNATURE],21CDH
+						JE		RESCUE_IPL_CHECK_DONE
+
+						MOV		DL,8
+FROM_RESCUE_IPL_LOOP:
+						DEC		DL
+FROM_RESCUE_IPL_FAIL:	JS		FROM_RESCUE_IPL_FAIL
+						MOV		AX,74C0H
+						INT		93H
+						JB		FROM_RESCUE_IPL_LOOP
+
+RESCUE_IPL_CHECK_DONE:
+						RET
+
+
+
+; RESCUE IPL will search for the following byte pattern and inject YSSCSICD installer.
+; If CD 21 (INT 21H) at RESCUEIPL_SIGNATURE is altered, it implies that it was started
+; from the RESCUE IPL.  Free TOWNS OS's IO.SYS has its own SCSI redirector.  Therefore,
+; if it detects injection of YSSCSICD, it will use its own redirector.
+; TRAP_RESCUE_IPL will never be called.
+
+TRAP_DUMMY_WRITE:		DW		0
+
+; Just for detecting RESCUE IPL.  Will never be called. >>
+TRAP_RESCUE_IPL:
+						DB 08BH,0D8H                       ; MOV     BX,AX
+						DB 083H,0C3H,010H                  ; ADD     BX,10H
+						DB 0B4H,048H                       ; MOV     AH,48H
+RESCUEIPL_SIGNATURE:	DB 0CDH,021H                       ; INT     21H (DOS)         -> CALLF 8000:INJECT_YSSCSICD
+						DB 005H,010H,000H                  ; ADD     AX,0010H          ->
+						DB 02EH,0A3H                       ; MOV     CS:[????],AX
+						DW TRAP_DUMMY_WRITE                ; ????
+						DB 08EH,0C0H                       ; MOV     ES,AX
+						DB 033H,0FFH                       ; XOR     DI,DI
+
+						RET
+; Just for detecting RESCUE IPL.  Will never be called. <<
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

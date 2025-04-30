@@ -43,8 +43,9 @@ INT49H_CD_INT_HANDLER:
 ; 
 ; TGBIOS Extension
 ; AX=74C0H Enable SCSI redirection
-;     DL SCSI ID or FFH for auto-scan descending order or FEH for auto-scan ascending order.
-
+;     DL SCSI ID or FFH for do not change the SCSI ID.
+; AX=75C0H Disable SCSI redirection
+;     It still remembers what SCSI ID was used previously.
 
 
 
