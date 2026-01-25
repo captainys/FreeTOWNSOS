@@ -27,14 +27,15 @@ REQ_HEADER				DD		0
 INT21H_INTERCEPT:
 						CMP		AH,4BH		; Load or Exec
 						JE		DO_INTERCEPT
-						CMP		AH,3BH		; FOPEN
+						CMP		AH,3DH		; FOPEN
 						JE		DO_INTERCEPT
 						CMP		AH,4EH		; FIND_FIRST
-						JNE		FALL_BACK
+						JNE		NO_REDIRECT
 
 DO_INTERCEPT:
 						PUSH	ES
 						PUSHA
+
 
 						PUSH	CS
 						POP		ES
@@ -46,7 +47,12 @@ DO_INTERCEPT:
 						JC		FALL_BACK
 
 
-						PUSH	DX
+						POPA
+						POP		ES
+						PUSH	ES
+						PUSHA
+
+
 						PUSH	DS
 
 						MOV		DX,FILENAME
@@ -57,23 +63,33 @@ DO_INTERCEPT:
 						CALL	FAR [CS:INT21H_CS_IP]
 
 						POP		DS
-						POP		DX
 
 						MOV		[CS:SAVE_AX],AX
 						POPA
 						POP		ES
-
-						JNC		NO_ERR
 						MOV		AX,[CS:SAVE_AX]
-NO_ERR:					IRET
+						JC		YES_ERR
 
+NO_ERR:
+						XCHG	SP,BP
+						AND		BYTE [BP+4],0FEh
+						XCHG	SP,BP
+						IRET
+
+YES_ERR:
+						XCHG	SP,BP
+						OR		BYTE [BP+4],1
+						XCHG	SP,BP
+						IRET
 
 
 FALL_BACK:				POPA
 						POP		ES
+NO_REDIRECT:
 						JMP		FAR [CS:INT21H_CS_IP]
 
 SAVE_AX					DW		0
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -94,7 +110,7 @@ MAKE_UP_FILE_NAME:		PUSH	DX
 						MOV		BL,0
 
 COPY_FILE_LOOP:			CALL	MATCH_RUN386
-						JE		NOT_REPLACE
+						JNE		NOT_REPLACE
 
 REPLACE:				MOV		BL,1
 						PUSH	DS
@@ -149,9 +165,9 @@ MATCH_LOOP_1:			LODSB
 
 						XOR		EAX,EAX
 						MOV		CX,3
-MATCH_LOOP_2:			LODSB
+MATCH_LOOP_2:			SHL		EAX,8
+						LODSB
 						CALL	CAPITALIZE
-						SHL		EAX,8
 						LOOP	MATCH_LOOP_2
 
 						CMP		EAX,0455845h	; 'E' 'X' 'E'
