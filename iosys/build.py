@@ -36,6 +36,7 @@ def Run(argv):
 		"SYSXXXX0",
 		"RAMDRIVE",
 		"TGCONS",
+		"INT21EXT",
 	]
 
 	rename=[
@@ -44,6 +45,7 @@ def Run(argv):
 		["SYSXXXX0.bin","SYSXXXX0.COM"],
 		["RAMDRIVE.bin","RAMDRIVE.SYS"],
 		["TGCONS.bin","TGCONS.SYS"],
+		["INT21EXT.bin","INT21EXT.SYS"],
 	]
 
 	for src in srcs:
@@ -70,10 +72,11 @@ def Run(argv):
 	CopyToResources("FAKENSDD.SYS");
 	CopyToResources("MINVCPI.SYS");
 	CopyToResources("RAMDRIVE.SYS");
+	CopyToResources("INT21EXT.SYS");
 	CopyToResources("TGCONS.SYS");
 	CopyToResources("SYSXXXX0.COM");
 
-	subprocess.Popen(["./assemble"])
+	subprocess.Popen(["./assemble"]).wait()
 
 
 
@@ -95,6 +98,7 @@ def Run(argv):
 		"-i",		"../resources/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
+		"-i",		"../resources/INT21EXT.SYS",
 		"-i",		"../src/MINVCPI.SYS",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
@@ -109,6 +113,7 @@ def Run(argv):
 		"-i",		"../resources/TGDRV.COM",
 		"-i",		"../resources/TEST.EXP",
 		"-i",		"../src/MINVCPI.SYS",
+		"-i",		"../resources/INT21EXT.SYS",
 		"-i",		"../externals/ORICON/ORICON.COM",
 		"-i",		"../externals/Free386/free386.com",
 	]).wait()

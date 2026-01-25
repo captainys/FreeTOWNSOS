@@ -19,36 +19,61 @@ DRIVER_NAME				DB      "********"
 
 INT21H_CS_IP			DD		0
 
-REQ_HDR					DD		0
+REQ_HEADER				DD		0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 						BITS	16
 INT21H_INTERCEPT:
 						CMP		AH,4BH		; Load or Exec
+						JE		DO_INTERCEPT
+						CMP		AH,3BH		; FOPEN
+						JE		DO_INTERCEPT
+						CMP		AH,4EH		; FIND_FIRST
 						JNE		FALL_BACK
 
-						CALL	FIND_RUN386_KEYWORD
-						JC		FALL_BACK
-
-						; The file name includes "RUN386"
-						PUSH	DS
-						PUSH	DX
+DO_INTERCEPT:
+						PUSH	ES
+						PUSHA
 
 						PUSH	CS
+						POP		ES
+						CLD
+
+						; CF=0 "RUN386" included and replaced with FREE386
+						; CF=1 "RUN386" not included or buffer overflow.
+						CALL	MAKE_UP_FILE_NAME
+						JC		FALL_BACK
+
+
+						PUSH	DX
+						PUSH	DS
+
+						MOV		DX,FILENAME
+						PUSH	CS
 						POP		DS
-						MOV		DX,FREE386
-						PUSHF	; The original INT 21H will return by IRET
+
+						PUSHF	; To allow INT 21H handler to return by IRET.
 						CALL	FAR [CS:INT21H_CS_IP]
-						; FLAGS will be popped by IRET.
 
-						POP		DX
 						POP		DS
-						JB		FALL_BACK
-						IRET
+						POP		DX
 
-FALL_BACK:
+						MOV		[CS:SAVE_AX],AX
+						POPA
+						POP		ES
+
+						JNC		NO_ERR
+						MOV		AX,[CS:SAVE_AX]
+NO_ERR:					IRET
+
+
+
+FALL_BACK:				POPA
+						POP		ES
 						JMP		FAR [CS:INT21H_CS_IP]
+
+SAVE_AX					DW		0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -56,50 +81,104 @@ CAPITALIZE:				CMP		AL,'a'
 						JB		CAPITALIZE_RET
 						CMP		AL,'z'
 						JA		CAPITALIZE_RET
-						AND		AL,0FDh
+						SUB		AL,020h
 CAPITALIZE_RET:			RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-FIND_RUN386_KEYWORD:	PUSH	ES
-						PUSHA
+MAKE_UP_FILE_NAME:		PUSH	DX
+						PUSH	BX
 
-						CLD
+						MOV		SI,DX
+						MOV		DI,FILENAME
+						MOV		BL,0
+
+COPY_FILE_LOOP:			CALL	MATCH_RUN386
+						JE		NOT_REPLACE
+
+REPLACE:				MOV		BL,1
+						PUSH	DS
+						PUSH	SI
 
 						PUSH	CS
-						POP		ES
+						POP		DS
+						MOV		SI,FREE386
+						MOV		CX,11
+						REP		MOVSB
 
-FIND_RUN386_OUTER_LOOP:	MOV		SI,DX
-						INC		DX
-						CMP		BYTE PTR [SI],0
-						JE		FIND_RUN386_NOT_FOUND
+						POP		SI
+						POP		DS
 
-						MOV		DI,RUN386
-						MOV		CX,6
+						ADD		SI,10	; Skip "RUN386.???"
 
-FIND_RUN386_INNER_LOOP:	LODSB
-						CALL	CAPITALIZE
-						SCASB
-						JNE		FIND_RUN386_OUTER_LOOP
-						LOOP	FIND_RUN386_INNER_LOOP
+						CMP		DI,FILENAME_END
+						JAE		MAKE_UP_DIDNOT_REPL_OR_ERR
 
-						POPA
-						POP		ES
+NOT_REPLACE:			LODSB
+						STOSB
+						AND		AL,AL
+						JNE		COPY_FILE_LOOP
+
+						AND		BL,BL
+						JE		MAKE_UP_DIDNOT_REPL_OR_ERR
 
 						CLC
+						POP		BX
+						POP		DX
 						RET
 
-
-FIND_RUN386_NOT_FOUND:	POPA
-						POP		ES
-
+MAKE_UP_DIDNOT_REPL_OR_ERR:
 						STC
+						POP		BX
+						POP		DX
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-RUN386					DB		"RUN386"
-FREE386					TIMES 256 DB 0
+; File name must start with "RUN386." and followed by 3-letter extension.
+MATCH_RUN386:			PUSH	DI
+						PUSH	SI
+
+						MOV		DI,RUN386
+						MOV		CX,7
+MATCH_LOOP_1:			LODSB
+						CALL	CAPITALIZE
+						SCASB
+						JNE		MATCH_NOT
+						LOOP	MATCH_LOOP_1
+
+						XOR		EAX,EAX
+						MOV		CX,3
+MATCH_LOOP_2:			LODSB
+						CALL	CAPITALIZE
+						SHL		EAX,8
+						LOOP	MATCH_LOOP_2
+
+						CMP		EAX,0455845h	; 'E' 'X' 'E'
+						JE		MATCH_MATCH
+						CMP		EAX,03F3F3Fh	; '?' '?' '?'
+						JNE		MATCH_NOT
+
+MATCH_MATCH:
+						CMP		AL,AL	; ZF=1
+						POP		SI
+						POP		DI
+						RET
+
+MATCH_NOT:
+						OR		AL,0FFh	; ZF=0
+						POP		SI
+						POP		DI
+						RET
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RUN386					DB		"RUN386."
+FREE386					DB		"FREE386.COM",0
+FILENAME				TIMES	256	DB 0
+						TIMES	12	DB 0
+FILENAME_END:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 END_OF_DRIVER:
@@ -132,10 +211,6 @@ INTERRUPT16:
 						SHL		EAX,16
 						MOV		AX,INT21H_INTERCEPT
 						MOV		[4*021H],EAX
-
-
-		copy file name from the parameter to free386.... wait, how can I get the boot drive?
-
 
 						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_DRIVER
 						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
