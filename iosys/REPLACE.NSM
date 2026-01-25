@@ -1,11 +1,15 @@
-; RUN386 to FREE386 Redirector by CaptainYS (http://www.ysflight.com)
+; RUN386 to FREE386 File Redirector by CaptainYS (http://www.ysflight.com)
 
 ; Intercept INT 21H AH=4BH and redirect RUN386 to FREE386
 
 ; Usage:
-;   DEVICE=INT21EXT.SYS
-; or
-;   DEVICE=INT21EXT.SYS /A:D:\FREE386.COM
+;   DEVICE=REPLACE.SYS /P:RUN386.EXE /A:D:\FREE386.COM
+;     /P Source pattern
+;     /A Alternative
+;   Both patterns are mandatory.
+;   Alternative can be written like:
+;     /A:@:\FREE386.COM
+;   then REPLACE.SYS will interpret '@' as the current working drive at the time of installation. i.e., the boot drive.
 
 						CPU		386
 						BITS	16
@@ -33,6 +37,8 @@ INT21H_INTERCEPT:
 						JE		DO_INTERCEPT
 						CMP		AH,3DH		; FOPEN
 						JE		DO_INTERCEPT
+						CMP		AH,41H		; DELETE
+						JE		DO_INTERCEPT
 						CMP		AH,4EH		; FIND_FIRST
 						JNE		NO_REDIRECT
 
@@ -45,9 +51,9 @@ DO_INTERCEPT:
 						POP		ES
 						CLD
 
-						; CF=0 "RUN386" included and replaced with FREE386
-						; CF=1 "RUN386" not included or buffer overflow.
-						CALL	MAKE_UP_FILE_NAME
+						; CF=0 Source pattern found.
+						; CF=1 Source pattern not found.
+						CALL	FIND_MATCHING_PATTERN
 						JC		FALL_BACK
 
 
@@ -59,12 +65,7 @@ DO_INTERCEPT:
 
 						PUSH	DS
 
-						; If file is specified in the command parameter, use it.
-						MOV		DX,FILENAME
-						CMP		BYTE [CS:ALTERNATIVE],0
-						JE		ALT_FILE_SET
 						MOV		DX,ALTERNATIVE
-ALT_FILE_SET:
 						PUSH	CS
 						POP		DS
 
@@ -111,80 +112,59 @@ CAPITALIZE_RET:			RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-MAKE_UP_FILE_NAME:		PUSH	DX
+FIND_MATCHING_PATTERN:	PUSH	DX
 						PUSH	BX
 
 						MOV		SI,DX
-						MOV		DI,FILENAME
-						MOV		BL,0
 
-COPY_FILE_LOOP:			CALL	MATCH_RUN386
-						JNE		NOT_REPLACE
+FILENAME_LOOP:			CALL	MATCH_PATTERN
+						JE		FOUND_MATCHING_PATTERN
 
-REPLACE:				MOV		BL,1
-						PUSH	DS
-						PUSH	SI
-
-						PUSH	CS
-						POP		DS
-						MOV		SI,FREE386
-						MOV		CX,11
-						REP		MOVSB
-
-						POP		SI
-						POP		DS
-
-						ADD		SI,10	; Skip "RUN386.???"
-
-						CMP		DI,FILENAME_END
-						JAE		MAKE_UP_DIDNOT_REPL_OR_ERR
-
-NOT_REPLACE:			LODSB
-						STOSB
+						LODSB
 						AND		AL,AL
-						JNE		COPY_FILE_LOOP
+						JNE		FILENAME_LOOP
 
-						AND		BL,BL
-						JE		MAKE_UP_DIDNOT_REPL_OR_ERR
-
-						CLC
+; NOT_FOUND
+						STC
 						POP		BX
 						POP		DX
 						RET
 
-MAKE_UP_DIDNOT_REPL_OR_ERR:
-						STC
+FOUND_MATCHING_PATTERN:
+						CLC
 						POP		BX
 						POP		DX
 						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; File name must start with "RUN386." and followed by 3-letter extension.
-MATCH_RUN386:			PUSH	DI
+; Some programs use FIND_FIRST with RUN386.??? to find an executable, when no extension was given.
+; This driver must be able to take that input and replace with R:\FREE386.COM
+
+; Match DS:SI and ES:SOURCE_PTN
+MATCH_PATTERN:			PUSH	DI
 						PUSH	SI
 
-						MOV		DI,RUN386
-						MOV		CX,7
-MATCH_LOOP_1:			LODSB
+						MOV		DI,SOURCEPTN
+
+MATCH_LOOP:				LODSB
+
+						CMP		AL,'?'	; 
+						JNE		MATCH_NOT_WILDCARD
+; MATCH_WILDCARD:
+						INC		DI
+						JMP		MATCH_LOOP_NEXT
+
+MATCH_NOT_WILDCARD:
 						CALL	CAPITALIZE
 						SCASB
 						JNE		MATCH_NOT
-						LOOP	MATCH_LOOP_1
 
-						XOR		EAX,EAX
-						MOV		CX,3
-MATCH_LOOP_2:			SHL		EAX,8
-						LODSB
-						CALL	CAPITALIZE
-						LOOP	MATCH_LOOP_2
+MATCH_LOOP_NEXT:
+						CMP		BYTE [ES:DI],0		; Matched all the way.
+						JNE		MATCH_LOOP
 
-						CMP		EAX,0455845h	; 'E' 'X' 'E'
-						JE		MATCH_MATCH
-						CMP		EAX,03F3F3Fh	; '?' '?' '?'
-						JNE		MATCH_NOT
-
-MATCH_MATCH:
+; MATCH_DID_MATCH:
 						CMP		AL,AL	; ZF=1
 						POP		SI
 						POP		DI
@@ -199,15 +179,12 @@ MATCH_NOT:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-RUN386					DB		"RUN386."
-FREE386					DB		"FREE386.COM",0
-FILENAME				TIMES	128	DB 0
-						TIMES	12	DB 0
-FILENAME_END:
+SOURCEPTN				TIMES	64	DB 0
+SOURCEPTN_END:
 
 ; If specified by the command parameter.
-ALTERNATIVE				TIMES	128	DB 0
-ALTERNATIVE_END
+ALTERNATIVE				TIMES	64	DB 0
+ALTERNATIVE_END:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 END_OF_DRIVER:
@@ -232,13 +209,14 @@ INTERRUPT16:
 						JNE		INTERRUPT_EXIT
 
 						CALL	INIT_DRIVER
+
 INTERRUPT_EXIT:
 						RESTORE_WORLD
 						RETF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-INIT_DRIVER
+INIT_DRIVER:
 						LDS		SI,ES:[BX+REQ_INIT_CMDLINE]
 INIT_OPTION_LOOP:
 						LODSB
@@ -272,41 +250,74 @@ INIT_ERROR:
 
 INIT_OPTION_SLASH:
 						LODSB
+						CALL	CAPITALIZE
+
+						MOV		DI,SOURCEPTN
+						MOV		CX,SOURCEPTN_END-1
+						CMP		AL,'P'
+						JE		INIT_OPTION_COPY_TO_DI
+
+						MOV		DI,ALTERNATIVE
+						MOV		CX,ALTERNATIVE_END-1
 						CMP		AL,'A'
-						JE		INIT_OPTION_ALT
+						JE		INIT_OPTION_COPY_TO_DI
 
 						MOV		DX,INIT_MSG_ERROR_UNDEFINED_OPTION
 						JMP		INIT_ERROR
 
 
-INIT_OPTION_ALT:
+INIT_OPTION_COPY_TO_DI:
+						CMP		DI,CX
+						MOV		DX,INIT_MSG_ERROR_TOO_LONG
+						JAE		INIT_ERROR
+
 						LODSB
 						CMP		AL,':'
 						MOV		DX,INIT_MSG_ERROR_MISSING_COLON
 						JNE		INIT_ERROR
 
-						MOV		DI,ALTERNATIVE
-INIT_OPTION_ALT_LOOP:
+INIT_OPTION_COPY_LOOP:
 						MOV		AL,[DS:SI]
 						CMP		AL,0
-						JE		INIT_OPTION_ALT_END
+						JE		INIT_OPTION_COPY_END
 						CMP		AL,CR
-						JE		INIT_OPTION_ALT_END
+						JE		INIT_OPTION_COPY_END
 						CMP		AL,LF
-						JE		INIT_OPTION_ALT_END
+						JE		INIT_OPTION_COPY_END
 						CMP		AL,' '
-						JE		INIT_OPTION_ALT_END
+						JE		INIT_OPTION_COPY_END
 
+						CALL	CAPITALIZE
 						MOV		[CS:DI],AL
 						INC		SI
 						INC		DI
-						JMP		INIT_OPTION_ALT_LOOP
+						JMP		INIT_OPTION_COPY_LOOP
 
-INIT_OPTION_ALT_END:
+INIT_OPTION_COPY_END:
 						MOV		BYTE [CS:DI],0
 						JMP		INIT_OPTION_LOOP
 
 INIT_OPTION_END:
+
+
+						MOV		DX,INIT_MSG_ERROR_EMPTY_SOURCE_PTN
+						CMP		BYTE [CS:SOURCEPTN],0
+						JE		INIT_ERROR
+
+						MOV		DX,INIT_MSG_ERROR_EMPTY_ALT
+						CMP		BYTE [CS:ALTERNATIVE],0
+						JE		INIT_ERROR
+
+
+						; If alternative starts with '@:' replace with the current working drive.
+						CMP		WORD [CS:ALTERNATIVE],03A40h
+						JNE		ALT_NOT_CURRENT_DRIVE
+
+						MOV		AH,19H
+						INT		21H
+						ADD		AL,'A'
+						MOV		[CS:ALTERNATIVE],AL
+ALT_NOT_CURRENT_DRIVE:
 
 
 						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
@@ -330,5 +341,8 @@ INIT_OPTION_END:
 INIT_MSG_ERROR_IN_PARAM			DB	"Error in the command option.$",0
 INIT_MSG_ERROR_UNDEFINED_OPTION	DB	"Error: Undefined option.$",0
 INIT_MSG_ERROR_MISSING_COLON	DB	"Error: Missing colon after the option.$",0
+INIT_MSG_ERROR_TOO_LONG			DB	"Error: Option too long.$",0
+INIT_MSG_ERROR_EMPTY_SOURCE_PTN	DB	"Error: Source pattern is not specified.$",0
+INIT_MSG_ERROR_EMPTY_ALT		DB	"Error: Alternative file is not specified.$",0
 
 END_OF_MINVCPI:			DB		"FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
