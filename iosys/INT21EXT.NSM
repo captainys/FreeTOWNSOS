@@ -2,6 +2,10 @@
 
 ; Intercept INT 21H AH=4BH and redirect RUN386 to FREE386
 
+; Usage:
+;   DEVICE=INT21EXT.SYS
+; or
+;   DEVICE=INT21EXT.SYS /A:D:\FREE386.COM
 
 						CPU		386
 						BITS	16
@@ -55,7 +59,12 @@ DO_INTERCEPT:
 
 						PUSH	DS
 
+						; If file is specified in the command parameter, use it.
 						MOV		DX,FILENAME
+						CMP		BYTE [CS:ALTERNATIVE],0
+						JE		ALT_FILE_SET
+						MOV		DX,ALTERNATIVE
+ALT_FILE_SET:
 						PUSH	CS
 						POP		DS
 
@@ -192,12 +201,19 @@ MATCH_NOT:
 
 RUN386					DB		"RUN386."
 FREE386					DB		"FREE386.COM",0
-FILENAME				TIMES	256	DB 0
+FILENAME				TIMES	128	DB 0
 						TIMES	12	DB 0
 FILENAME_END:
 
+; If specified by the command parameter.
+ALTERNATIVE				TIMES	128	DB 0
+ALTERNATIVE_END
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 END_OF_DRIVER:
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 STRATEGY16:
 						MOV		CS:[REQ_HEADER],BX
@@ -215,6 +231,84 @@ INTERRUPT16:
 						CMP		AL,DEVREQ_CMD_INIT
 						JNE		INTERRUPT_EXIT
 
+						CALL	INIT_DRIVER
+INTERRUPT_EXIT:
+						RESTORE_WORLD
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INIT_DRIVER
+						LDS		SI,ES:[BX+REQ_INIT_CMDLINE]
+INIT_OPTION_LOOP:
+						LODSB
+						CMP		AL,'/'
+						JE		INIT_OPTION_SLASH
+						CMP		AL,' '
+						JE		INIT_OPTION_LOOP
+						CMP		AL,TAB
+						JE		INIT_OPTION_LOOP
+						CMP		AL,CR
+						JE		INIT_OPTION_END
+						CMP		AL,LF
+						JE		INIT_OPTION_END
+						CMP		AL,0
+						JE		INIT_OPTION_END
+
+						MOV		DX,INIT_MSG_ERROR_IN_PARAM
+
+; Input DX=Message
+INIT_ERROR:
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],0
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
+						PUSH	CS
+						POP		DS
+						MOV		AH,9
+						INT		21H
+						RET
+
+
+INIT_OPTION_SLASH:
+						LODSB
+						CMP		AL,'A'
+						JE		INIT_OPTION_ALT
+
+						MOV		DX,INIT_MSG_ERROR_UNDEFINED_OPTION
+						JMP		INIT_ERROR
+
+
+INIT_OPTION_ALT:
+						LODSB
+						CMP		AL,':'
+						MOV		DX,INIT_MSG_ERROR_MISSING_COLON
+						JNE		INIT_ERROR
+
+						MOV		DI,ALTERNATIVE
+INIT_OPTION_ALT_LOOP:
+						MOV		AL,[DS:SI]
+						CMP		AL,0
+						JE		INIT_OPTION_ALT_END
+						CMP		AL,CR
+						JE		INIT_OPTION_ALT_END
+						CMP		AL,LF
+						JE		INIT_OPTION_ALT_END
+						CMP		AL,' '
+						JE		INIT_OPTION_ALT_END
+
+						MOV		[CS:DI],AL
+						INC		SI
+						INC		DI
+						JMP		INIT_OPTION_ALT_LOOP
+
+INIT_OPTION_ALT_END:
+						MOV		BYTE [CS:DI],0
+						JMP		INIT_OPTION_LOOP
+
+INIT_OPTION_END:
+
+
 						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
 
 						XOR		AX,AX
@@ -231,8 +325,10 @@ INTERRUPT16:
 						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_DRIVER
 						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
 
-INTERRUPT_EXIT:
-						RESTORE_WORLD
-						RETF
+						RET
+
+INIT_MSG_ERROR_IN_PARAM			DB	"Error in the command option.$",0
+INIT_MSG_ERROR_UNDEFINED_OPTION	DB	"Error: Undefined option.$",0
+INIT_MSG_ERROR_MISSING_COLON	DB	"Error: Missing colon after the option.$",0
 
 END_OF_MINVCPI:			DB		"FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
