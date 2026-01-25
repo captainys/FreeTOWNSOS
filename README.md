@@ -178,9 +178,60 @@ For example, CD-ROM BIOS INT 93H AH=54H, Read TOC, takes DS:DI as the data buffe
 
 
 
+# RAMDRIVE.SYS
+本家Towns OSにはRAMDRIVE機能があります。あればそれなりに便利な機能なので、津軽OSでも使えるようにしてみました。
+
+起動ディスクイメージに```RAMDRIVE.SYS```をコピーして、CONFIG.SYSに以下の行を追加すると使えます。
+
+```
+device=RAMDRIVE.SYS /L:R /S:24
+```
+
+```/L:```はRAMドライブのドライブレターで、この例だとRドライブがRAMDRIVEになります。```/S:```はサイズの指定で、キロバイト単位で指定します。
+
+You can use RAM Drive in the original Towns OS.  RAMDRIVE is available in the Tsugaru OS as well.
+
+You can copy ```RAMDRIVE.SYS``` to your disk image, and add the following line in ```CONFIG.SYS```.
+
+```
+device=RAMDRIVE.SYS /L:R /S:24
+```
+
+```/L:``` specifies the drive letter.  In this example, RAM drive will be R drive.  ```/S:``` specfies the size in kilobytes.
+
+
+
+
+# REPLACE.SYS
+FM TOWNS用ゲームの一部には、バッチファイルから起動するものがあります。そして、そのようなバッチファイルでは、よくRUN386.EXEを使用しているものがあります。困るのは、ゲームが、QドライブにRUN386.EXEが存在することを前提としている場合です。
+
+津軽OSは、nabe-abkさん作のFREE386.COMをRUN386.COMの代わりに使うので、RUN386.EXEはありません。津軽OS用にFREE386.COMを使うバージョンのバッチファイルも作れば済む話ですが、フリーゲームの作者としては、わざわざ津軽OS用のアーカイブと本家Towns OS用のアーカイブを別に用意したくは無いでしょう。
+
+この問題は、REPLACE.SYSで解決することができます。例えば、フロッピーディスクイメージでAドライブから起動する場合、REPLACE.SYSをディスクイメージに書き込み、CONFIG.SYSの先頭付近に、
+
+```
+device=REPLACE.SYS /P:RUN386.EXE /A:@:\FREE386.COM
+```
+
+このように書くと、```RUN386.EXE```を実行しようとしたとき、```REPLACE.SYS```が代わりに```FREE386.COM```を実行します。```/P:```は、ファイル名のパターンを指定、```/A:```は、代わりに使用するファイル名を指定します。```@```は、起動ドライブという意味です。
+
+
+Some FM TOWNS games start from a batch file.  Many of such batch files use RUN386.EXE.  It may be a problem if the game assumes RUN386.EXE exists in Q drive.
+
+Tsugaru OS uses FREE386.COM developed by nabe-abk instead of RUN386.EXE, therefore RUN386.EXE does not exist.  Although it is just a matter of writing a separate batch file for Tsugaru OS, but from a free-game developer point of view, nobody wants to maintain two versions of batch files.
+
+REPLACE.SYS can solve such a problem.  For example, copy REPLACE.SYS to your boot floppy disk image and add the following line in CONFIG.SYS.
+```
+device=REPLACE.SYS /P:RUN386.EXE /A:@:\FREE386.COM
+```
+Then, when the batch file tries to start ```RUN386.EXE```, REPLACE.SYS will intevene and start ```FREE386.COM``` instead.
+
+```/P:``` specfies the pattern to look for, and ```/A:``` specifies the alternative file name.  ```@``` means the boot drive.
 
 
 # History
+01/25/2026  Added REPLACE.SYS to redirect RUN386 to FREE386.
+
 10/04/2024  Thanks to the great contribution from BCC and Ryu Takegami, VSGP and PANIC BALL 2 and Sky Duel are playable on the TSUGARU OS.
 
 09/06/2024  Can start TGDRV and ORICON.  Support INT AEH, limited functions of INT 90H, INT 93H, and DOS devices.

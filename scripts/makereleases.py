@@ -20,6 +20,8 @@ def Run(argv):
 		"SYSXXXX0.COM",
 		"TGBIOS.SYS",
 		"TGBIOS.BIN",
+		"RAMDRIVE.SYS",
+		"REPLACE.SYS",
 		"FD_IPL.BIN",
 		"FDIMG.BIN",
 		"RUNNERFD.BIN",
