@@ -1,0 +1,147 @@
+; RUN386 to FREE386 Redirector by CaptainYS (http://www.ysflight.com)
+
+; Intercept INT 21H AH=4BH and redirect RUN386 to FREE386
+
+
+						CPU		386
+						BITS	16
+
+						%INCLUDE "UTIL.NSM"
+						%INCLUDE "DEF.NSM"
+						%INCLUDE "TOWNSDEF.NSM"
+
+
+						DD      0FFFFFFFFh                  ; SYSDEV_NEXT
+						DW      SYSDEV_DEVFLAG_IS_CHARDEV   ; SYSDEV_DEVFLAGS
+STRATEGY_PTR			DW      STRATEGY16                  ; SYSDEV_STRATEGY
+INTERRUPT_PTR			DW      INTERRUPT16                 ; SYSDEV_INTERRUPT
+DRIVER_NAME				DB      "********"
+
+INT21H_CS_IP			DD		0
+
+REQ_HDR					DD		0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+						BITS	16
+INT21H_INTERCEPT:
+						CMP		AH,4BH		; Load or Exec
+						JNE		FALL_BACK
+
+						CALL	FIND_RUN386_KEYWORD
+						JC		FALL_BACK
+
+						; The file name includes "RUN386"
+						PUSH	DS
+						PUSH	DX
+
+						PUSH	CS
+						POP		DS
+						MOV		DX,FREE386
+						PUSHF	; The original INT 21H will return by IRET
+						CALL	FAR [CS:INT21H_CS_IP]
+						; FLAGS will be popped by IRET.
+
+						POP		DX
+						POP		DS
+						JB		FALL_BACK
+						IRET
+
+FALL_BACK:
+						JMP		FAR [CS:INT21H_CS_IP]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CAPITALIZE:				CMP		AL,'a'
+						JB		CAPITALIZE_RET
+						CMP		AL,'z'
+						JA		CAPITALIZE_RET
+						AND		AL,0FDh
+CAPITALIZE_RET:			RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+FIND_RUN386_KEYWORD:	PUSH	ES
+						PUSHA
+
+						CLD
+
+						PUSH	CS
+						POP		ES
+
+FIND_RUN386_OUTER_LOOP:	MOV		SI,DX
+						INC		DX
+						CMP		BYTE PTR [SI],0
+						JE		FIND_RUN386_NOT_FOUND
+
+						MOV		DI,RUN386
+						MOV		CX,6
+
+FIND_RUN386_INNER_LOOP:	LODSB
+						CALL	CAPITALIZE
+						SCASB
+						JNE		FIND_RUN386_OUTER_LOOP
+						LOOP	FIND_RUN386_INNER_LOOP
+
+						POPA
+						POP		ES
+
+						CLC
+						RET
+
+
+FIND_RUN386_NOT_FOUND:	POPA
+						POP		ES
+
+						STC
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RUN386					DB		"RUN386"
+FREE386					TIMES 256 DB 0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+END_OF_DRIVER:
+
+STRATEGY16:
+						MOV		CS:[REQ_HEADER],BX
+						MOV		CS:[REQ_HEADER+2],ES
+						RETF
+
+INTERRUPT16:
+						SAVE_WORLD
+
+						LES		BX,CS:[REQ_HEADER]
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_ERROR
+
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JNE		INTERRUPT_EXIT
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR
+
+						XOR		AX,AX
+						MOV		DS,AX
+
+						MOV		EAX,[4*021H]
+						MOV		CS:[INT21H_CS_IP],EAX
+
+						MOV		AX,CS
+						SHL		EAX,16
+						MOV		AX,INT21H_INTERCEPT
+						MOV		[4*021H],EAX
+
+
+		copy file name from the parameter to free386.... wait, how can I get the boot drive?
+
+
+						MOV		WORD ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN],END_OF_DRIVER
+						MOV		ES:[BX+REQ_INIT_END_OF_RESIDENT_CODE_RETURN+2],CS
+
+INTERRUPT_EXIT:
+						RESTORE_WORLD
+						RETF
+
+END_OF_MINVCPI:			DB		"FM-series forever! (Excluding FM-V.  I don't care FM-V.)",0
