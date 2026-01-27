@@ -111,10 +111,23 @@ CONDEV_FLUSH_INPUT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 CONDEV_WRITE:
-						; Just for test. Always write "A\n"
 						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
 						MOV		AL,DS:[DI]
 						MOV		AH,1DH	; Console BIOS 1-char Output
 						INT		91H
+
+						CALL	IS_IN_TSUGARU
+						AND		AH,AH
+						JE		CONDEV_INTERRUPT_RETURN
+
+						MOV		DX,TOWNSIO_VM_HOST_IF_CMD_STATUS
+						MOV		AL,TOWNS_VMIF_CMD_GET_VMFLAGS
+						OUT		DX,AL	; Writing TOWNS_VMIF_CMD_GET_VMFLAGS to TOWNSIO_VM_HOST_IF_CMD_STATUS will copy VMFlags to EAX.
+						AND		AL,TOWNS_VMFLAGS_CONSOLE
+						JE		CONDEV_INTERRUPT_RETURN
+
+						MOV		AL,DS:[DI]
+						OUT		TOWNSIO_HOST_CONSOLE,AL
+
 						JMP		CONDEV_INTERRUPT_RETURN
 

@@ -1,0 +1,69 @@
+TOWNSIO_HOST_CONSOLE	EQU		0E9h	; Direct console input/output to the host.  Apparently DOS emulators use this I/O for this purpose.
+
+TOWNSIO_VM_HOST_IF_CMD_STATUS	EQU		02386h
+TOWNSIO_VM_HOST_IF_DATA			EQU		02387h
+
+
+
+TOWNS_VMIF_CMD_NOP           	EQU		000h
+TOWNS_VMIF_CMD_CAPTURE_CRTC  	EQU		001h ; Capture CRTC. Followed by two bytes mode0, and mode1.
+TOWNS_VMIF_CMD_PAUSE         	EQU		002h ; Pause VM
+TOWNS_VMIF_CMD_EXIT_VM       	EQU		003h ; Exit the VM.  Return code taken from the data queu.
+
+TOWNS_VMIF_CMD_FILE_RXRDY    	EQU		004h ; File Transfer Ready to Read (Ready to receive data in Sprite RAM)
+TOWNS_VMIF_CMD_FILE_ACK      	EQU		005h ; File Transfer
+TOWNS_VMIF_CMD_FILE_TXRDY    	EQU		006h ; File Transfer Ready to Send (Data is in Sprite RAM)
+
+TOWNS_VMIF_CMD_NOTIFY_DOSSEG 	EQU		007h ; Capture CS as DOSSEG
+TOWNS_VMIF_CMD_NOTIFY_DOSVER 	EQU		008h ; Capture DOS Version.  Use it after MOV AH,30H  ->  INT 21H  ->  MOV BX,AX
+TOWNS_VMIF_CMD_NOTIFY_DOSLOL 	EQU		009h ; Capture DOS List of Lists, not DOS Laugh Out Loud.  Also updates DOSSEG (supposed to be the same)
+
+TOWNS_VMIF_CMD_NOTIFY_MOUSE  	EQU		00Ah ; Notify Mouse Position
+
+TOWNS_VMIF_CMD_BYTE_VM_TO_HOST	EQU		00Bh; Send byte to the host.  Write to data register then write this command.
+
+TOWNS_VMIF_CMD_CAPTURE_FM_FNUM	EQU		00Ch ; Capture F-Number of YM2612 Ch0.
+TOWNS_VMIF_CMD_CAPTURE_FM_TL  	EQU		00Dh ; Capture TL of YM2612 Ch0 Slot 4
+
+TOWNS_VMIF_CMD_GET_VMFLAGS    	EQU		00Eh ; Capture VM control flags in EAX.
+
+
+
+TOWNS_VMFLAGS_CONSOLE			EQU		1
+
+
+
+; Return:
+;   AH=0  Not in Tsugaru
+;   AH=1  In Tsugaru
+IS_IN_TSUGARU:
+						PUSH	DX
+						PUSH	AX
+
+						MOV		DX,2F10H ; VNDRV Tsugaru Check
+						MOV		AX,0F0FH
+						OUT		DX,AX
+
+						IN		AX,DX    ; Supposed to return NOT of the last written value.
+						CMP		AX,0F0F0H
+						JNE		IS_NOT_IN_TSUGARU
+
+						MOV		AX,5555H ; 0101010101010101b
+						OUT		DX,AX
+
+						IN		AX,DX
+						CMP		AX,0AAAAH ; 1010101010101010b
+						JNE		IS_NOT_IN_TSUGARU
+
+						POP		AX
+						POP		DX
+
+						MOV		AH,01H
+						RET
+
+IS_NOT_IN_TSUGARU:
+						POP		AX
+						POP		DX
+
+						MOV		AH,00H
+						RET
