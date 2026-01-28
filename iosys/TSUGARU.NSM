@@ -26,7 +26,7 @@ TOWNS_VMIF_CMD_CAPTURE_FM_FNUM	EQU		00Ch ; Capture F-Number of YM2612 Ch0.
 TOWNS_VMIF_CMD_CAPTURE_FM_TL  	EQU		00Dh ; Capture TL of YM2612 Ch0 Slot 4
 
 TOWNS_VMIF_CMD_GET_VMFLAGS    	EQU		00Eh ; Capture VM control flags in EAX.
-
+TOWNS_VMIF_CMD_RELEASE_CONSOLE_CMD	EQU	00Fh ; Send console command to auto-typing.
 
 
 TOWNS_VMFLAGS_CONSOLE			EQU		1
