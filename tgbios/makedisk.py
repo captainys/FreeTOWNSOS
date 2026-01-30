@@ -34,21 +34,25 @@ def Run(argv):
 		print("Error bulding IO.SYS")
 		quit()
 
-
 	proc=subprocess.Popen([
-		"Tsugaru_CUI",
+		"Tsugaru_Headless",
 		os.path.join(THISDIR,"..","CompROM"),
 		"-FD0",
-		os.path.join(THISDIR,"..","make_build_env","BUILDTGBIOS.bin"),
+		os.path.join(THISDIR,"..","resources","RUNNERFD.bin"),
 		"-BOOTKEY",
 		"F0",
-		"-SHAREDDIR",
+		"-TGDRV",
 		os.path.join(THISDIR,"..","..","HC386ENV"),
-		"-SHAREDDIR",
+		"-TGDRV",
 		THISDIR,
-		"-DEBUG",
+		"-FREQ","100",
+		# "-DEBUG",
 		"-UNITTEST",
 		"-DONTUSEFPU",	# Let High-C use no-fpu mode.
+		"-VMFLAG", "CONSOUT", # Automatic in Tsugaru_Headless.  Needed if Tsugaru_CUI is used.
+		"-conscmd","D:\AUTOEXEC.BAT",
+		"-conscmd","E:",
+		"-conscmd","TASK.BAT"
 	])
 	proc.communicate()
 	if 0!=proc.returncode:
@@ -171,7 +175,7 @@ def Run(argv):
 		"-i",		"../resources/RUNNERFD/CONFIG.SYS",
 		"-i",		"../resources/RUNNERFD/AUTOEXEC.BAT",
 		"-i",		"../resources/TGDRV.COM",
-		"-i",		"../resources/TGCONS.SYS",
+		# "-i",		"../resources/TGCONS.SYS",  # No Longer Used
 		"-i",		"../resources/FORCE31K.COM",
 		"-i",		"../resources/MINVCPI.SYS",
 		"-i",		"../resources/FAKENSDD.SYS",
@@ -179,7 +183,7 @@ def Run(argv):
 		"-i",		"../resources/REPLACE.SYS",
 		"-i",		"../resources/SUCCESS.EXE",
 		"-i",		"../resources/FAIL.EXE",
-		"-i",		"../externals/ORICON/ORICON.COM",
+		# "-i",		"../externals/ORICON/ORICON.COM", # Not used in the RUNNERFD
 		"-i",		"../externals/Free386/free386.com",
 		"-i",		"TGBIOS.SYS",
 		"-i",		"TGBIOS.BIN",

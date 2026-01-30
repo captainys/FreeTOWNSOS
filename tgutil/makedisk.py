@@ -30,19 +30,24 @@ def Run(argv):
 		os.makedirs("BUILD")
 
 	proc=subprocess.Popen([
-		"Tsugaru_CUI",
+		"Tsugaru_Headless",
 		os.path.join(THISDIR,"..","CompROM"),
 		"-FD0",
-		os.path.join(THISDIR,"..","make_build_env","BUILDTGBIOS.bin"),
+		os.path.join(THISDIR,"..","resources","RUNNERFD.bin"),
 		"-BOOTKEY",
 		"F0",
-		"-SHAREDDIR",
+		"-TGDRV",
 		os.path.join(THISDIR,"..","..","HC386ENV"),
-		"-SHAREDDIR",
+		"-TGDRV",
 		THISDIR,
+		"-FREQ","100",
 		"-DEBUG",
 		#"-UNITTEST",
 		"-DONTUSEFPU",	# Let High-C use no-fpu mode.
+		"-VMFLAG", "CONSOUT", # Automatic in Tsugaru_Headless.  Needed if Tsugaru_CUI is used.
+		"-conscmd","D:\AUTOEXEC.BAT",
+		"-conscmd","E:",
+		"-conscmd","TASK.BAT"
 	])
 	proc.communicate()
 	if 0!=proc.returncode:
