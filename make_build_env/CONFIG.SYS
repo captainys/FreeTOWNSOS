@@ -1,4 +1,0 @@
-device=TGCONS.SYS
-shell=A:\YAMAND.COM A:\ /E:80 /P
-files=10
-device=MINVCPI.SYS
