@@ -33,7 +33,7 @@ def Run(argv):
 		"Tsugaru_Headless",
 		os.path.join(THISDIR,"..","CompROM"),
 		"-FD0",
-		os.path.join(THISDIR,"..","resources","RUNNERFD.bin"),
+		os.path.join(THISDIR,"..","buildenv","RUNNERFD.bin"),
 		"-BOOTKEY",
 		"F0",
 		"-TGDRV",
@@ -47,6 +47,7 @@ def Run(argv):
 		"-VMFLAG", "CONSOUT", # Automatic in Tsugaru_Headless.  Needed if Tsugaru_CUI is used.
 		"-conscmd","D:\AUTOEXEC.BAT",
 		"-conscmd","E:",
+		"-conscmd","SET PATH=A:\;%PATH%", # Just in case
 		"-conscmd","TASK.BAT"
 	])
 	proc.communicate()
