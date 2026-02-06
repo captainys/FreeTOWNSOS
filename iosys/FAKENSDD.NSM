@@ -354,6 +354,8 @@ INT8E_INTERCEPT:
 						JE		INT8E_C207_REGIST_CALL32PROC
 						CMP		AX,0C103H
 						JE		INT8E_C103_GET_NSD
+						CMP		AX,0C003H
+						JE		INT8E_C003_GET_INSTALLED_DRIVERS
 
 						CMP		AX,0CF00H
 						JE		INT8E_CF00_UNKNOWN
@@ -401,7 +403,7 @@ INT8E_C000_INST_CHECK:
 ;             If buffer size>=16KB  CX=Buffer Size divided by 16KB, ESI=0FFFF0000H  Buffer size needs to be 16KB*N
 ;             Else                  CX=1  ESI=Only low xx bits are 0, where the buffer size is xxKB.
 INT8E_C10C_REGIST_CALLBUF:
-						TSUGARU_STATE
+						; TSUGARU_STATE
 
 						SAVE_WORLD
 
@@ -434,7 +436,7 @@ INT8E_C10C_REGIST_CALLBUF_EXIT:
 ;   AX=C207H Register Call32 Proc
 ;     Input DX:BX=CS:IP
 INT8E_C207_REGIST_CALL32PROC:
-						TSUGARU_STATE
+						; TSUGARU_STATE
 						MOV		CS:[CALL32PROC],BX
 						MOV		CS:[CALL32PROC+2],DX
 						XOR		AH,AH
@@ -460,7 +462,7 @@ INT8E_C207_REGIST_CALL32PROC:
 ;         WORD DS:[8] will be Interrupt entry.
 ;       Inherits the DOS Device-Driver structure.
 INT8E_C103_GET_NSD:
-						TSUGARU_STATE
+						; TSUGARU_STATE
 						JCXZ	INT8E_C103_GET_NSD_ZERO
 
 INT8E_C103_GET_NSD_NOT_ZERO:
@@ -502,6 +504,24 @@ INT8E_C103_GET_NSD_ZERO:
 						AND		BYTE [BP+6],0FEH
 						POP		BP
 						IRET
+
+
+; AX=C003H
+;   Input  AX=C003h
+;   Output
+;     BX=10h
+;       According to https://github.com/nabe-abk/free386/blob/main/doc-ja/dosext/coco_nsd.txt, it says 10h/number of drivers, but maybe 10h*number of drivers?
+;       Anyway, FAKENSDD supports only one driver.
+;     CX=Number of NSDD drivers installed.
+;     DX=1 (?)
+INT8E_C003_GET_INSTALLED_DRIVERS:
+						MOV		BX,10H
+						MOV		CX,1  ; FAKENSDD supports only one driver.
+						MOV		DX,1
+						XOR		AH,AH
+						IRET
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 FAKENSDD_LOGO:			DB		"FAKE FORRBIOS.NSD Driver by CaptainYS (http://www.ysflight.com)",0Dh,0Ah,'$',0
