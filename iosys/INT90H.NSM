@@ -147,9 +147,11 @@ INT41H_DATA_IS_SECOND_BYTE:
 						MOV		CH,1
 						SHL		CH,CL
 
+						CMP		AH,0F0H
+						JAE		IS_KEY_PRESS	; Repeat. See Red Book pp.234
 						TEST	AH,010H
 						JNE		INT41H_DATA_IS_KEY_RELEASE
-; IS_KEY_PRESS:
+IS_KEY_PRESS:
 						OR		CS:[KEY_MATRIX+BX],CH
 
 						; Do not push a key that does not make a chr if encode mode.
