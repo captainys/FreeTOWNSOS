@@ -45,6 +45,9 @@ int main(int ac,char *av[])
 				{
 				}
 				_outp(0x200,0x00); // Tried to see if a FDC command clears the DSKCHG bit.  It didn't.
+				while(0!=(_inp(0x200)&1))
+				{
+				}
 			}
 		}
 		printf("\n");
