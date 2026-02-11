@@ -1,0 +1,22 @@
+#ifndef EGBCONST_IS_NOT_INCLUDED
+#define EGBCONST_IS_NOT_INCLUDED
+
+#define EGB_FOREGROUND_COLOR 0
+#define EGB_BACKGROUND_COLOR 1
+#define EGB_FILL_COLOR 2
+#define EGB_TRANSPARENT_COLOR 3
+
+#define EGB_PSET 0
+#define EGB_PRESET 1
+#define EGB_OR 2
+#define EGB_AND 3
+#define EGB_XOR 4
+#define EGB_NOT 5
+#define EGB_MATTE 6
+#define EGB_PASTEL 7
+#define EGB_OPAQUE 9
+#define EGB_MASKSET 13
+#define EGB_MASKRESET 14
+#define EGB_MASKNOT 15
+
+#endif
