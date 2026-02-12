@@ -19,10 +19,14 @@ CODE					SEGMENT	USE16
 						ORG		0100H
 
 PSP_ENVSEG				EQU		02CH
+PSP_FCB1				EQU		05CH
+PSP_FCB2				EQU		06CH
+
 
 STACK_PTR:
 
 MAIN:
+						CLI
 						CLD			; Don't touch it.
 
 						PUSH	CS
@@ -35,9 +39,15 @@ MAIN:
 						POP		SS
 						MOV		SP,OFFSET STACK_PTR
 
-						MOV		DX,OFFSET DOSDTA
-						MOV		AH,1AH		; Set Disk Transfer Area
+						MOV		BX,OFFSET END_OF_PROGRAM
+						ADD		BX,000FH
+						SHR		BX,4
+						MOV		AH,4AH	; Resize memory block.  Resize self.
 						INT		21H
+
+						STI
+
+
 
 						MOV		AH,62H		; Get Current PSP
 						INT		21H
@@ -67,13 +77,54 @@ MAIN:
 						MOV		AH,60H		; DOS TRUE NAME
 						INT		21H
 
-						TSUGARU_BREAK
 
+MAIN_LOOP:
+						TSUGARU_BREAK
 						CALL	FIND_FREE386_OR_RUN386
+						JC		EXIT_PROGRAM
+
+						; DS:DX is FREE386 or RUN386 full-path file name.
+						PUSH	DX
+
+						MOV		DI,OFFSET EXE_PARAM+1
+						MOV		SI,OFFSET TGMENU_EXP
+						CALL	STRCPY
+
+						MOV		WORD PTR ES:[DI-1],' '
+
+						MOV		DX,CS
+						CALL	USTOX
+						MOV		BYTE PTR [DI+4],' '
+						MOV		DX,OFFSET DOSXCALLBUF
+						ADD		DI,5
+						CALL	USTOX
+						MOV		BYTE PTR [DI+4],0
+
+						; DI=DI+4-(EXE_PARAM+1)=DI-(EXE_PARAM-3)
+						SUB		DI,OFFSET EXE_PARAM-3
+						MOV		BX,DI
+						MOV		CS:[EXE_PARAM],BL
+
+						MOV		CS:[ENVSEG_COPY],GS
+
+						MOV		WORD PTR CS:[EXE_PARAM_PTR],OFFSET EXE_PARAM
+						MOV		WORD PTR CS:[EXE_PARAM_PTR+2],CS
+
+						MOV		WORD PTR CS:[EXE_FIRST_FCB],PSP_FCB1
+						MOV		WORD PTR CS:[EXE_FIRST_FCB+2],CS
+
+						MOV		WORD PTR CS:[EXE_SECOND_FCB],PSP_FCB2
+						MOV		WORD PTR CS:[EXE_SECOND_FCB+2],CS
+
+						MOV		BX,OFFSET EXE_PARAM_BLOCK
+						POP		DX		; From FIND_FREE386_OR_RUN386
+						MOV		AX,4B00H
+						INT		21H
 
 						TSUGARU_BREAK
 
 
+EXIT_PROGRAM:
 						MOV		AH,4CH		; Exit
 						INT		21H
 
@@ -170,6 +221,10 @@ FOUND_ENV_VAR:
 ; Return:
 ;   DS:DX  Exe file name.
 FIND_FREE386_OR_RUN386:
+						MOV		DX,OFFSET DOSDTA
+						MOV		AH,1AH		; Set Disk Transfer Area  Needed for FIND_FIRST
+						INT		21H			; May change after calling an executable.
+
 						MOV		AX,4E00H	; FIND_FIRST
 						XOR		CX,CX		; attrib
 						MOV		DX,OFFSET FREE386_COM
@@ -259,6 +314,10 @@ FIND_EXE_FROM_PATH_APPEND_LOOP:
 						JNE		FIND_EXE_FROM_PATH_APPEND_LOOP
 
 						PUSH	DX
+						MOV		DX,OFFSET DOSDTA
+						MOV		AH,1AH		; Set Disk Transfer Area  Needed for FIND_FIRST
+						INT		21H			; May change after calling an executable.
+
 						MOV		AX,4E00H	; FIND_FIRST
 						XOR		CX,CX		; attrib
 						MOV		DX,OFFSET EXE_FILE
@@ -285,6 +344,53 @@ FIND_EXE_FROM_PATH_NOT_FOUND:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+NIBBLETOX:
+						CMP		AL,10
+						JAE		NIBBLE_A_TO_F
+						ADD		AL,'0'
+						RET
+NIBBLE_A_TO_F:
+						ADD		AL,'A'-10
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Unsigned Short to Hex
+; Input:
+;   DX
+;   DS:DI Location of Hex string
+;   DX will be destroyed.
+;   DI is preserved.
+USTOX:
+						MOV		BX,3
+USTOXLOOP:
+						MOV		AL,DL
+						AND		AL,0FH
+						CALL	NIBBLETOX
+						MOV		DS:[DI+BX],AL
+						SHR		DX,4
+						DEC		BX
+						JNS		USTOXLOOP
+
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Input:
+;	DS:SI SRC
+;   ES:DI DST
+; Output
+;   DS:SI After \0 of SRC
+;   ES:DI After \0 of DST
+STRCPY:
+						LODSB
+						STOSB
+						CMP		AL,0
+						JNE		STRCPY
+						RET
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 CUR_DRV					DB		0
 OWN_DRV					DB		0
 
@@ -300,9 +406,23 @@ FREE386_COM				DB		80 dup(0)
 RUN386_SRC				DB		"RUN386.EXE",0
 RUN386_EXE				DB		80 dup(0)
 
-EXE_FILE				DB		80 dup(0)
-
 DOSDTA					DB		80 dup(0)
+
+EXE_PARAM_BLOCK:
+ENVSEG_COPY				DW		0			; Leave zero to use this process's ENVSEG
+EXE_PARAM_PTR			DD		0
+EXE_FIRST_FCB			DD		0
+EXE_SECOND_FCB			DD		0
+						DD		0			; Usage unknown
+						DD		0			; Usage unknown
+
+DOSXCALLBUF				DB		0			; What to do
+EXE_FILE				DB		80 dup(0); Command file name
+EXE_PARAM				DB		80 dup(0)	; 
+
+
+
+END_OF_PROGRAM:
 
 CODE					ENDS
 						END		MAIN
