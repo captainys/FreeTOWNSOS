@@ -1,7 +1,7 @@
 #ifndef MACRO_H_IS_INCLUDED
 #define MACRO_H_IS_INCLUDED
 
-#define TSUGARU_BREAK _inline(0xE6,0xEA);
+#define TSUGARU_BREAK(i) _outd(0xEA,(i));
 #define TSUGARU_STATE _inline(0xE6,0xEB);
 
 #define _PUSHFD _inline(0x9C);

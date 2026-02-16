@@ -25,7 +25,7 @@ void EGB_TEXTDIRECTION(
 	work->fontRotation=AL;
 	if(0!=AL)
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -49,7 +49,7 @@ void EGB_TEXTDISPLAYDIRECTION(
 	work->stringRotation=AL;
 	if(0!=AL)
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
@@ -927,7 +927,7 @@ void EGB_CONNECTSJISSTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -945,7 +945,7 @@ void EGB_ASCIISTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -963,7 +963,7 @@ void EGB_CONNECTASCIISTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -981,7 +981,7 @@ void EGB_JISSTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -999,7 +999,7 @@ void EGB_CONNECTJISSTRING(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1017,6 +1017,6 @@ void EGB_ANYCHAR(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }

@@ -539,14 +539,14 @@ void EGB_RESOLUTION(
 			}
 			else
 			{
-				TSUGARU_BREAK;
+				TSUGARU_BREAK(__LINE__);
 				EGB_SetError(EAX,EGB_GENERAL_ERROR);
 			}
 		}
 	}
 	else if(0x80<=AL && AL<=0x83)
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 	else
 	{
@@ -1337,7 +1337,7 @@ void EGB_TILEPATTERN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1355,7 +1355,7 @@ void EGB_0FH_MASKREGION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1377,7 +1377,7 @@ void EGB_10H_MASK(
 
 	if(EAX&2)
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 	if(0==(EAX&0x80))
 	{
@@ -1418,7 +1418,7 @@ void EGB_PEN(
 	work->pen=AL;
 	if(0x80&AL)
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 
 	EGB_SetError(EAX,EGB_NO_ERROR);
@@ -1447,7 +1447,7 @@ void EGB_PENSIZE(
 		EGB_SetError(EAX,EGB_NO_ERROR);
 		if(1<AL)
 		{
-			TSUGARU_BREAK;
+			TSUGARU_BREAK(__LINE__);
 		}
 	}
 	else
@@ -1470,7 +1470,7 @@ void EGB_PENSTYLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1488,7 +1488,7 @@ void EGB_MASKBIT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1506,7 +1506,7 @@ void EGB_SUPERIMPOSE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1524,7 +1524,7 @@ void EGB_DIGITIZE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1542,7 +1542,7 @@ void EGB_RESOLUTION_BY_HANDLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -1683,7 +1683,7 @@ unsigned char EGB_GETBLOCK1BIT_INTERNAL(
 		if(1==scrnMode->bitsPerPixel)
 		{
 			// I'll come back when someone do it.
-			TSUGARU_BREAK;
+			TSUGARU_BREAK(__LINE__);
 		}
 		else
 		{
@@ -1693,7 +1693,7 @@ unsigned char EGB_GETBLOCK1BIT_INTERNAL(
 			switch(scrnMode->bitsPerPixel)
 			{
 			case 1:
-				TSUGARU_BREAK;
+				TSUGARU_BREAK(__LINE__);
 				break;
 			case 4:
 				{
@@ -1966,7 +1966,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 			switch(scrnMode->bitsPerPixel)
 			{
 			case 1:
-				TSUGARU_BREAK;
+				TSUGARU_BREAK(__LINE__);
 				break;
 			case 4:
 				{
@@ -2024,7 +2024,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 								}
 								break;
 							default:
-								TSUGARU_BREAK;
+								TSUGARU_BREAK(__LINE__);
 								break;
 							}
 
@@ -2086,7 +2086,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 						++vram);
 						break;
 					default:
-						TSUGARU_BREAK;
+						TSUGARU_BREAK(__LINE__);
 						break;
 					}
 				}
@@ -2142,7 +2142,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 					);
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -2185,7 +2185,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 			switch(scrnMode->bitsPerPixel)
 			{
 			case 1:
-				TSUGARU_BREAK;
+				TSUGARU_BREAK(__LINE__);
 				break;
 			case 4:
 				{
@@ -2246,7 +2246,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 								}
 								break;
 							default:
-								TSUGARU_BREAK;
+								TSUGARU_BREAK(__LINE__);
 								break;
 							}
 
@@ -2329,7 +2329,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 								}
 								break;
 							default:
-								TSUGARU_BREAK;
+								TSUGARU_BREAK(__LINE__);
 								break;
 							}
 							++vram;
@@ -2399,7 +2399,7 @@ unsigned char EGB_PUTBLOCK1BIT_INTERNAL(
 								}
 								break;
 							default:
-								TSUGARU_BREAK;
+								TSUGARU_BREAK(__LINE__);
 								break;
 							}
 							vram+=2;
@@ -2461,7 +2461,7 @@ void EGB_23H_PUTBLOCK1BIT(
 	if((flags&2) && EGB_MASKMODE_DISABLE!=work->maskMode)
 	{
 		// I don't think mask is of very high priority.
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 
 	viewport[0]=pointerSet.page->viewport[0];
@@ -2559,7 +2559,7 @@ unsigned char EGB_GETBLOCK_INTERNAL(
 	if(1==scrnMode->bitsPerPixel)
 	{
 		// I'll come back when someone do it.
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 	else
 	{
@@ -2898,7 +2898,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 		if(1==scrnMode->bitsPerPixel)
 		{
 			// I'll come back when someone do it.
-			TSUGARU_BREAK;
+			TSUGARU_BREAK(__LINE__);
 		}
 		else
 		{
@@ -2912,7 +2912,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 				switch(scrnMode->bitsPerPixel)
 				{
 				case 1:
-					TSUGARU_BREAK
+					TSUGARU_BREAK(__LINE__);
 					break;
 				case 4:
 					src+=xSkip/2;
@@ -2988,7 +2988,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 					{
 					case 1:
 						transparentColor&=1;
-						TSUGARU_BREAK;
+						TSUGARU_BREAK(__LINE__);
 						break;
 					case 4:
 						transparentColor&=15;
@@ -3084,7 +3084,7 @@ unsigned char EGB_PUTBLOCK_INTERNAL(
 				}
 				break;
 			default:
-				TSUGARU_BREAK;
+				TSUGARU_BREAK(__LINE__);
 				break;
 			}
 		}
@@ -3125,7 +3125,7 @@ void EGB_25H_PUTBLOCK(
 	if((flags&2) && EGB_MASKMODE_DISABLE!=work->maskMode)
 	{
 		// I don't think mask is of very high priority.
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);
 	}
 
 	EGB_SetError(EAX,
@@ -3153,7 +3153,7 @@ void EGB_26H_GETBLOCKZOOM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3171,7 +3171,7 @@ void EGB_27H_PUTBLOCKZOOM(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3189,7 +3189,7 @@ void EGB_GRAPHICCURSOR(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3207,7 +3207,7 @@ void EGB_MASKDATA(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3225,7 +3225,7 @@ void EGB_SCROLL(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3243,7 +3243,7 @@ void EGB_PARTSCROLL(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3261,7 +3261,7 @@ void EGB_REGION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3279,7 +3279,7 @@ void EGB_COPY(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3297,7 +3297,7 @@ void EGB_ROTATE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3315,7 +3315,7 @@ void EGB_RESOLVE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3393,7 +3393,7 @@ void EGB_40H_PSET(
 					}
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3409,7 +3409,7 @@ void EGB_40H_PSET(
 					ptrSet.vram[vramAddr]^=color;
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3425,7 +3425,7 @@ void EGB_40H_PSET(
 					*((_Far unsigned short *)(ptrSet.vram+vramAddr))^=color;
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3544,7 +3544,7 @@ void EGB_POLYGON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3562,7 +3562,7 @@ void EGB_ROTATEPOLYGON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3580,7 +3580,7 @@ void EGB_TRIANGLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3749,7 +3749,7 @@ void EGB_RECTANGLE(
 					}
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3758,11 +3758,11 @@ void EGB_RECTANGLE(
 				{
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3771,11 +3771,11 @@ void EGB_RECTANGLE(
 				{
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					MEMSETW_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3849,7 +3849,7 @@ void EGB_RECTANGLE(
 					EGB_Rectangle_LogicOp_4bit(|=);
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3874,7 +3874,7 @@ void EGB_RECTANGLE(
 					}
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3887,7 +3887,7 @@ void EGB_RECTANGLE(
 					MEMSETW_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				default:
-					TSUGARU_BREAK;
+					TSUGARU_BREAK(__LINE__);
 					break;
 				}
 				break;
@@ -3952,7 +3952,7 @@ void EGB_CIRCLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3970,7 +3970,7 @@ void EGB_ARC(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -3988,7 +3988,7 @@ void EGB_FAN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4006,7 +4006,7 @@ void EGB_ELLIPSE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4024,7 +4024,7 @@ void EGB_ELLIPTICARC(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4042,7 +4042,7 @@ void EGB_ELLIPTICFAN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4439,7 +4439,7 @@ void EGB_POINT(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4457,7 +4457,7 @@ void EGB_BOW(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4475,7 +4475,7 @@ void EGB_BOW2(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
@@ -4494,7 +4494,7 @@ void EGB_UNSUPPORTED(
 	unsigned int FS)
 
 {
-	TSUGARU_BREAK;
+	TSUGARU_BREAK(__LINE__);
 }
 
 

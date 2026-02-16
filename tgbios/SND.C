@@ -549,7 +549,7 @@ void SND_KEY_ON(
 	}
 	else
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 	}
 
 	// Error code  AL=SND_NO_ERROR or SND_ERROR_WRONG_CH or SND_ERROR_KEY_ALREADY_ON or SND_ERROR_PARAMETER.
@@ -610,7 +610,7 @@ void SND_KEY_OFF(
 	}
 	else
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 	}
 	SND_SetError(EAX,SND_NO_ERROR);
 }
@@ -671,7 +671,7 @@ void SND_PAN_SET(
 	else
 	{
 		SND_SetError(EAX,SND_ERROR_WRONG_CH);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 	}
 }
 
@@ -722,7 +722,7 @@ void SND_INST_CHANGE(
 	else
 	{
 		// MIDI support is long way ahead.
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 	}
 }
 
@@ -796,12 +796,46 @@ void SND_INST_READ(
 	unsigned int GS,
 	unsigned int FS)
 {
-	_Far struct SND_Work *work;
-	_FP_SEG(work)=GS;
-	_FP_OFF(work)=EDI;
+	// Input
+	//   BL=Channel
+	//   DH=Instrument Index (0 to 127)
+	//   DS:ESI=Instrument Data
+	unsigned char ch=(unsigned char)EBX;
+	unsigned char instIndex=(unsigned char)(EDX>>8);
+	_Far struct SND_Status *stat=SND_GetStatus();
 
-	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+	if(SND_Is_FM_Channel(ch))
+	{
+		// YM2612
+		_Far struct FMB_INSTRUMENT *dst;
+		if(FM_NUM_INSTRUMENTS<=instIndex)
+		{
+			SND_SetError(EAX,SND_ERROR_PARAMETER);
+			return;
+		}
+		_FP_SEG(dst)=DS;
+		_FP_OFF(dst)=ESI;
+		MEMCPY_FAR(dst,&stat->FMInst[instIndex],sizeof(struct FMB_INSTRUMENT));
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else if(SND_Is_PCM_Channel(ch))
+	{
+		// RF5C68
+		_Far struct PMB_INSTRUMENT *dst;
+		if(PCM_NUM_INSTRUMENTS<=instIndex)
+		{
+			SND_SetError(EAX,SND_ERROR_PARAMETER);
+			return;
+		}
+		_FP_SEG(dst)=DS;
+		_FP_OFF(dst)=ESI;
+		MEMCPY_FAR(dst,&stat->PCMInst[instIndex],sizeof(struct PMB_INSTRUMENT));
+		SND_SetError(EAX,SND_NO_ERROR);
+	}
+	else
+	{
+		SND_SetError(EAX,SND_ERROR_WRONG_CH);
+	}
 }
 
 void SND_PITCH_CHANGE(
@@ -958,7 +992,7 @@ void SND_VOLUME_CHANGE(
 	else
 	{
 		SND_SetError(EAX,SND_ERROR_WRONG_CH);
-		// TSUGARU_BREAK; VSGP wants to change channel 3CH.
+		// TSUGARU_BREAK(__LINE__);; VSGP wants to change channel 3CH.
 	}
 }
 
@@ -1008,7 +1042,7 @@ void SND_KEY_ABORT(
 	else
 	{
 		SND_SetError(EAX,SND_ERROR_WRONG_CH);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 	}
 
 	SND_SetError(EAX,SND_NO_ERROR);
@@ -1033,7 +1067,7 @@ void SND_STATUS(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_10H_FM_READ_STATUS(
@@ -1094,7 +1128,7 @@ void SND_12H_FM_READ_DATA(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_13H_FM_WRITE_SAVE_ATA(
@@ -1116,7 +1150,7 @@ void SND_13H_FM_WRITE_SAVE_ATA(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_14H_FM_READ_SAVE_DATA(
@@ -1138,7 +1172,7 @@ void SND_14H_FM_READ_SAVE_DATA(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_15H_FM_TIMER_A_SET(
@@ -1527,7 +1561,7 @@ void SND_23H_PCM_SOUND_DELETE(
 	}
 	else
 	{
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 	}
 	SND_SetError(EAX,SND_NO_ERROR);
 }
@@ -1551,7 +1585,7 @@ void SND_24H_PCM_REC_START(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_26H_PCM_REC_STOP(
@@ -1573,7 +1607,7 @@ void SND_26H_PCM_REC_STOP(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_27H_PCM_PCM_VOICE_STOP(
@@ -1750,7 +1784,7 @@ void SND_2BH_PCM_PCMRAM_TO_PCMRAM(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_2CH_PCM_TRANSFER2(
@@ -2083,7 +2117,7 @@ void SND_FM_REGWRITE(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_JOY_IN(
@@ -2219,7 +2253,7 @@ void SND_JOY_OUT(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_43H_ELEVOL_SET(
@@ -2454,7 +2488,7 @@ void SND_49H_ELEVOL_ALL_MUTE(
 	_FP_OFF(work)=EDI;
 
 	SND_SetError(EAX,SND_NO_ERROR);
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 void SND_4AH_UNPUBLISHED_FUNCTION(
@@ -2713,7 +2747,7 @@ void SND_NOP(
 	unsigned int FS)
 {
 	// Not supposed to be called.
-		TSUGARU_BREAK;
+		TSUGARU_BREAK(__LINE__);;
 }
 
 // AH=E0H

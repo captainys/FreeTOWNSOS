@@ -135,7 +135,7 @@ void Handle_INT4DH_Main(void)	// Called from HANDLE_INT4D in SNDINTA.ASM
 		{
 			// Just remoe IRR
 			_inb(TOWNSIO_SOUND_PCM_INT); // Was it good?
-			TSUGARU_BREAK;
+			TSUGARU_BREAK(__LINE__);;
 		}
 	}
 	_outb(TOWNSIO_PIC_SECONDARY_ICW1,0x65); // Specific EOI + INT (13-8=5)(4DH).

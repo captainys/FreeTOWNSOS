@@ -549,7 +549,7 @@ void MOS_05H_RDON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_06H_RDOFF(
@@ -566,7 +566,7 @@ void MOS_06H_RDOFF(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_07H_HORIZON(
@@ -852,7 +852,7 @@ void MOS_0AH_MOTION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_0BH_ENTSUB(
@@ -873,7 +873,7 @@ void MOS_0BH_ENTSUB(
 	// VIPS2 calls this function with DX=0, means no condition for mouse event call-back.
 	if(0!=DX)
 	{
-		TSUGARU_BREAK
+		TSUGARU_BREAK(__LINE__);
 	}
 	SET_SECOND_BYTE(&EAX,0);
 }
@@ -1035,7 +1035,7 @@ void MOS_10H_TILEPATTERN(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_11H_VIEWHORIZON(
@@ -1052,7 +1052,7 @@ void MOS_11H_VIEWHORIZON(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_12H_VIEWVERTICAL(
@@ -1069,7 +1069,7 @@ void MOS_12H_VIEWVERTICAL(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_13H_BTNXCHG(
@@ -1105,7 +1105,7 @@ void MOS_14H_ACCELERATION(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK
+	TSUGARU_BREAK(__LINE__);
 }
 
 void MOS_INTERVAL(void)
