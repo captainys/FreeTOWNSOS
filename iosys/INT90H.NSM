@@ -412,7 +412,8 @@ INT90H_07H_CHECK_INPUT:
 						AND		AX,KEYBUF_LEN_MASK
 						MOV		[BP+SAVED_EAX],AL
 
-						MOV		BYTE [BP+SAVED_EDX+1],0FFH	; Tentatively no input
+						MOV		WORD [BP+SAVED_EDX],0FFFFH	; Tentatively no input
+						MOV		WORD [BP+SAVED_EBX],0FF00h	; Tentatively no input
 						CALL	PEEK_KEYBUF
 						JC		INT90H_EXIT
 
@@ -437,8 +438,9 @@ INT90H_09H_READ_BLOCKING:
 						JMP		INT90H_09H_HAVE_KEY
 
 INT90H_09H_READ_NONBLOCKING:
+						MOV		WORD [BP+SAVED_EDX],0FFFFH	; Tentatively no input
+						MOV		WORD [BP+SAVED_EBX],0FF00h	; Tentatively no input
 						CALL	READ_KEYBUF
-						MOV		BYTE [BP+SAVED_EDX+1],0FFH	; Tentatively no input
 						JC		INT90H_EXIT
 
 INT90H_09H_HAVE_KEY:

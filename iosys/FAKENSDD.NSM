@@ -362,6 +362,9 @@ INT8E_INTERCEPT:
 						CMP		AX,0C109H
 						JE		INT8E_C109_UNKNOWN
 
+						CMP		AX,0CE04H
+						JE		INT8E_CE04H_GET_NSD_CS_DS
+
 						JMP		FAR [CS:CASCADE_INT8E]
 
 
@@ -521,6 +524,16 @@ INT8E_C003_GET_INSTALLED_DRIVERS:
 						XOR		AH,AH
 						IRET
 
+
+; AX=CE04H
+;   Input: DS:DX ID-string
+;   Output: CX:CS of NSD,  DX:DS of NSD
+; Just pretend it was not found.
+INT8E_CE04H_GET_NSD_CS_DS:
+						MOV		CX,0
+						MOV		DX,0
+						MOV		AH,0FFH
+						IRET
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

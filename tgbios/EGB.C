@@ -3584,6 +3584,35 @@ void EGB_TRIANGLE(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
+#define EGB_Rectangle_LogicOp_4bit(op) \
+{ \
+	if(xMin&1) \
+	{ \
+		ptrSet.vram[vramAddr] op (color&0x0F); \
+		++vramAddr; \
+		++xMin; \
+	} \
+	{ \
+		int i; \
+		unsigned int count=(xMax+1-xMin)/2; \
+		unsigned int countDiv4=(count>>2),countMod4=(count&3); \
+		for(i=0; i<countDiv4; ++i) \
+		{ \
+			*((_Far unsigned int *)(ptrSet.vram+vramAddr)) op color; \
+			vramAddr+=4; \
+		} \
+		for(i=0; i<countMod4; ++i) \
+		{ \
+			*(ptrSet.vram+vramAddr) op color; \
+			++vramAddr; \
+		} \
+	} \
+	if(!(xMax&1)) \
+	{ \
+		ptrSet.vram[vramAddr] op (color&0xF0); \
+	} \
+}
+
 void EGB_RECTANGLE(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -3775,6 +3804,11 @@ void EGB_RECTANGLE(
 		unsigned int yMin=_max(p0.y,ptrSet.page->viewport[0].y);
 		unsigned int yMax=_min(p1.y,ptrSet.page->viewport[1].y);
 
+		if(EGB_FUNC_PRESET==work->drawingMode)
+		{
+			color=GetExpandedColor(work->color[EGB_BACKGROUND_COLOR],ptrSet.mode->bitsPerPixel);
+		}
+
 		EGB_CalcVRAMAddr(&vramAddr,xMin,yMin,ptrSet.mode);
 		for(int y=yMin; y<=yMax; ++y)
 		{
@@ -3784,6 +3818,7 @@ void EGB_RECTANGLE(
 			case 4:
 				switch(work->drawingMode)
 				{
+				case EGB_FUNC_PRESET:
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
 					if(xMin&1)
@@ -3805,31 +3840,13 @@ void EGB_RECTANGLE(
 					}
 					break;
 				case EGB_FUNC_XOR:
-					if(xMin&1)
-					{
-						ptrSet.vram[vramAddr]^=(color&0x0F);
-						++vramAddr;
-						++xMin;
-					}
-					{
-						int i;
-						unsigned int count=(xMax+1-xMin)/2;
-						unsigned int countDiv4=(count>>2),countMod4=(count&3);
-						for(i=0; i<countDiv4; ++i)
-						{
-							*((_Far unsigned int *)(ptrSet.vram+vramAddr))^=color;
-							vramAddr+=4;
-						}
-						for(i=0; i<countMod4; ++i)
-						{
-							*(ptrSet.vram+vramAddr)^=color;
-							++vramAddr;
-						}
-					}
-					if(!(xMax&1))
-					{
-						ptrSet.vram[vramAddr]^=(color&0xF0);
-					}
+					EGB_Rectangle_LogicOp_4bit(^=);
+					break;
+				case EGB_FUNC_AND:
+					EGB_Rectangle_LogicOp_4bit(&=);
+					break;
+				case EGB_FUNC_OR:
+					EGB_Rectangle_LogicOp_4bit(|=);
 					break;
 				default:
 					TSUGARU_BREAK;
@@ -3841,6 +3858,7 @@ void EGB_RECTANGLE(
 				{
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
+				case EGB_FUNC_PRESET:
 					MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				case EGB_FUNC_XOR:
@@ -3865,6 +3883,7 @@ void EGB_RECTANGLE(
 				{
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
+				case EGB_FUNC_PRESET:
 					MEMSETW_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				default:

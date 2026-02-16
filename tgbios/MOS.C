@@ -457,6 +457,8 @@ void MOS_02H_DISP(
 		}
 	}
 	_POPFD
+
+	SET_SECOND_BYTE(&EAX,0);
 }
 
 void MOS_03H_RDPOS(
