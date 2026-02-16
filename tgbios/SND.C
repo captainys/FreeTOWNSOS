@@ -37,6 +37,14 @@ static unsigned int GetPitchBendScale(unsigned int pitch);
 static unsigned short GetFNUM_BLOCK_from_Number(unsigned char num);
 static unsigned int GetFreqScale(unsigned int note,unsigned int baseNote);
 
+static unsigned char defaultFMInst[48]=
+{
+0x45,0x2E,0x50,0x49,0x41,0x4E,0x4F,0x00, // "E.PIANO"
+0x01,0x00,0x01,0x01,0x7F,0x10,0x7F,0x00,0x1F,0x1F,0x1F,0x1F,0x00,0x00,0x00,0x04,
+0x00,0x00,0x00,0x00,0x0F,0x00,0x0F,0x66,0x04,0xC0,0x00,0x00,0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+};
+
 void YM2612_Write(unsigned char regSet,unsigned char reg,unsigned char value)
 {
 	while(0!=(_inb(TOWNSIO_SOUND_STATUS_ADDRESS0)&0x80)); // Wait BUSY clear
@@ -175,6 +183,25 @@ unsigned char SND_ReadFromWaveRAM(unsigned short addr)
 	return *ptr;
 }
 
+static void SND_Change_FMInst(_Far struct SND_Status *stat,int ch,int instIndex)
+{
+	unsigned int regSet=ch/3;
+	unsigned int chMOD3=ch%3;
+	stat->FMCh[ch].instrument=instIndex;
+
+	for(int i=0; i<4; ++i)
+	{
+		YM2612_Write(regSet,0x30+chMOD3+i*4,stat->FMInst[instIndex].DT_MULTI[i]);
+		YM2612_Write(regSet,0x40+chMOD3+i*4,stat->FMInst[instIndex].TL[i]);
+		YM2612_Write(regSet,0x50+chMOD3+i*4,stat->FMInst[instIndex].KS_AR[i]);
+		YM2612_Write(regSet,0x60+chMOD3+i*4,stat->FMInst[instIndex].AMON_DR[i]);
+		YM2612_Write(regSet,0x70+chMOD3+i*4,stat->FMInst[instIndex].SR[i]);
+		YM2612_Write(regSet,0x80+chMOD3+i*4,stat->FMInst[instIndex].SL_RR[i]);
+	}
+	YM2612_Write(regSet,0xB0+chMOD3,stat->FMInst[instIndex].FB_CNCT);
+	YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS|stat->FMCh[ch].pan);
+}
+
 void SND_INIT(
 	unsigned int EDI,
 	unsigned int ESI,
@@ -219,10 +246,20 @@ void SND_INIT(
 	_outb(TOWNSIO_ELEVOL_2_COM,3);
 
 
+	// FM Instruments
+	_Far struct FMB_INSTRUMENT *FMInst;
+	_FP_SEG(FMInst)=SEG_TGBIOS_CODE;
+	_FP_OFF(FMInst)=(unsigned int)defaultFMInst;
+	for(i=0; i<FM_NUM_INSTRUMENTS; ++i)
+	{
+		status->FMInst[i]=*FMInst;
+	}
+
+
 	// FM Channels
 	for(i=0; i<SND_NUM_FM_CHANNELS; ++i)
 	{
-		status->FMCh[i].instrument=0;
+		SND_Change_FMInst(status,i,0);
 		status->FMCh[i].vol=127; // FM TOWNS Technical Databook p.415 tells the default volume is 127.
 		status->FMCh[i].vol_key=0;
 		status->FMCh[i].pan=0xc0;
@@ -663,21 +700,7 @@ void SND_INST_CHANGE(
 	{
 		if(instIndex<FM_NUM_INSTRUMENTS)
 		{
-			unsigned int regSet=ch/3;
-			unsigned int chMOD3=ch%3;
-			stat->FMCh[ch].instrument=instIndex;
-
-			for(int i=0; i<4; ++i)
-			{
-				YM2612_Write(regSet,0x30+chMOD3+i*4,stat->FMInst[instIndex].DT_MULTI[i]);
-				YM2612_Write(regSet,0x40+chMOD3+i*4,stat->FMInst[instIndex].TL[i]);
-				YM2612_Write(regSet,0x50+chMOD3+i*4,stat->FMInst[instIndex].KS_AR[i]);
-				YM2612_Write(regSet,0x60+chMOD3+i*4,stat->FMInst[instIndex].AMON_DR[i]);
-				YM2612_Write(regSet,0x70+chMOD3+i*4,stat->FMInst[instIndex].SR[i]);
-				YM2612_Write(regSet,0x80+chMOD3+i*4,stat->FMInst[instIndex].SL_RR[i]);
-			}
-			YM2612_Write(regSet,0xB0+chMOD3,stat->FMInst[instIndex].FB_CNCT);
-			YM2612_Write(regSet,0xB4+chMOD3,stat->FMInst[instIndex].LR_AMS_PMS|stat->FMCh[ch].pan);
+			SND_Change_FMInst(stat,ch,instIndex);
 		}
 		else
 		{
