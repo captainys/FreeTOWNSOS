@@ -117,6 +117,8 @@ struct POINTUW
 
 #define BoxIsOutsideOfViewport(xMin,yMin,xMax,yMax,page) ((xMax)<(page)->viewport[0].x || (page)->viewport[1].x<(xMin) || (yMax)<(page)->viewport[0].y || (page)->viewport[1].y<(yMin))
 
+#define YIsOutsideOfViewport(y,page) ((y)<(page)->viewport[0].y || (page)->viewport[1].y<(y))
+
 #define EGB_CalcVRAMAddr(vramAddr,x,y,mode) \
 	if(0!=(mode)->bytesPerLineShift) \
 	{ \

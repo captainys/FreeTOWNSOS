@@ -6,6 +6,40 @@
 #include "IODEF.H"
 #include "UTIL.H"
 
+// Table of sqrt(1-Y*Y) scaled up by 256.
+static unsigned char circleTable[257]=
+{
+255,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,
+254,254,254,254,254,254,253,253,253,253,253,253,253,253,253,252,
+252,252,252,252,252,252,252,251,251,251,251,251,251,250,250,250,
+250,250,249,249,249,249,249,248,248,248,248,247,247,247,247,246,
+246,246,246,245,245,245,244,244,244,244,243,243,243,242,242,242,
+241,241,241,240,240,240,239,239,239,238,238,237,237,237,236,236,
+235,235,235,234,234,233,233,232,232,232,231,231,230,230,229,229,
+228,228,227,227,226,226,225,225,224,224,223,222,222,221,221,220,
+220,219,218,218,217,217,216,215,215,214,213,213,212,212,211,210,
+209,209,208,207,207,206,205,204,204,203,202,201,201,200,199,198,
+198,197,196,195,194,193,193,192,191,190,189,188,187,186,185,184,
+183,182,182,181,180,179,178,176,175,174,173,172,171,170,169,168,
+167,166,164,163,162,161,160,158,157,156,154,153,152,150,149,148,
+146,145,143,142,141,139,137,136,134,133,131,129,128,126,124,122,
+121,119,117,115,113,111,109,107,105,102,100, 98, 95, 93, 90, 88,
+ 85, 82, 79, 76, 73, 69, 66, 62, 58, 54, 49, 44, 38, 30, 21,  0,
+  0,
+};
+
+int ClampXMinXMaxByViewport(int *xMin,int *xMax,_Far struct EGB_PerPage *page)
+{
+	if(*xMax<page->viewport[0].x || page->viewport[1].x<*xMax)
+	{
+		*xMin=0;
+		*xMax=0;
+		return 0;
+	}
+	*xMin=_max(page->viewport[0].x,*xMin);
+	*xMax=_min(page->viewport[1].x,*xMax);
+}
+
 unsigned int GetExpandedColor(unsigned short color,unsigned int bitsPerPixel)
 {
 	unsigned int expColor;
@@ -3584,6 +3618,7 @@ void EGB_TRIANGLE(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
+// Used also from EGB_Circle.  This fills from vramAddr for (xMax-xMin)+1 pixels.
 #define EGB_Rectangle_LogicOp_4bit(op) \
 { \
 	if(xMin&1) \
@@ -3953,6 +3988,226 @@ void EGB_CIRCLE(
 	unsigned int FS)
 {
 	TSUGARU_BREAK(__LINE__);
+
+	_Far struct EGB_Work *work=EGB_GetWork();
+
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+
+	_Far unsigned char *cirTab;
+	_FP_SEG(cirTab)=SEG_TGBIOS_DATA;
+	_FP_OFF(cirTab)=(unsigned int)circleTable;
+
+	_Far short *cenRad;
+	_FP_SEG(cenRad)=DS;
+	_FP_OFF(cenRad)=ESI;
+
+	int cenX=cenRad[0];
+	int cenY=cenRad[1];
+	int rad=cenRad[2];
+
+	struct POINTW p0,p1;
+	p0.x=cenX-rad;
+	p0.y=cenY-rad;
+	p1.x=cenX+rad;
+	p1.y=cenY+rad;
+
+	if(BoxIsOutsideOfViewport(p0.x,p0.y,p1.x,p1.y,ptrSet.page))
+	{
+		EGB_SetError(EAX,EGB_NO_ERROR);
+		return;
+	}
+
+	if(work->paintMode&EGB_PAINTFLAG_FILL_HATCH)
+	{
+		TSUGARU_BREAK(__LINE__);
+	}
+
+	if(work->paintMode&EGB_PAINTFLAG_FILL_NORMAL)
+	{
+		unsigned int vramAddr;
+		unsigned int color=GetExpandedColor(work->color[EGB_FILL_COLOR],ptrSet.mode->bitsPerPixel);
+
+		if(EGB_FUNC_PRESET==work->drawingMode)
+		{
+			color=GetExpandedColor(work->color[EGB_BACKGROUND_COLOR],ptrSet.mode->bitsPerPixel);
+		}
+
+		for(int i=0; i<=rad; ++i)
+		{
+			int idx=(i<<8)/rad;
+			int wid=cirTab[idx];
+			int dy=i;
+
+			++wid;
+			wid*=rad;
+			wid>>=8;
+			for(int j=-1; j<=1; j+=2)
+			{
+				int y=cenY+dy;
+				int xMin=cenX-wid;
+				int xMax=cenX+wid;
+				if(YIsOutsideOfViewport(y,ptrSet.page))
+				{
+					continue;
+				}
+				if(0==ClampXMinXMaxByViewport(&xMin,&xMax,ptrSet.page))
+				{
+					continue;
+				}
+
+				EGB_CalcVRAMAddr(&vramAddr,xMin,y,ptrSet.mode);
+				switch(ptrSet.mode->bitsPerPixel)
+				{
+				case 4:
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PRESET:
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+						if(xMin&1)
+						{
+							ptrSet.vram[vramAddr]&=0xF0;
+							ptrSet.vram[vramAddr]|=(color&0x0F);
+							++vramAddr;
+							++xMin;
+						}
+						{
+							unsigned int count=(xMax+1-xMin)/2;
+							MEMSETB_FAR(ptrSet.vram+vramAddr,color,count);
+							vramAddr+=count;
+						}
+						if(!(xMax&1))
+						{
+							ptrSet.vram[vramAddr]&=0x0F;
+							ptrSet.vram[vramAddr]|=(color&0xF0);
+						}
+						break;
+					case EGB_FUNC_XOR:
+						EGB_Rectangle_LogicOp_4bit(^=);
+						break;
+					case EGB_FUNC_AND:
+						EGB_Rectangle_LogicOp_4bit(&=);
+						break;
+					case EGB_FUNC_OR:
+						EGB_Rectangle_LogicOp_4bit(|=);
+						break;
+					default:
+						TSUGARU_BREAK(__LINE__);
+						break;
+					}
+					break;
+				case 8:
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_PRESET:
+						MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
+						break;
+					case EGB_FUNC_XOR:
+						{
+							unsigned int count=xMax-xMin+1;
+							_Far unsigned char *vram=ptrSet.vram+vramAddr;
+							while(0<count)
+							{
+								(*vram)^=color;
+								++vram;
+								--count;
+							}
+						}
+						break;
+					default:
+						TSUGARU_BREAK(__LINE__);
+						break;
+					}
+					break;
+				case 16:
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_PRESET:
+						MEMSETW_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
+						break;
+					default:
+						TSUGARU_BREAK(__LINE__);
+						break;
+					}
+					break;
+				}
+
+				dy=-dy;
+				if(0==i)
+				{
+					break;
+				}
+			}
+		}
+	}
+
+
+
+	if(work->paintMode&EGB_PAINTFLAG_LINE_NORMAL)
+	{
+		struct POINTW a,b;
+		if(~0==work->lineStipple)
+		{
+			int prevWid,prevY;
+			prevWid=rad;
+			prevY=0;
+			for(int i=0; i<256; ++i)
+			{
+				int wid=cirTab[i+1];
+				++wid;
+				wid*=rad;
+				wid>>=8;
+
+				int y=i*rad;
+				y>>=8;
+
+				for(int quadrant=0; quadrant<4; ++quadrant)
+				{
+					switch(quadrant)
+					{
+					case 0:
+						a.x=cenX-prevWid;
+						a.y=cenY-prevY;
+						b.x=cenX-wid;
+						b.y=cenY-y;
+						break;
+					case 1:
+						a.x=cenX+prevWid;
+						a.y=cenY-prevY;
+						b.x=cenX+wid;
+						b.y=cenY-y;
+						break;
+					case 2:
+						a.x=cenX-prevWid;
+						a.y=cenY+prevY;
+						b.x=cenX-wid;
+						b.y=cenY+y;
+						break;
+					case 3:
+						a.x=cenX+prevWid;
+						a.y=cenY+prevY;
+						b.x=cenX+wid;
+						b.y=cenY+y;
+						break;
+					}
+					ClipLine(&a,&b,ptrSet.page->viewport[0],ptrSet.page->viewport[1]);
+					EGB_DrawLine(work,&ptrSet,a,b);
+				}
+
+				prevY=y;
+				prevWid=wid;
+			}
+		}
+		else
+		{
+			TSUGARU_BREAK(__LINE__);
+		}
+	}
+
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 

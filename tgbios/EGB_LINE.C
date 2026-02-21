@@ -579,6 +579,7 @@ void EGB_DrawLine(_Far struct EGB_Work *work,struct EGB_PagePointerSet *ptrSet,s
 					case EGB_FUNC_PSET:
 					case EGB_FUNC_OPAQUE:
 					case EGB_FUNC_MATTE:
+					case EGB_FUNC_PRESET:
 						VRAM[vramAddr]&=ANDPtn;
 						VRAM[vramAddr]|=ORPtn;
 						break;
