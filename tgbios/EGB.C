@@ -3987,8 +3987,6 @@ void EGB_CIRCLE(
 	unsigned int GS,
 	unsigned int FS)
 {
-	TSUGARU_BREAK(__LINE__);
-
 	_Far struct EGB_Work *work=EGB_GetWork();
 
 	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
