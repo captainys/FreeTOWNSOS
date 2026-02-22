@@ -191,7 +191,7 @@ struct EGB_PerPage
 
 struct EGB_PolygonBufLine
 {
-	unsigned short x[EGB_POLYGONBUF_MAX_INTERSECTIONS];
+	short x[EGB_POLYGONBUF_MAX_INTERSECTIONS];
 };
 
 struct EGB_HatchingPattern

@@ -3605,22 +3605,20 @@ void EGB_42H_UNCONNECT(
 static void EGB_AddPointToPolygonBuffer(_Far struct EGB_PolygonBufLine *plgBuf,int x,int y)
 {
 	int i;
-	unsigned int X;
 	_Far struct EGB_PolygonBufLine *line=plgBuf+y;
 
-	x=_max(x,0);
-	x=_min(x,0xFFFE);
-	X=x;
-	for(i=0; i<EGB_POLYGONBUF_MAX_INTERSECTIONS && line->x[i]<X; ++i)
+	x=_max(x,-0x7FFF);
+	x=_min(x,0x7FFE);
+	for(i=0; i<EGB_POLYGONBUF_MAX_INTERSECTIONS && line->x[i]<x; ++i)
 	{
 	}
 	for(; i<EGB_POLYGONBUF_MAX_INTERSECTIONS; ++i)
 	{
 		// std::swap(x,line->x[i]);
-		int a=X;
-		X=line->x[i];
+		int a=x;
+		x=line->x[i];
 		line->x[i]=a;
-		if(0xFFFF==a)
+		if(0x7FFF==a)
 		{
 			break;
 		}
@@ -3644,7 +3642,7 @@ static void EGB_AddLineToPolygonBuffer(
 
 	if(0!=ClipLineYOnly(&p0,&p1,ptrSet.page->viewport[0],ptrSet.page->viewport[1]))
 	{
-		int x,y,dx,dy,vx,vy,balance=0;
+		int x,y,dx,dy,vx,vy;
 		vx=p1.x-p0.x;
 		vy=VY;
 
@@ -3678,6 +3676,7 @@ static void EGB_AddLineToPolygonBuffer(
 		}
 		if(dx<dy)
 		{
+			int balance=dy/2;
 			while(y!=p1.y)
 			{
 				y+=vy;
@@ -3692,6 +3691,7 @@ static void EGB_AddLineToPolygonBuffer(
 		}
 		else
 		{
+			int balance=dx/2;
 			while(y!=p1.y)
 			{
 				x+=vx;
@@ -3716,7 +3716,7 @@ static void EGB_MakePolygonBuffer(_Far struct EGB_Work *work,_Far struct EGB_Pol
 
 	for(y=0; y<EGB_POLYGONBUF_HEIGHT; ++y)
 	{
-		plgBuf[y].x[0]=0xFFFF;
+		plgBuf[y].x[0]=0x7FFF;
 	}
 
 	if(plg->nVtx<3)
@@ -3789,7 +3789,7 @@ void EGB_TRIANGLE(
 { \
 	if(xMin&1) \
 	{ \
-		ptrSet.vram[vramAddr] op (color&0x0F); \
+		ptrSet.vram[vramAddr] op (color&0xF0); \
 		++vramAddr; \
 		++xMin; \
 	} \
@@ -3810,7 +3810,7 @@ void EGB_TRIANGLE(
 	} \
 	if(!(xMax&1)) \
 	{ \
-		ptrSet.vram[vramAddr] op (color&0xF0); \
+		ptrSet.vram[vramAddr] op (color&0x0F); \
 	} \
 }
 
@@ -4204,10 +4204,22 @@ void EGB_43H_POLYGON(
 			{
 				int xMin=line->x[i];
 				int xMax=line->x[i+1];
-				if(0xFFFF==xMin || 0xFFFF==xMax)
+				if(0x7FFF==xMin || 0x7FFF==xMax)
 				{
 					break;
 				}
+
+				if(ptrSet.page->viewport[1].x<xMin)
+				{
+					break;
+				}
+				if(xMax<ptrSet.page->viewport[0].x)
+				{
+					continue;
+				}
+
+				xMin=_max(ptrSet.page->viewport[0].x,xMin);
+				xMax=_min(ptrSet.page->viewport[1].x,xMax);
 
 				EGB_CalcVRAMAddr(&vramAddr,xMin,y,ptrSet.mode);
 
