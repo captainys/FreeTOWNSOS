@@ -14,10 +14,10 @@ def Run(argv):
 		os.mkdir("BUILD")
 
 	proc=subprocess.Popen([
-		"Tsugaru_CUI",
+		"Tsugaru_Headless",
 		os.path.join(THISDIR,"..","..","CompROM"),
 		"-FD0",
-		os.path.join(THISDIR,"..","..","make_build_env","BUILDTGBIOS.bin"),
+		os.path.join(THISDIR,"..","..","buildenv","RUNNERFD.bin"),
 		"-BOOTKEY",
 		"F0",
 		"-SHAREDDIR",
@@ -25,8 +25,14 @@ def Run(argv):
 		"-SHAREDDIR",
 		THISDIR,
 		"-DEBUG",
-		"-UNITTEST",
 		"-DONTUSEFPU",
+		"-CONSCMD",	"D:",
+		"-CONSCMD",	"AUTOEXEC",
+		"-CONSCMD",	"E:",
+		"-CONSCMD","SET PATH=A:\;%PATH%", # Just in case
+		"-CONSCMD",	"MAKE",
+		"-CONSCMD",	"IF ERRORLEVEL 1 FAIL.EXE",
+		"-CONSCMD",	"SUCCESS",
 	])
 	proc.communicate()
 	if 0!=proc.returncode:

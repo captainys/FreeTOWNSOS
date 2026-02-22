@@ -213,17 +213,19 @@ void EGB_PUTX16BW_NOCHECK(
 	{
 	case 4:
 		{
-			unsigned char andPtn,color;
+			unsigned char andPtn,color,bgColor;
 
 			if(sx&1)
 			{
 				andPtn=0x0F;
 				color=work->color[EGB_FOREGROUND_COLOR]<<4;
+				bgColor=work->color[EGB_BACKGROUND_COLOR]<<4;
 			}
 			else
 			{
 				andPtn=0xF0;
 				color=work->color[EGB_FOREGROUND_COLOR];
+				bgColor=work->color[EGB_BACKGROUND_COLOR];
 			}
 
 			for(y=0; y<16; ++y)
@@ -242,23 +244,34 @@ void EGB_PUTX16BW_NOCHECK(
 						//switch(work->drawingMode) // May be it is a common property across pages.
 						//{
 						//case EGB_PSET:
+						//case EGB_OPAQUE:
 							ptrSet->vram[vramAddr]&=andPtn;
 							ptrSet->vram[vramAddr]|=color;
 						//	break;
 						//}
 						//
 					}
+					else
+					{
+						if(EGB_FUNC_OPAQUE==work->drawingMode)
+						{
+							ptrSet->vram[vramAddr]&=andPtn;
+							ptrSet->vram[vramAddr]|=bgColor;
+						}
+					}
 					ptn<<=1;
 					if(0x0F==andPtn)
 					{
 						andPtn=0xF0;
 						color>>=4;
+						bgColor>>=4;
 						++vramAddr;
 					}
 					else
 					{
 						andPtn=0x0F;
 						color<<=4;
+						bgColor<<=4;
 					}
 				}
 				vramAddr+=(ptrSet->mode->bytesPerLine-wid/2);
@@ -267,9 +280,10 @@ void EGB_PUTX16BW_NOCHECK(
 		break;
 	case 8:
 		{
-			unsigned char color;
+			unsigned char color,bgColor;
 
 			color=work->color[EGB_FOREGROUND_COLOR];
+			bgColor=work->color[EGB_BACKGROUND_COLOR];
 
 			for(y=0; y<16; ++y)
 			{
@@ -292,6 +306,13 @@ void EGB_PUTX16BW_NOCHECK(
 						//}
 						//
 					}
+					else
+					{
+						if(EGB_FUNC_OPAQUE==work->drawingMode)
+						{
+							ptrSet->vram[vramAddr]=bgColor;
+						}
+					}
 					ptn<<=1;
 					++vramAddr;
 				}
@@ -301,9 +322,10 @@ void EGB_PUTX16BW_NOCHECK(
 		break;
 	case 16:
 		{
-			unsigned short color;
+			unsigned short color,bgColor;
 
 			color=work->color[EGB_FOREGROUND_COLOR];
+			bgColor=work->color[EGB_BACKGROUND_COLOR];
 
 			for(y=0; y<16; ++y)
 			{
@@ -325,6 +347,13 @@ void EGB_PUTX16BW_NOCHECK(
 						//	break;
 						//}
 						//
+					}
+					else
+					{
+						if(EGB_FUNC_OPAQUE==work->drawingMode)
+						{
+							*(_Far unsigned short *)(ptrSet->vram+vramAddr)=bgColor;
+						}
 					}
 					ptn<<=1;
 					vramAddr+=2;

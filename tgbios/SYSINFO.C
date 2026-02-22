@@ -9,6 +9,18 @@ void SYSINFO_NOP(void)
 {
 }
 
+int SYSINFO_01H_GET_EGB_SCRNMODE(void)
+{
+	_Far struct EGB_Work *work=EGB_GetWork();
+	return (work->perPage[0].screenMode)|(work->perPage[1].screenMode<<8);
+}
+int SYSINFO_02H_GET_EGB_WRITEPAGE(void)
+{
+	_Far struct EGB_Work *work=EGB_GetWork();
+	return work->writePage;
+}
+
+
 void SYSINFO_05H_GET_PALETTE(
 	unsigned int EDI,
 	unsigned int ESI,

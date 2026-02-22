@@ -28,6 +28,8 @@ static unsigned char circleTable[257]=
   0,
 };
 
+#define SIGN(x) ((x)>=0 ? 1 : -1)
+
 int ClampXMinXMaxByViewport(int *xMin,int *xMax,_Far struct EGB_PerPage *page)
 {
 	if(*xMax<page->viewport[0].x || page->viewport[1].x<*xMax)
@@ -138,6 +140,42 @@ int ClipLine(struct POINTW *p0,struct POINTW *p1,struct POINTW min,struct POINTW
 	return (min.x<=p0->x && p0->x<=max.x &&
 	        min.x<=p1->x && p1->x<=max.x &&
 	        min.y<=p0->y && p0->y<=max.y &&
+	        min.y<=p1->y && p1->y<=max.y);
+}
+
+// 1: Line is visible.
+// 0: Line is outside.
+int ClipLineYOnly(struct POINTW *p0,struct POINTW *p1,struct POINTW min,struct POINTW max)
+{
+	if((p0->y<min.y && p1->y<min.y) || (max.y<p0->y && max.y<p1->y))
+	{
+		return 0;
+	}
+
+	int X0=p0->x,Y0=p0->y,X1=p1->x,Y1=p1->y;
+
+	if(p0->y<min.y)
+	{
+		p0->x=ClipY(X0,Y0,X1,Y1,min.y);
+		p0->y=min.y;
+	}
+	if(p1->y<min.y)
+	{
+		p1->x=ClipY(X0,Y0,X1,Y1,min.y);
+		p1->y=min.y;
+	}
+	if(max.y<p0->y)
+	{
+		p0->x=ClipY(X0,Y0,X1,Y1,max.y);
+		p0->y=max.y;
+	}
+	if(max.y<p1->y)
+	{
+		p1->x=ClipY(X0,Y0,X1,Y1,max.y);
+		p1->y=max.y;
+	}
+
+	return (min.y<=p0->y && p0->y<=max.y &&
 	        min.y<=p1->y && p1->y<=max.y);
 }
 
@@ -3564,22 +3602,150 @@ void EGB_42H_UNCONNECT(
 	EGB_SetError(EAX,EGB_NO_ERROR);
 }
 
-void EGB_POLYGON(
-	unsigned int EDI,
-	unsigned int ESI,
-	unsigned int EBP,
-	unsigned int ESP,
-	unsigned int EBX,
-	unsigned int EDX,
-	unsigned int ECX,
-	unsigned int EAX,
-	unsigned int DS,
-	unsigned int ES,
-	unsigned int GS,
-	unsigned int FS)
+static void EGB_AddPointToPolygonBuffer(_Far struct EGB_PolygonBufLine *plgBuf,int x,int y)
 {
-	TSUGARU_BREAK(__LINE__);
-	EGB_SetError(EAX,EGB_NO_ERROR);
+	int i;
+	unsigned int X;
+	_Far struct EGB_PolygonBufLine *line=plgBuf+y;
+
+	x=_max(x,0);
+	x=_min(x,0xFFFE);
+	X=x;
+	for(i=0; i<EGB_POLYGONBUF_MAX_INTERSECTIONS && line->x[i]<X; ++i)
+	{
+	}
+	for(; i<EGB_POLYGONBUF_MAX_INTERSECTIONS; ++i)
+	{
+		// std::swap(x,line->x[i]);
+		int a=X;
+		X=line->x[i];
+		line->x[i]=a;
+		if(0xFFFF==a)
+		{
+			break;
+		}
+	}
+}
+
+static void EGB_AddLineToPolygonBuffer(
+	_Far struct EGB_Work *work,
+	_Far struct EGB_PolygonBufLine *plgBuf,
+	struct POINTW p0,
+	struct POINTW p1,
+	int *lastVy)
+{
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+
+	int VY=p1.y-p0.y;
+	if(0==VY)
+	{
+		return;
+	}
+
+	if(0!=ClipLineYOnly(&p0,&p1,ptrSet.page->viewport[0],ptrSet.page->viewport[1]))
+	{
+		int x,y,dx,dy,vx,vy,balance=0;
+		vx=p1.x-p0.x;
+		vy=VY;
+
+		if(0<=vx)
+		{
+			dx=vx;
+			vx=1;
+		}
+		else
+		{
+			dx=-vx;
+			vx=-1;
+		}
+
+		if(0<=vy)
+		{
+			dy=vy;
+			vy=1;
+		}
+		else
+		{
+			dy=-vy;
+			vy=-1;
+		}
+
+		x=p0.x;
+		y=p0.y;
+		if(SIGN(VY)!=SIGN(*lastVy))
+		{
+			EGB_AddPointToPolygonBuffer(plgBuf,x,y);
+		}
+		if(dx<dy)
+		{
+			while(y!=p1.y)
+			{
+				y+=vy;
+				balance-=dx;
+				if(balance<0)
+				{
+					x+=vx;
+					balance+=dy;
+				}
+				EGB_AddPointToPolygonBuffer(plgBuf,x,y);
+			}
+		}
+		else
+		{
+			while(y!=p1.y)
+			{
+				x+=vx;
+				balance-=dy;
+				if(balance<0)
+				{
+					y+=vy;
+					balance+=dx;
+					EGB_AddPointToPolygonBuffer(plgBuf,x,y);
+				}
+			}
+		}
+
+		*lastVy=VY;
+	}
+}
+
+static void EGB_MakePolygonBuffer(_Far struct EGB_Work *work,_Far struct EGB_Polygon *plg)
+{
+	int y,i;
+	_Far struct EGB_PolygonBufLine *plgBuf=work->polygonBuf;
+
+	for(y=0; y<EGB_POLYGONBUF_HEIGHT; ++y)
+	{
+		plgBuf[y].x[0]=0xFFFF;
+	}
+
+	if(plg->nVtx<3)
+	{
+		return;
+	}
+
+	int lastVy=0;
+	lastVy=plg->vtx[0].y-plg->vtx[plg->nVtx-1].y;
+	for(i=plg->nVtx-1; 0==lastVy && 0<i; --i)
+	{
+		lastVy=plg->vtx[i].y-plg->vtx[i-1].y;
+	}
+
+	if(0==lastVy)
+	{
+		// Horizontal line between xMin to xMax
+	}
+	else
+	{
+		for(int i=0; i<plg->nVtx-1; ++i)
+		{
+			struct POINTW p1,p2;
+			p1=plg->vtx[i];
+			p2=plg->vtx[i+1];
+			EGB_AddLineToPolygonBuffer(work,plgBuf,p1,p2,&lastVy);
+		}
+		EGB_AddLineToPolygonBuffer(work,plgBuf,plg->vtx[plg->nVtx-1],plg->vtx[0],&lastVy);
+	}
 }
 
 void EGB_ROTATEPOLYGON(
@@ -3647,6 +3813,39 @@ void EGB_TRIANGLE(
 		ptrSet.vram[vramAddr] op (color&0xF0); \
 	} \
 }
+
+#define EGB_Rectangle_Fill_Line \
+	if(xMin&1)\
+	{\
+		ptrSet.vram[vramAddr]&=0x0F;\
+		ptrSet.vram[vramAddr]|=(color&0xF0);\
+		++vramAddr;\
+		++xMin;\
+	}\
+	{\
+		unsigned int count=(xMax+1-xMin)/2;\
+		MEMSETB_FAR(ptrSet.vram+vramAddr,color,count);\
+		vramAddr+=count;\
+	}\
+	if(!(xMax&1))\
+	{\
+		ptrSet.vram[vramAddr]&=0xF0;\
+		ptrSet.vram[vramAddr]|=(color&0x0F);\
+	}\
+
+
+#define EGB_Rectangle_LogicOp_8bit(op) \
+{\
+	unsigned int count=xMax-xMin+1;\
+	_Far unsigned char *vram=ptrSet.vram+vramAddr;\
+	while(0<count)\
+	{\
+		(*vram) op color;\
+		++vram;\
+		--count;\
+	}\
+}
+
 
 void EGB_RECTANGLE(
 	unsigned int EDI,
@@ -3856,23 +4055,7 @@ void EGB_RECTANGLE(
 				case EGB_FUNC_PRESET:
 				case EGB_FUNC_PSET:
 				case EGB_FUNC_OPAQUE:
-					if(xMin&1)
-					{
-						ptrSet.vram[vramAddr]&=0xF0;
-						ptrSet.vram[vramAddr]|=(color&0x0F);
-						++vramAddr;
-						++xMin;
-					}
-					{
-						unsigned int count=(xMax+1-xMin)/2;
-						MEMSETB_FAR(ptrSet.vram+vramAddr,color,count);
-						vramAddr+=count;
-					}
-					if(!(xMax&1))
-					{
-						ptrSet.vram[vramAddr]&=0x0F;
-						ptrSet.vram[vramAddr]|=(color&0xF0);
-					}
+					EGB_Rectangle_Fill_Line;
 					break;
 				case EGB_FUNC_XOR:
 					EGB_Rectangle_LogicOp_4bit(^=);
@@ -3897,16 +4080,13 @@ void EGB_RECTANGLE(
 					MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
 					break;
 				case EGB_FUNC_XOR:
-					{
-						unsigned int count=xMax-xMin+1;
-						_Far unsigned char *vram=ptrSet.vram+vramAddr;
-						while(0<count)
-						{
-							(*vram)^=color;
-							++vram;
-							--count;
-						}
-					}
+					EGB_Rectangle_LogicOp_8bit(^=);
+					break;
+				case EGB_FUNC_AND:
+					EGB_Rectangle_LogicOp_8bit(&=);
+					break;
+				case EGB_FUNC_OR:
+					EGB_Rectangle_LogicOp_8bit(|=);
 					break;
 				default:
 					TSUGARU_BREAK(__LINE__);
@@ -3967,6 +4147,159 @@ void EGB_RECTANGLE(
 			a=b;
 			b.y=p0.y;
 			EGB_DrawLineStipple(work,&ptrSet,a,b,&lineStipple);
+		}
+	}
+
+	EGB_SetError(EAX,EGB_NO_ERROR);
+}
+
+void EGB_43H_POLYGON(
+	unsigned int EDI,
+	unsigned int ESI,
+	unsigned int EBP,
+	unsigned int ESP,
+	unsigned int EBX,
+	unsigned int EDX,
+	unsigned int ECX,
+	unsigned int EAX,
+	unsigned int DS,
+	unsigned int ES,
+	unsigned int GS,
+	unsigned int FS)
+{
+	_Far struct EGB_Work *work=EGB_GetWork();
+	struct EGB_PagePointerSet ptrSet=EGB_GetPagePointerSet(work);
+	int y;
+
+	_Far struct EGB_Polygon *plg;
+	_FP_SEG(plg)=DS;
+	_FP_OFF(plg)=ESI;
+	if(plg->nVtx<3)
+	{
+		return;
+	}
+
+	_Far struct EGB_PolygonBufLine *plgBuf=work->polygonBuf;
+
+	EGB_MakePolygonBuffer(work,plg);
+	if(work->paintMode&EGB_PAINTFLAG_FILL_HATCH)
+	{
+		TSUGARU_BREAK(__LINE__);
+	}
+
+	if(work->paintMode&EGB_PAINTFLAG_FILL_NORMAL)
+	{
+		unsigned int vramAddr;
+		unsigned int color=GetExpandedColor(work->color[EGB_FILL_COLOR],ptrSet.mode->bitsPerPixel);
+
+		if(EGB_FUNC_PRESET==work->drawingMode)
+		{
+			color=GetExpandedColor(work->color[EGB_BACKGROUND_COLOR],ptrSet.mode->bitsPerPixel);
+		}
+
+		for(int y=0; y<EGB_POLYGONBUF_HEIGHT; ++y)
+		{
+			_Far struct EGB_PolygonBufLine *line=plgBuf+y;
+			for(int i=0; i<EGB_POLYGONBUF_MAX_INTERSECTIONS; i+=2)
+			{
+				int xMin=line->x[i];
+				int xMax=line->x[i+1];
+				if(0xFFFF==xMin || 0xFFFF==xMax)
+				{
+					break;
+				}
+
+				EGB_CalcVRAMAddr(&vramAddr,xMin,y,ptrSet.mode);
+
+				switch(ptrSet.mode->bitsPerPixel)
+				{
+				case 4:
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PRESET:
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+						EGB_Rectangle_Fill_Line;
+						break;
+					case EGB_FUNC_XOR:
+						EGB_Rectangle_LogicOp_4bit(^=);
+						break;
+					case EGB_FUNC_AND:
+						EGB_Rectangle_LogicOp_4bit(&=);
+						break;
+					case EGB_FUNC_OR:
+						EGB_Rectangle_LogicOp_4bit(|=);
+						break;
+					default:
+						TSUGARU_BREAK(__LINE__);
+						break;
+					}
+					break;
+				case 8:
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_PRESET:
+						MEMSETB_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
+						break;
+					case EGB_FUNC_XOR:
+						EGB_Rectangle_LogicOp_8bit(^=);
+						break;
+					case EGB_FUNC_AND:
+						EGB_Rectangle_LogicOp_8bit(&=);
+						break;
+					case EGB_FUNC_OR:
+						EGB_Rectangle_LogicOp_8bit(|=);
+						break;
+					default:
+						TSUGARU_BREAK(__LINE__);
+						break;
+					}
+					break;
+				case 16:
+					switch(work->drawingMode)
+					{
+					case EGB_FUNC_PSET:
+					case EGB_FUNC_OPAQUE:
+					case EGB_FUNC_PRESET:
+						MEMSETW_FAR(ptrSet.vram+vramAddr,color,xMax-xMin+1);
+						break;
+					default:
+						TSUGARU_BREAK(__LINE__);
+						break;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	if(work->paintMode&EGB_PAINTFLAG_LINE_NORMAL)
+	{
+		int i;
+		struct POINTW a,b;
+		if(~0==work->lineStipple)
+		{
+			b=plg->vtx[plg->nVtx-1];
+			for(i=0; i<plg->nVtx; ++i)
+			{
+				a=plg->vtx[i];
+				EGB_DrawLine(work,&ptrSet,a,b);
+				b=a;
+			}
+		}
+		else
+		{
+			unsigned int lineStipple=work->lineStipple;
+
+			b=plg->vtx[plg->nVtx-1];
+			for(i=0; i<plg->nVtx; ++i)
+			{
+				a=plg->vtx[i];
+				EGB_DrawLineStipple(work,&ptrSet,a,b,&lineStipple);
+				b=a;
+			}
 		}
 	}
 
@@ -4062,23 +4395,7 @@ void EGB_CIRCLE(
 					case EGB_FUNC_PRESET:
 					case EGB_FUNC_PSET:
 					case EGB_FUNC_OPAQUE:
-						if(xMin&1)
-						{
-							ptrSet.vram[vramAddr]&=0xF0;
-							ptrSet.vram[vramAddr]|=(color&0x0F);
-							++vramAddr;
-							++xMin;
-						}
-						{
-							unsigned int count=(xMax+1-xMin)/2;
-							MEMSETB_FAR(ptrSet.vram+vramAddr,color,count);
-							vramAddr+=count;
-						}
-						if(!(xMax&1))
-						{
-							ptrSet.vram[vramAddr]&=0x0F;
-							ptrSet.vram[vramAddr]|=(color&0xF0);
-						}
+						EGB_Rectangle_Fill_Line;
 						break;
 					case EGB_FUNC_XOR:
 						EGB_Rectangle_LogicOp_4bit(^=);
