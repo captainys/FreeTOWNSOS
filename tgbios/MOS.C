@@ -942,6 +942,7 @@ void MOS_0EH_WRITEPAGE(
 	_Far struct MOS_Status *stat=MOS_GetStatus();
 	_Far struct EGB_Work *egb=EGB_GetWork();
 	unsigned char AL=EAX&1;
+	unsigned char prevScrnModeID=stat->screenMode[stat->dispPage&1];
 
 	_PUSHFD
 	if(0!=stat->showLevel)
@@ -952,15 +953,18 @@ void MOS_0EH_WRITEPAGE(
 	stat->dispPage=AL;
 
 	unsigned char scrnModeID=stat->screenMode[stat->dispPage&1];
-	_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(scrnModeID);
-	stat->minPos.x=0;
-	stat->minPos.y=0;
-	stat->maxPos=scrnMode->visiSize;
-	stat->maxPos.x--;
-	stat->maxPos.y--;
-	stat->pos=scrnMode->visiSize;
-	stat->pos.x>>=1;
-	stat->pos.y>>=1;
+	if(prevScrnModeID!=scrnModeID)
+	{
+		_Far struct EGB_ScreenMode *scrnMode=EGB_GetScreenModeProp(scrnModeID);
+		stat->minPos.x=0;
+		stat->minPos.y=0;
+		stat->maxPos=scrnMode->visiSize;
+		stat->maxPos.x--;
+		stat->maxPos.y--;
+		stat->pos=scrnMode->visiSize;
+		stat->pos.x>>=1;
+		stat->pos.y>>=1;
+	}
 
 	if(0!=stat->showLevel)
 	{
