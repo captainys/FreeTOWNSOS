@@ -446,6 +446,16 @@ INT90H_09H_READ_NONBLOCKING:
 INT90H_09H_HAVE_KEY:
 						; AL is key-address (b7 is always 0)
 						; AH b0 Right Thumb Shift   b1 Left Thumb Shift  b2 SHIFT  b3 CTRL  b4 0 Make or 1 Break  b5,b6 Keyboard Type
+
+						CMP		AH,0F0H	; If all b4-b7 are all on, it means typamatic (key repeat), in which case, b4 should be dropped.
+						JB		INT90H_09H_NOT_TYPAMATIC
+
+						; Is typamatic.  Drop b4.
+						; Air Raider is relying on key repeat, and b7 of return-DL (will be taken from b4 of AH here) matters.
+						AND		AH,0EFH
+
+INT90H_09H_NOT_TYPAMATIC:
+
 						MOV		SI,CS:[BIOS_CODE_SYSTEM]
 						AND		SI,BIOS_CODESYS_MODE_MASK
 

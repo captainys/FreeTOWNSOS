@@ -1034,9 +1034,18 @@ void SND_KEY_ABORT(
 	}
 	else if(SND_Is_PCM_Channel(ch))
 	{
+		unsigned char keyFlag;
+
 		ch-=SND_PCM_CHANNEL_START;
-		_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
-		_outb(TOWNSIO_SOUND_PCM_ENV,0);
+
+		// 2026/02/22 ? Why was I doing it?
+		//_outb(TOWNSIO_SOUND_PCM_CTRL,0xC0|ch); // Select PCM Channel
+		//_outb(TOWNSIO_SOUND_PCM_ENV,0);
+
+		keyFlag=(1<<ch);
+		status->PCMKey|=keyFlag;
+		_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,status->PCMKey);  // 4F8
+
 		SND_SetError(EAX,SND_NO_ERROR);
 	}
 	else
