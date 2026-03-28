@@ -1,0 +1,87 @@
+AUXDEV_HEADER_NEXT			DW		PRNDEV_HEADER_NEXT
+							DW		IOSYS_CS
+AUXDEV_HEADER_ATTRIBWORD	DW		8003h
+AUXDEV_HEADER_STRATEGY_PTR	DW		AUXDEV_STRATEGY
+AUXDEV_HEADER_INTERRUPT_PTR	DW		AUXDEV_INTERRUPT
+AUXDEV_HEADER_NAME			DB		"AUX     "
+
+AUXDEV_REQHDR_PTR		DD	0
+
+AUXDEV_STRATEGY:
+						MOV		CS:[AUXDEV_REQHDR_PTR],BX
+						MOV		CS:[AUXDEV_REQHDR_PTR+2],ES
+						RETF
+
+AUXDEV_INTERRUPT:
+						SAVE_WORLD
+
+						LES		BX,CS:[AUXDEV_REQHDR_PTR]
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JE		AUXDEV_INIT
+						CMP		AL,DEVREQ_CMD_READ
+						JE		AUXDEV_READ
+						CMP		AL,DEVREQ_CMD_WRITE
+						JE		AUXDEV_WRITE
+						CMP		AL,DEVREQ_CMD_WRITE_VERIFY
+						JE		AUXDEV_WRITE
+						CMP		AL,DEVREQ_CMD_NON_DEST_READ
+						JE		AUXDEV_NON_DESTRUCTIVE_READ
+
+						CMP		AL,DEVREQ_CMD_FLUSH_INPUT
+						JE		AUXDEV_FLUSH_INPUT
+
+						CMP		AL,DEVREQ_CMD_OUTPUT_STATUS
+						JE		AUXDEV_INTERRUPT_RETURN
+						CMP		AL,DEVREQ_CMD_INPUT_STATUS
+						JE		AUXDEV_INTERRUPT_RETURN
+
+
+						TSUGARU_DEBUG
+
+AUXDEV_INTERRUPT_RETURN:
+						RESTORE_WORLD
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AUXDEV_INIT:
+
+						JMP		AUXDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AUXDEV_READ:
+						MOV		WORD ES:[BX+REQ_READ_WRITE_SECTOR_COUNT],1 ; Is it always one byte at a time?
+
+						MOV		CX,ES:[BX+REQ_READ_WRITE_SECTOR_COUNT]
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						STI
+
+						MOV		BYTE [DI],' '
+
+						JMP		AUXDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AUXDEV_NON_DESTRUCTIVE_READ:
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+						STI
+
+						; No input -> Return BUSY flag
+						LES		BX,CS:[AUXDEV_REQHDR_PTR]	; BX may be destroyed.
+						MOV		WORD ES:[BX+REQ_STATUS],CONSDEV_FLAG_BUSY
+						JMP		AUXDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AUXDEV_FLUSH_INPUT:
+						JMP		AUXDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AUXDEV_WRITE:
+						JMP		AUXDEV_INTERRUPT_RETURN
+

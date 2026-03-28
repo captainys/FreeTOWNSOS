@@ -395,6 +395,16 @@ CLOSE_DEFAULT_FILE_LOOP:
 						PUSH	CS
 						POP		DS
 
+
+						; Should be ready to load AUX and PRN
+						MOV		AX,3D02H
+						MOV		DX,AUX_FILENAME
+						INT		21H
+
+						MOV		AX,3D02H
+						MOV		DX,PRN_FILENAME
+						INT		21H
+
 						; CS=DS
 						MOV		AX,4B00H	; EXEC
 						MOV		DX,DEFAULT_COMSPEC
@@ -520,6 +530,9 @@ COMMANDCOM_PARAMETER	DB		" A:\ /P",0
 
 						ALIGN	32
 DEFAULT_CONDEV_NAME		DB		"CON",0
+
+AUX_FILENAME			DB		"AUX",0
+PRN_FILENAME			DB		"PRN",0
 
 COMMANDCOM_PARAMBLOCK	DW		0	; ENVSEG to copy from
 						DW		COMMANDCOM_PARAMETER	; Command Tail OFFSET

@@ -1,0 +1,79 @@
+PRNDEV_HEADER_NEXT			DW		TOWNSCD_HEADER_NEXT
+							DW		IOSYS_CS
+PRNDEV_HEADER_ATTRIBWORD	DW		8003h
+PRNDEV_HEADER_STRATEGY_PTR	DW		PRNDEV_STRATEGY
+PRNDEV_HEADER_INTERRUPT_PTR	DW		PRNDEV_INTERRUPT
+PRNDEV_HEADER_NAME			DB		"PRN     "
+
+PRNDEV_REQHDR_PTR		DD	0
+
+PRNDEV_STRATEGY:
+						MOV		CS:[PRNDEV_REQHDR_PTR],BX
+						MOV		CS:[PRNDEV_REQHDR_PTR+2],ES
+						RETF
+
+PRNDEV_INTERRUPT:
+						SAVE_WORLD
+
+						LES		BX,CS:[PRNDEV_REQHDR_PTR]
+
+						MOV		WORD ES:[BX+REQ_STATUS],DEVREQ_STATUS_NOERROR ; Tentatively no error
+						MOV		AL,ES:[BX+REQ_COMMAND]
+						CMP		AL,DEVREQ_CMD_INIT
+						JE		PRNDEV_INIT
+						CMP		AL,DEVREQ_CMD_READ
+						JE		PRNDEV_READ
+						CMP		AL,DEVREQ_CMD_WRITE
+						JE		PRNDEV_WRITE
+						CMP		AL,DEVREQ_CMD_WRITE_VERIFY
+						JE		PRNDEV_WRITE
+						CMP		AL,DEVREQ_CMD_NON_DEST_READ
+						JE		PRNDEV_NON_DESTRUCTIVE_READ
+
+						CMP		AL,DEVREQ_CMD_FLUSH_INPUT
+						JE		PRNDEV_FLUSH_INPUT
+
+						CMP		AL,DEVREQ_CMD_OUTPUT_STATUS
+						JE		PRNDEV_INTERRUPT_RETURN
+						CMP		AL,DEVREQ_CMD_INPUT_STATUS
+						JE		PRNDEV_INTERRUPT_RETURN
+
+
+						TSUGARU_DEBUG
+
+PRNDEV_INTERRUPT_RETURN:
+						RESTORE_WORLD
+						RETF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PRNDEV_INIT:
+						JMP		PRNDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PRNDEV_READ:
+						MOV		WORD ES:[BX+REQ_READ_WRITE_SECTOR_COUNT],1 ; Is it always one byte at a time?
+						MOV		BYTE [DI],0
+						JMP		PRNDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PRNDEV_NON_DESTRUCTIVE_READ:
+						LDS		DI,ES:[BX+REQ_READ_WRITE_BUFFER_PTR]
+
+						; No input -> Return busy flag.
+						LES		BX,CS:[PRNDEV_REQHDR_PTR]	; BX may be destroyed.
+						MOV		WORD ES:[BX+REQ_STATUS],CONSDEV_FLAG_BUSY
+						JMP		PRNDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PRNDEV_FLUSH_INPUT:
+						JMP		PRNDEV_INTERRUPT_RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PRNDEV_WRITE:
+						JMP		PRNDEV_INTERRUPT_RETURN
+
