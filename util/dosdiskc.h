@@ -176,7 +176,20 @@ void DOSDISK_MakeInitialRootDir(const DOSDISK *disk,unsigned char rootDir[],size
 
 /*!
 */
+uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb);
+
+/*! Returns pointer to the cluster.  cluster=2 is the real first cluster that takes the
+    first of the data sectors because the first two clusters are reserved in the FAT.
+*/
+unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster,const BPB *bpb);
+
+/*!
+*/
 unsigned char *DOSDISK_GetFAT(const DOSDISK *disk);
+
+/*!
+*/
+void DOSDISK_ClusterToCHR(const DOSDISK *disk,unsigned char CHR[],int cluster);
 
 /*!
 */
@@ -193,6 +206,24 @@ unsigned char *DOSDISK_GetBackupFAT(const DOSDISK *disk);
 /*!
 */
 unsigned char *DOSDISK_GetRootDir(const DOSDISK *disk);
+
+/*!
+*/
+unsigned char *DOSDISK_FindAvailableDirEnt(const DOSDISK *disk);
+
+/*!
+*/
+void DOSDISK_WriteDirEnt(
+	    unsigned char *dirEnt,const char file[],const char ext[],
+	    uint8_t attr,
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day,
+	    unsigned int firstCluster,
+	    unsigned int fileSize);
+
+/*! Returns the first cluster.
+*/
+unsigned int DOSDISK_WriteData(DOSDISK *disk,size_t len,const unsigned char data[]);
 
 #ifdef __cplusplus
 } // extern "C"

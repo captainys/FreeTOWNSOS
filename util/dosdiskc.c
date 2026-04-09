@@ -1,6 +1,9 @@
 #include "dosdiskc.h"
 
 
+#define _Smaller(a,b) ((a)<(b) ? (a) : (b))
+
+
 void WriteWord(unsigned char *ptr,unsigned short data)
 {
 	*(uint16_t *)ptr=data;
@@ -352,7 +355,7 @@ void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],const BPB *bpb,
 	}
 }
 
-DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb)
+uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb)
 {
 	for(int i=0; i<BPB_GetNumClusters(bpb); ++i)
 	{
@@ -363,6 +366,67 @@ DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const
 		}
 	}
 	return ~0;
+}
+
+
+unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster,const BPB *bpb)
+{
+	size_t firstDataPos=bpb->bytesPerSector*BPB_GetFirstDataSector(bpb);
+	if(2<=cluster) // Cluster 2 is real first cluster.
+	{
+		cluster-=2;
+	}
+	else
+	{
+		cluster=0;
+	}
+	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(bpb)*cluster;
+	return disk->data+clusterPos;
+}
+
+void DOSDISK_ClusterToCHR(const DOSDISK *disk,unsigned char CHR[],int cluster)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+
+	CHR[0]=0;
+	CHR[1]=0;
+	CHR[2]=0;
+
+	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
+	if(2<=cluster) // Cluster 2 is real first cluster.
+	{
+		cluster-=2;
+	}
+	else
+	{
+		cluster=0;
+	}
+	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
+
+	if(0<bpb.bytesPerSector && 0<bpb.sectorsPerTrack)
+	{
+		size_t lba=clusterPos/bpb.bytesPerSector;
+		size_t track=lba/bpb.sectorsPerTrack;
+		CHR[0]=track/2; // CYLINDER
+		CHR[1]=track&1; // HEAD
+		CHR[2]=lba%bpb.sectorsPerTrack;
+	}
+}
+
+unsigned char *DOSDISK_FindAvailableDirEnt(const DOSDISK *disk)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	unsigned char *rootDir=DOSDISK_GetRootDir(disk);
+	size_t dirEntSize=(1<<DIRENT_SHIFT);
+	for(int i=0; i<bpb.numRootDirEnt; ++i)
+	{
+		if(0==*rootDir)
+		{
+			return rootDir;
+		}
+		rootDir+=dirEntSize;
+	}
+	return NULL;
 }
 
 unsigned char *DOSDISK_GetBackupFAT(const DOSDISK *disk)
@@ -378,4 +442,79 @@ unsigned char *DOSDISK_GetRootDir(const DOSDISK *disk)
 	BPB bpb=DOSDISK_GetBPB(disk);
 	size_t pos=bpb.bytesPerSector*BPB_GetRootDirSector(&bpb);
 	return disk->data+pos;
+}
+
+void DOSDISK_WriteDirEnt(
+	    unsigned char *dirEnt,const char file[],const char ext[],
+	    uint8_t attr,
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day,
+	    unsigned int firstCluster,
+	    unsigned int fileSize)
+{
+	int i;
+	for(i=0; i<8 && 0!=file[i]; ++i)
+	{
+		dirEnt[DIRENT_FILENAME+i]=toupper(file[i]);
+	}
+	for(i=i; i<8; ++i)
+	{
+		dirEnt[DIRENT_FILENAME+i]=' ';
+	}
+	for(i=0; i<3 && 0!=ext[i]; ++i)
+	{
+		dirEnt[DIRENT_EXT+i]=toupper(ext[i]);
+	}
+	for(i=i; i<3; ++i)
+	{
+		dirEnt[DIRENT_EXT+i]=' ';
+	}
+	dirEnt[DIRENT_ATTR]=attr;
+
+	uint16_t time;
+	time=((hour&0x1F)<<11)|((min&0x2F)<<5)|((sec>>1)&0x1F);
+	uint16_t date;
+	date=(((year-1980)&0x7F)<<9)|((month&0x0F)<<5)|(day&0x1F);
+
+	WriteWord(dirEnt+DIRENT_TIME,time);
+	WriteWord(dirEnt+DIRENT_DATE,date);
+	WriteWord(dirEnt+DIRENT_FIRST_CLUSTER,firstCluster);
+	WriteDword(dirEnt+DIRENT_FILE_SIZE,fileSize);
+}
+
+unsigned int DOSDISK_WriteData(DOSDISK *disk,size_t dataLen,const unsigned char data[])
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t pos=0;
+	unsigned int prevCluster=0,firstCluster=NULL_CLUSTER;
+	while(pos<dataLen)
+	{
+		size_t writeSize=_Smaller(dataLen-pos,BPB_GetBytesPerCluster(&bpb));
+		auto cluster=DOSDISK_FindAvailableCluster(disk,DOSDISK_GetFAT(disk),&bpb);
+		if(cluster!=NULL_CLUSTER)
+		{
+			if(0==pos)
+			{
+				firstCluster=cluster;
+			}
+			else
+			{
+				DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),&bpb,prevCluster,cluster);
+				DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),&bpb,prevCluster,cluster);
+			}
+			prevCluster=cluster;
+
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),&bpb,cluster,0xFFFF);
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),&bpb,cluster,0xFFFF);
+
+			unsigned char *ptr=DOSDISK_GetCluster(disk,cluster,&bpb);
+			memcpy(ptr,data+pos,writeSize);
+		}
+		else
+		{
+			break;
+		}
+		pos+=writeSize;
+	}
+	return firstCluster;
 }

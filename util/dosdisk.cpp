@@ -116,75 +116,21 @@ uint32_t Disk::FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) co
 
 unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)
 {
-	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
-	if(2<=cluster) // Cluster 2 is real first cluster.
-	{
-		cluster-=2;
-	}
-	else
-	{
-		cluster=0;
-	}
-	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
-	return data.data()+clusterPos;
+	return DOSDISK_GetCluster(&disk,cluster,&bpb);
 }
 void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
 {
-	CHR[0]=0;
-	CHR[1]=0;
-	CHR[2]=0;
-
-	auto bpb=DOSDISK_GetBPB(&disk);
-
-	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
-	if(2<=cluster) // Cluster 2 is real first cluster.
-	{
-		cluster-=2;
-	}
-	else
-	{
-		cluster=0;
-	}
-	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
-
-	if(0<bpb.bytesPerSector && 0<bpb.sectorsPerTrack)
-	{
-		size_t lba=clusterPos/bpb.bytesPerSector;
-		size_t track=lba/bpb.sectorsPerTrack;
-		CHR[0]=track/2; // CYLINDER
-		CHR[1]=track&1; // HEAD
-		CHR[2]=lba%bpb.sectorsPerTrack;
-	}
+	DOSDISK_ClusterToCHR(&disk,CHR,cluster);
 }
+
 const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
 {
-	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
-	if(2<=cluster) // Cluster 2 is real first cluster.
-	{
-		cluster-=2;
-	}
-	else
-	{
-		cluster=0;
-	}
-	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
-	return data.data()+clusterPos;
+	return DOSDISK_GetCluster(&disk,cluster,&bpb);
 }
 
 unsigned char *Disk::FindAvailableDirEnt(void)
 {
-	auto bpb=DOSDISK_GetBPB(&disk);
-	auto rootDir=DOSDISK_GetRootDir(&disk);
-	size_t dirEntSize=(1<<DIRENT_SHIFT);
-	for(int i=0; i<bpb.numRootDirEnt; ++i)
-	{
-		if(0==*rootDir)
-		{
-			return rootDir;
-		}
-		rootDir+=dirEntSize;
-	}
-	return nullptr;
+	return DOSDISK_FindAvailableDirEnt(&disk);
 }
 
 void Disk::WriteDirEnt(
@@ -195,61 +141,11 @@ void Disk::WriteDirEnt(
 	    unsigned int firstCluster,
 	    unsigned int fileSize)
 {
-	for(int i=0; i<8; ++i)
-	{
-		dirEnt[DIRENT_FILENAME+i]=toupper(file[i]);
-	}
-	for(int i=0; i<3; ++i)
-	{
-		dirEnt[DIRENT_EXT+i]=toupper(ext[i]);
-	}
-	dirEnt[DIRENT_ATTR]=attr;
-
-	uint16_t time;
-	time=((hour&0x1F)<<11)|((min&0x2F)<<5)|((sec>>1)&0x1F);
-	uint16_t date;
-	date=(((year-1980)&0x7F)<<9)|((month&0x0F)<<5)|(day&0x1F);
-
-	WriteWord(dirEnt+DIRENT_TIME,time);
-	WriteWord(dirEnt+DIRENT_DATE,date);
-	WriteWord(dirEnt+DIRENT_FIRST_CLUSTER,firstCluster);
-	WriteDword(dirEnt+DIRENT_FILE_SIZE,fileSize);
+	DOSDISK_WriteDirEnt(dirEnt,file.c_str(),ext.c_str(),attr,hour,min,sec,year,month,day,firstCluster,fileSize);
 }
 
 unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
 {
-	auto bpb=DOSDISK_GetBPB(&disk);
-	size_t pos=0;
-	unsigned int prevCluster=0,firstCluster=NULL_CLUSTER;
-	while(pos<data.size())
-	{
-		size_t writeSize=std::min(data.size()-pos,BPB_GetBytesPerCluster(&bpb));
-		auto cluster=FindAvailableCluster(DOSDISK_GetFAT(&disk),bpb);
-		if(cluster!=NULL_CLUSTER)
-		{
-			if(0==pos)
-			{
-				firstCluster=cluster;
-			}
-			else
-			{
-				PutFATEntry(DOSDISK_GetFAT(&disk),bpb,prevCluster,cluster);
-				PutFATEntry(DOSDISK_GetBackupFAT(&disk),bpb,prevCluster,cluster);
-			}
-			prevCluster=cluster;
-
-			PutFATEntry(DOSDISK_GetFAT(&disk),bpb,cluster,0xFFFF);
-			PutFATEntry(DOSDISK_GetBackupFAT(&disk),bpb,cluster,0xFFFF);
-
-			auto ptr=GetCluster(cluster,bpb);
-			memcpy(ptr,data.data()+pos,writeSize);
-		}
-		else
-		{
-			break;
-		}
-		pos+=writeSize;
-	}
-	return firstCluster;
+	return DOSDISK_WriteData(&disk,data.size(),data.data());
 }
 
