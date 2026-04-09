@@ -91,6 +91,7 @@ unsigned short ReadDword(const unsigned char *ptr);
 #define FAT12					12
 #define FAT16					16
 
+#define CLUSTER_BUFFER_SIZE		1024
 
 
 typedef struct
@@ -228,6 +229,10 @@ unsigned char *DOSDISK_GetRootDir(const DOSDISK *disk);
 */
 unsigned char *DOSDISK_FindAvailableDirEnt(const DOSDISK *disk);
 
+/*!
+*/
+unsigned char *DOSDISK_FindAvailableDirEntSubdir(const DOSDISK *disk,uint32_t cluster);
+
 /*! Returns 0 if file and ext matches.
 */
 int DOSDISK_CompareDirEndFileName(unsigned char *dirEnt,char file[],const char ext[]);
@@ -257,7 +262,7 @@ uint32_t DOSDISK_IsValidCluster(const DOSDISK *disk,uint32_t cluster);
 
 /*!
 */
-int DOSDISK_MkDir(const DOSDISK *disk,const char fileName[],
+int DOSDISK_MkDir(DOSDISK *disk,const char fileName[],
 	    unsigned int hour,unsigned int min,unsigned int sec,
 	    unsigned int year,unsigned int month,unsigned int day);
 
