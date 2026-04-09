@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include "dosdiskc.h"
 
 
@@ -394,7 +395,7 @@ uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FA
 			return i;
 		}
 	}
-	return ~0;
+	return NULL_CLUSTER;
 }
 
 
@@ -486,6 +487,41 @@ unsigned char *DOSDISK_GetRootDir(const DOSDISK *disk)
 	return disk->data+pos;
 }
 
+int DOSDISK_CompareDirEndFileName(unsigned char *dirEnt,char file[],const char ext[])
+{
+	int i;
+	for(i=0; i<8 && 0!=file[i]; ++i)
+	{
+		if(dirEnt[DIRENT_FILENAME+i]!=toupper(file[i]))
+		{
+			return 1;
+		}
+	}
+	for(i=i; i<8; ++i)
+	{
+		if(' '!=dirEnt[DIRENT_FILENAME+i] && 0!=dirEnt[DIRENT_FILENAME+i])
+		{
+			return 1;
+		}
+	}
+
+	for(i=0; i<3 && 0!=ext[i]; ++i)
+	{
+		if(dirEnt[DIRENT_EXT+i]!=toupper(ext[i]))
+		{
+			return 1;
+		}
+	}
+	for(i=i; i<3; ++i)
+	{
+		if(' '!=dirEnt[DIRENT_EXT+i] && 0!=dirEnt[DIRENT_EXT+i])
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void DOSDISK_WriteDirEnt(
 	    unsigned char *dirEnt,const char file[],const char ext[],
 	    uint8_t attr,
@@ -565,9 +601,8 @@ size_t DOSDISK_ReadData(DOSDISK *disk,size_t dataLen,unsigned char data[],uint32
 {
 	BPB bpb=DOSDISK_GetBPB(disk);
 	size_t pos=0;
-	const uint32_t NullCluster=DOSDISK_NullCluster(disk);
 	unsigned char *FAT=DOSDISK_GetFAT(disk);
-	while(pos<dataLen && NullCluster!=cluster)
+	while(pos<dataLen && 0!=DOSDISK_IsValidCluster(disk,cluster))
 	{
 		size_t readSize=_Smaller(dataLen-pos,BPB_GetBytesPerCluster(&bpb));
 
@@ -581,17 +616,128 @@ size_t DOSDISK_ReadData(DOSDISK *disk,size_t dataLen,unsigned char data[],uint32
 	return pos;
 }
 
-uint32_t DOSDISK_NullCluster(const DOSDISK *disk)
+uint32_t DOSDISK_IsValidCluster(const DOSDISK *disk,uint32_t cluster)
 {
 	BPB bpb=DOSDISK_GetBPB(disk);
 	int FATType=BPB_GetFATType(&bpb);
 	if(FAT12==FATType)
 	{
-		return 0xFFF;
+		return cluster<0xFFF;
 	}
 	else if(FAT16==FATType)
 	{
-		return 0xFFFF;
+		return cluster<0xFFFF;
 	}
-	return NULL_CLUSTER;
+	return NULL_CLUSTER!=cluster;
+}
+
+statid void InitializeSubdirectory(unsigned char *data,uint32_t ownCluster,uint32_t parentDirCluster,
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day)
+{
+	DOSDISK_WriteDirEnt(data,".","",DIRENT_ATTR_DIRECTORY,
+		hour,min,sec,
+		year,month,date,
+		ownCluster,0);
+	DOSDISK_WriteDirEnt(data+DIRENT_BYTES,"..","",DIRENT_ATTR_DIRECTORY,
+		hour,min,sec,
+		year,month,date,
+		parentDirCluster,0);
+}
+
+int DOSDISK_MkDir(const DOSDISK *disk,const char fileName[],
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+
+	for(int i=0; fileName[i]!=0; ++i)
+	{
+		if(fileName[i]<=0x20 || 0!=(fileName[i]&0x80) || '*'==fileName[i])
+		{
+			return DOSDISK_ERR_BAD_FILE_NAME;
+		}
+		fileName[i]=toupper(fileName[i]);
+	}
+
+	uint32_t cluster=NULL_CLUSTER;
+	uint32_t dirLen=0;
+
+	int ptr=0;
+	if('\\'==fileName[0] || '/'==fileName[0])
+	{
+		++ptr;
+	}
+
+	size_t nameLen=0,extLen=0;
+	char name[8],ext[3];
+	memset(name,' ',9);
+	memset(ext,' ',3);
+	for(;;)
+	{
+		if(0==fileName[ptr] || '/'==fileName[ptr] || '\\'==fileNamePtr)
+		{
+			if(NULL_CLUSTER==cluster) // Root dir
+			{
+				unsigned char *rootDir=DOSDISK_GetRootDir(disk);
+				unsigned char *dir=rootDir;
+				uint32_t dirLen=numRootDirEnt;
+				int i,found=0;
+
+				// First try to find the sub-directory.
+				for(i=0; i<dirLen; ++i)
+				{
+					if(0==DOSDISK_CompareDirEndFileName(dir,name,ext))
+					{
+						found=1;
+						break;
+					}
+					dir+=DIRENT_BYTES;
+				}
+				// If found, move to the sub-directory and continue.
+				if(0!=found)
+				{
+					DIRENT *dirEnt=*(DIRENT *)dir;
+					if(0==(dirEnt->attr&DIRENT_ATTR_DIRECTORY))
+					{
+						return DOSDISK_ERR_FILE_ALREADY_EXISTS;
+					}
+					else
+					{
+						cluster=dirEnt->firstCluster;
+						memset(name,' ',9);
+						memset(ext,' ',3);
+						nameLen=0;
+						extLen=0;
+					}
+				}
+				// If not found, try to create one.
+				else
+				{
+					unsigned char *dir=DOSDISK_FindAvailableDirEnt(disk);
+					unsigned int *data;
+
+					cluster=DOSDISK_FindAvailableCluster(disk,DOSDISK_GetFAT());
+					if(NULL==dir)
+					{
+						return DOSDISK_ERR_DIRECTORY_FULL;
+					}
+					if(0==DOSDISK_IsValidCluster(disk,cluster))
+					{
+						return DOSDISK_ERR_DISK_FULL;
+					}
+					data=DOSDISK_GetCluster(disk,cluster);
+
+					memset(data,0,BPB_GetBytesPerCluster(&bpb);
+					InitializeSubdirectory(data,cluster,0,hour,min,sec,year,month,date);
+
+					DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),cluster,NULL_CLUSTER);
+					DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),cluster,NULL_CLUSTER);
+				}
+			}
+			else
+			{
+			}
+		}
+	}
 }

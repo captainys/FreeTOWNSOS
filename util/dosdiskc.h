@@ -15,7 +15,10 @@ extern "C" {
 #define DOSDISK_ERR                     1
 #define DOSDISK_ERR_MEDIA_NOT_SUPPORTED 2
 #define DOSDISK_ERR_WRONG_SIZE          3
-
+#define DOSDISK_ERR_BAD_FILE_NAME       4
+#define DOSDISK_ERR_FILE_ALREADY_EXISTS 5
+#define DOSDISK_ERR_DIRECTORY_FULL      6
+#define DOSDISK_ERR_DISK_FULL           7
 
 void WriteWord(unsigned char *ptr,unsigned short data);
 uint16_t ReadWord(const unsigned char *ptr);
@@ -225,6 +228,10 @@ unsigned char *DOSDISK_GetRootDir(const DOSDISK *disk);
 */
 unsigned char *DOSDISK_FindAvailableDirEnt(const DOSDISK *disk);
 
+/*! Returns 0 if file and ext matches.
+*/
+int DOSDISK_CompareDirEndFileName(unsigned char *dirEnt,char file[],const char ext[]);
+
 /*!
 */
 void DOSDISK_WriteDirEnt(
@@ -246,7 +253,13 @@ size_t DOSDISK_ReadData(DOSDISK *disk,size_t len,unsigned char data[],uint32_t c
 
 /*!
 */
-uint32_t DOSDISK_NullCluster(const DOSDISK *disk);
+uint32_t DOSDISK_IsValidCluster(const DOSDISK *disk,uint32_t cluster);
+
+/*!
+*/
+int DOSDISK_MkDir(const DOSDISK *disk,const char fileName[],
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day);
 
 #ifdef __cplusplus
 } // extern "C"
