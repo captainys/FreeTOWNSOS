@@ -7,7 +7,16 @@ extern "C" {
 
 
 #include <stdio.h>
+#include <string.h> // for memcpy
 #include <stdint.h>
+
+
+
+void WriteWord(unsigned char *ptr,unsigned short data);
+uint16_t ReadWord(const unsigned char *ptr);
+void WriteDword(unsigned char *ptr,unsigned int data);
+unsigned short ReadDword(const unsigned char *ptr);
+
 
 
 // The disk layout:
@@ -113,6 +122,7 @@ unsigned int BPB_GetBackupFATSector(const BPB *bpb); // NULL_CLUSTER if no backu
 unsigned int BPB_GetRootDirSector(const BPB *bpb);
 unsigned int BPB_GetFirstDataSector(const BPB *bpb);
 unsigned int BPB_GetFATType(const BPB *bpb);
+size_t BPB_GetNumClusters(const BPB *bpb);
 
 
 
@@ -120,12 +130,23 @@ typedef struct
 {
 	unsigned char isFloppyDisk;  // non-zero means FD, zero means HD partition or ICM.
 	unsigned int FAT12or16;
+
 	// DOSDISK does not own the disk image.  Must be retained outside.
+	size_t dataLen;
+	unsigned char *data;
 } DOSDISK;
 
 /*! Initialize a disk to floppydisk, FAT12, and zero data.
 */
 void DOSDISK_Init(DOSDISK *disk);
+
+/*!
+*/
+BPB DOSDISK_GetBPB(const DOSDISK *disk);
+
+/*!
+*/
+void DOSDISK_MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType);
 
 #ifdef __cplusplus
 } // extern "C"

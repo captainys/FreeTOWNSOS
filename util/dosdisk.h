@@ -8,10 +8,15 @@ class Disk
 {
 public:
 	DOSDISK disk;
+	std::vector <unsigned char> data;
+
+	inline BPB GetBPB(void) const
+	{
+		return DOSDISK_GetBPB(&disk);
+	}
+
 
 	Disk();
-
-	std::vector <unsigned char> data;
 
 	bool CreateFD(unsigned int BPB_mediaType);
 	void MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType) const;
@@ -23,10 +28,7 @@ public:
 
 	void WriteIPLSector(const std::vector <unsigned char> &ipl);
 
-	BPB GetBPB(void) const;
-
 	size_t GetFATLength(void) const;
-	size_t GetNumClusters(const BPB &bpb) const;
 	unsigned char *GetFAT(void);
 	unsigned char *GetBackupFAT(void);
 	const unsigned char *GetFAT(void) const;
@@ -57,26 +59,6 @@ public:
 	void ReadSector(unsigned char data[],int trk,int sid,int sec);
 	void WriteSector(unsigned char data[],int trk,int sid,int sec);
 };
-
-inline void WriteWord(unsigned char *ptr,unsigned short data)
-{
-	*(uint16_t *)ptr=data;
-}
-
-inline uint16_t ReadWord(const unsigned char *ptr)
-{
-	return *(uint16_t *)ptr;
-}
-
-inline void WriteDword(unsigned char *ptr,unsigned int data)
-{
-	*(uint32_t *)ptr=data;
-}
-
-inline unsigned short ReadDword(const unsigned char *ptr)
-{
-	return *(uint32_t *)ptr;
-}
 
 /* } */
 #endif

@@ -28,41 +28,18 @@ bool Disk::CreateFD(unsigned int BPB_mediaType)
 		return false;
 	}
 
-	MakeFDBootSectBPB(data.data(),BPB_mediaType);
+	DOSDISK_Init(&disk);
+	disk.dataLen=data.size();
+	disk.data=data.data();
 
-	auto bpb=GetBPB();
+	DOSDISK_MakeFDBootSectBPB(data.data(),BPB_mediaType);
+
+	auto bpb=DOSDISK_GetBPB(&disk);
 	MakeInitialFAT(GetFAT());
 	MakeInitialFAT(GetBackupFAT());
 	MakeInitialRootDir(GetRootDir(),bpb.numRootDirEnt);
 	return true;
 }
-
-void Disk::MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType) const
-{
-	for(int i=0; i<256; ++i)
-	{
-		sect[i]=0;
-	}
-	memcpy(sect,"IPL4",4);
-	sect[4]=I386_RETF;
-
-	if(BPB_MEDIA_1232K==mediaType)
-	{
-		WriteWord(sect+BPB_BYTES_PER_SECTOR,1024);
-		sect[BPB_SECTOR_PER_CLUSTER]=1;
-		WriteWord(sect+BPB_RESERVED_SECTOR_CT,1);
-		sect[BPB_NUM_FATS]=2;
-		WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,0xC0);
-		WriteWord(sect+BPB_TOTALNUM_SECT,0x4D0);  // 0x4D0=1232
-		sect[BPB_MEDIA_DESC]=mediaType;
-		WriteWord(sect+BPB_SECT_PER_FAT,2);
-		WriteWord(sect+BPB_SECT_PER_TRACK,8);
-		WriteWord(sect+BPB_NUM_HEADS,2);
-		WriteWord(sect+BPB_HIDDEN_SECT,0);
-		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
-	}
-}
-
 
 bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 {
@@ -136,7 +113,7 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 	WriteWord(sect+BPB_HIDDEN_SECT,0);
 	WriteDword(sect+BPB_32BIT_NUM_SECT,0);
 
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	MakeInitialFAT(GetFAT());
 	MakeInitialFAT(GetBackupFAT());
 	MakeInitialRootDir(GetRootDir(),bpb.numRootDirEnt);
@@ -146,7 +123,7 @@ bool Disk::CreateHDPartitionByMegaBytes(unsigned int MB)
 
 void Disk::MakeInitialFAT(unsigned char FAT[]) const
 {
-	auto BPB=GetBPB();
+	auto BPB=DOSDISK_GetBPB(&disk);
 	size_t len=GetFATLength();
 	for(int i=0; i<len; ++i)
 	{
@@ -190,42 +167,15 @@ void Disk::WriteIPLSector(const std::vector <unsigned char> &ipl)
 	memcpy(data.data(),ipl.data(),ipl.size());
 }
 
-BPB Disk::GetBPB(void) const
-{
-	auto sect=data.data();
-	BPB bpb;
-	bpb.bytesPerSector      =ReadWord(sect+BPB_BYTES_PER_SECTOR);
-	bpb.sectorsPerCluster   =sect[BPB_SECTOR_PER_CLUSTER];
-	bpb.numReservedSectors  =ReadWord(sect+BPB_RESERVED_SECTOR_CT);
-	bpb.numFATs             =sect[BPB_NUM_FATS];
-	bpb.numRootDirEnt       =ReadWord(sect+BPB_NUM_ROOT_DIR_ENT);
-	bpb.totalNumSectors     =ReadWord(sect+BPB_TOTALNUM_SECT);
-	bpb.mediaDesc           =sect[BPB_MEDIA_DESC];
-	bpb.sectorsPerFAT       =ReadWord(sect+BPB_SECT_PER_FAT);
-	bpb.sectorsPerTrack     =ReadWord(sect+BPB_SECT_PER_TRACK);
-	bpb.numHeads            =ReadWord(sect+BPB_NUM_HEADS);
-	bpb.numHiddenSectors    =ReadWord(sect+BPB_HIDDEN_SECT);
-	bpb.totalNumSectors32bit=ReadDword(sect+BPB_32BIT_NUM_SECT);
-	return bpb;
-}
-
 size_t Disk::GetFATLength(void) const
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	return bpb.bytesPerSector*bpb.sectorsPerFAT;
-}
-
-size_t Disk::GetNumClusters(const BPB &bpb) const
-{
-	// if(FAT12)
-	{
-		return 2*(GetFATLength()/3);
-	}
 }
 
 unsigned char *Disk::GetFAT(void)
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	// FAT is located immediately after reserved sectors.
 	size_t pos=bpb.bytesPerSector*bpb.numReservedSectors;
 	return data.data()+pos;
@@ -233,7 +183,7 @@ unsigned char *Disk::GetFAT(void)
 
 unsigned char *Disk::GetBackupFAT(void)
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	// Backup FAT is located immediately after the primary FAT.
 	size_t pos=bpb.bytesPerSector*(bpb.numReservedSectors+bpb.sectorsPerFAT);
 	return data.data()+pos;
@@ -241,7 +191,7 @@ unsigned char *Disk::GetBackupFAT(void)
 
 const unsigned char *Disk::GetFAT(void) const
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	// FAT is located immediately after reserved sectors.
 	size_t pos=bpb.bytesPerSector*bpb.numReservedSectors;
 	return data.data()+pos;
@@ -249,7 +199,7 @@ const unsigned char *Disk::GetFAT(void) const
 
 const unsigned char *Disk::GetBackupFAT(void) const
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	// Backup FAT is located immediately after the primary FAT.
 	size_t pos=bpb.bytesPerSector*(bpb.numReservedSectors+bpb.sectorsPerFAT);
 	return data.data()+pos;
@@ -257,13 +207,13 @@ const unsigned char *Disk::GetBackupFAT(void) const
 
 unsigned char *Disk::GetRootDir(void)
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	size_t pos=bpb.bytesPerSector*BPB_GetRootDirSector(&bpb);
 	return data.data()+pos;
 }
 const unsigned char *Disk::GetRootDir(void) const
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	size_t pos=bpb.bytesPerSector*BPB_GetRootDirSector(&bpb);
 	return data.data()+pos;
 }
@@ -329,7 +279,7 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 
 uint32_t Disk::FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const
 {
-	for(int i=0; i<GetNumClusters(bpb); ++i)
+	for(int i=0; i<BPB_GetNumClusters(&bpb); ++i)
 	{
 		auto data=GetFATEntry(FAT,bpb,i);
 		if(0==data)
@@ -360,7 +310,7 @@ void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
 	CHR[1]=0;
 	CHR[2]=0;
 
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 
 	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
 	if(2<=cluster) // Cluster 2 is real first cluster.
@@ -399,7 +349,7 @@ const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
 
 unsigned char *Disk::FindAvailableDirEnt(void)
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	auto rootDir=GetRootDir();
 	size_t dirEntSize=(1<<DIRENT_SHIFT);
 	for(int i=0; i<bpb.numRootDirEnt; ++i)
@@ -444,7 +394,7 @@ void Disk::WriteDirEnt(
 
 unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
 {
-	auto bpb=GetBPB();
+	auto bpb=DOSDISK_GetBPB(&disk);
 	size_t pos=0;
 	unsigned int prevCluster=0,firstCluster=NULL_CLUSTER;
 	while(pos<data.size())
