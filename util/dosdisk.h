@@ -37,11 +37,11 @@ public:
 	unsigned char *GetRootDir(void);
 	const unsigned char *GetRootDir(void) const;
 
-	uint32_t GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int cluster) const;
-	void PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,unsigned int incoming) const;
-	uint32_t FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const;
-	unsigned char *GetCluster(int cluster,const BPB &bpb);
-	const unsigned char *GetCluster(int cluster,const BPB &bpb) const;
+	uint32_t GetFATEntry(const unsigned char FAT[],unsigned int cluster) const;
+	void PutFATEntry(unsigned char FAT[],unsigned int cluster,unsigned int incoming) const;
+	uint32_t FindAvailableCluster(const unsigned char FAT[]) const;
+	unsigned char *GetCluster(int cluster);
+	const unsigned char *GetCluster(int cluster) const;
 	void ClusterToCHR(unsigned char CHR[3],int cluster) const;
 
 	unsigned char *FindAvailableDirEnt(void);

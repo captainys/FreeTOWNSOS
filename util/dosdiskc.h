@@ -154,6 +154,10 @@ int DOSDISK_CreateFD(DOSDISK *disk,unsigned int mediaDesc,size_t dataSize,unsign
 */
 int DOSDISK_CreateHDPartitionByMegaBytes(DOSDISK *disk,size_t MB,size_t dataSize,unsigned char *data);
 
+/*! Create a DOSDISK from an image.
+*/
+int DOSDISK_CreateFromImage(DOSDISK *disk,size_t dataSize,unsigned char *data);
+
 /*! Unsupported -> 0.
 */
 size_t DOSDISK_GetRequiredBytesFD(unsigned int mediaDesc);
@@ -176,12 +180,22 @@ void DOSDISK_MakeInitialRootDir(const DOSDISK *disk,unsigned char rootDir[],size
 
 /*!
 */
-uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb);
+uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[]);
 
 /*! Returns pointer to the cluster.  cluster=2 is the real first cluster that takes the
     first of the data sectors because the first two clusters are reserved in the FAT.
 */
-unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster,const BPB *bpb);
+unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster);
+
+
+/*! Returns the image data offset in bytes from the cluster number.
+*/
+size_t DOSDISK_ClusterToOffset(const DOSDISK *disk,uint32_t cluster);
+
+/*! Returns cluster from the image data byte offset.
+*/
+uint32_t DOSDISK_OffsetToCluster(const DOSDISK *disk,size_t offset);
+
 
 /*!
 */
@@ -193,11 +207,11 @@ void DOSDISK_ClusterToCHR(const DOSDISK *disk,unsigned char CHR[],int cluster);
 
 /*!
 */
-uint32_t DOSDISK_GetFATEntry(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb,unsigned int cluster);
+uint32_t DOSDISK_GetFATEntry(const DOSDISK *disk,const unsigned char FAT[],unsigned int cluster);
 
 /*!
 */
-void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],const BPB *bpb,unsigned int cluster,uint32_t newValue);
+void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],unsigned int cluster,uint32_t newValue);
 
 /*!
 */
@@ -224,6 +238,15 @@ void DOSDISK_WriteDirEnt(
 /*! Returns the first cluster.
 */
 unsigned int DOSDISK_WriteData(DOSDISK *disk,size_t len,const unsigned char data[]);
+
+/*! Read data from the cluster chain starting at the given cluster up to the len bytes.
+    Returns the number of bytes read.
+*/
+size_t DOSDISK_ReadData(DOSDISK *disk,size_t len,unsigned char data[],uint32_t cluster);
+
+/*!
+*/
+uint32_t DOSDISK_NullCluster(const DOSDISK *disk);
 
 #ifdef __cplusplus
 } // extern "C"

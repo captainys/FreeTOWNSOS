@@ -140,6 +140,8 @@ int DOSDISK_CreateHDPartitionByMegaBytes(DOSDISK *disk,size_t MB,size_t dataLen,
 		return DOSDISK_ERR_WRONG_SIZE;
 	}
 
+	DOSDISK_Init(disk);
+
 	unsigned int bytesPerSect;
 	unsigned int sectorsPerCluster;
 	unsigned int rootDirEnt;
@@ -210,6 +212,28 @@ int DOSDISK_CreateHDPartitionByMegaBytes(DOSDISK *disk,size_t MB,size_t dataLen,
 	DOSDISK_MakeInitialFAT(disk,DOSDISK_GetFAT(disk));
 	DOSDISK_MakeInitialFAT(disk,DOSDISK_GetBackupFAT(disk));
 	DOSDISK_MakeInitialRootDir(disk,DOSDISK_GetRootDir(disk),bpb.numRootDirEnt);
+
+	disk->FAT12or16=BPB_GetFATType(&bpb);
+
+	return DOSDISK_NOERR;
+}
+
+int DOSDISK_CreateFromImage(DOSDISK *disk,size_t dataLen,unsigned char *data)
+{
+	DOSDISK_Init(disk);
+
+	disk->isFloppyDisk=0;
+	disk->dataLen=dataLen;
+	disk->data=data;
+
+	BPB bpb=DOSDISK_GetBPB(disk);
+	if(bpb.mediaDesc==BPB_MEDIA_1440K ||
+	   bpb.mediaDesc==BPB_MEDIA_720K ||
+	   bpb.mediaDesc==BPB_MEDIA_1232K ||
+	   bpb.mediaDesc==BPB_MEDIA_320K)
+	{
+		disk->isFloppyDisk=1;
+	}
 
 	disk->FAT12or16=BPB_GetFATType(&bpb);
 
@@ -296,12 +320,14 @@ unsigned char *DOSDISK_GetFAT(const DOSDISK *disk)
 	return disk->data+pos;
 }
 
-uint32_t DOSDISK_GetFATEntry(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb,unsigned int cluster)
+uint32_t DOSDISK_GetFATEntry(const DOSDISK *disk,const unsigned char FAT[],unsigned int cluster)
 {
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	if(FAT12==BPB_GetFATType(bpb))
+	BPB bpb=DOSDISK_GetBPB(disk);
+
+	if(FAT12==BPB_GetFATType(&bpb))
 	{
 		if(0==(cluster&1))
 		{
@@ -325,12 +351,14 @@ uint32_t DOSDISK_GetFATEntry(const DOSDISK *disk,const unsigned char FAT[],const
 	}
 }
 
-void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],const BPB *bpb,unsigned int cluster,uint32_t newValue)
+void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],unsigned int cluster,uint32_t newValue)
 {
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	if(FAT12==BPB_GetFATType(bpb))
+	BPB bpb=DOSDISK_GetBPB(disk);
+
+	if(FAT12==BPB_GetFATType(&bpb))
 	{
 		if(0==(cluster&1))
 		{
@@ -355,11 +383,12 @@ void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],const BPB *bpb,
 	}
 }
 
-uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb)
+uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[])
 {
-	for(int i=0; i<BPB_GetNumClusters(bpb); ++i)
+	BPB bpb=DOSDISK_GetBPB(disk);
+	for(int i=0; i<BPB_GetNumClusters(&bpb); ++i)
 	{
-		auto data=DOSDISK_GetFATEntry(disk,FAT,bpb,i);
+		auto data=DOSDISK_GetFATEntry(disk,FAT,i);
 		if(0==data)
 		{
 			return i;
@@ -369,9 +398,15 @@ uint32_t DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FA
 }
 
 
-unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster,const BPB *bpb)
+unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster)
 {
-	size_t firstDataPos=bpb->bytesPerSector*BPB_GetFirstDataSector(bpb);
+	return disk->data+DOSDISK_ClusterToOffset(disk,cluster);
+}
+
+size_t DOSDISK_ClusterToOffset(const DOSDISK *disk,uint32_t cluster)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
 	if(2<=cluster) // Cluster 2 is real first cluster.
 	{
 		cluster-=2;
@@ -380,8 +415,15 @@ unsigned char *DOSDISK_GetCluster(const DOSDISK *disk,int cluster,const BPB *bpb
 	{
 		cluster=0;
 	}
-	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(bpb)*cluster;
-	return disk->data+clusterPos;
+	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
+	return clusterPos;
+}
+
+uint32_t DOSDISK_OffsetToCluster(const DOSDISK *disk,size_t offset)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
+	return (offset-firstDataPos)/BPB_GetBytesPerCluster(&bpb);
 }
 
 void DOSDISK_ClusterToCHR(const DOSDISK *disk,unsigned char CHR[],int cluster)
@@ -490,7 +532,7 @@ unsigned int DOSDISK_WriteData(DOSDISK *disk,size_t dataLen,const unsigned char 
 	while(pos<dataLen)
 	{
 		size_t writeSize=_Smaller(dataLen-pos,BPB_GetBytesPerCluster(&bpb));
-		auto cluster=DOSDISK_FindAvailableCluster(disk,DOSDISK_GetFAT(disk),&bpb);
+		auto cluster=DOSDISK_FindAvailableCluster(disk,DOSDISK_GetFAT(disk));
 		if(cluster!=NULL_CLUSTER)
 		{
 			if(0==pos)
@@ -499,15 +541,15 @@ unsigned int DOSDISK_WriteData(DOSDISK *disk,size_t dataLen,const unsigned char 
 			}
 			else
 			{
-				DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),&bpb,prevCluster,cluster);
-				DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),&bpb,prevCluster,cluster);
+				DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),prevCluster,cluster);
+				DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),prevCluster,cluster);
 			}
 			prevCluster=cluster;
 
-			DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),&bpb,cluster,0xFFFF);
-			DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),&bpb,cluster,0xFFFF);
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),cluster,NULL_CLUSTER);
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),cluster,NULL_CLUSTER);
 
-			unsigned char *ptr=DOSDISK_GetCluster(disk,cluster,&bpb);
+			unsigned char *ptr=DOSDISK_GetCluster(disk,cluster);
 			memcpy(ptr,data+pos,writeSize);
 		}
 		else
@@ -517,4 +559,39 @@ unsigned int DOSDISK_WriteData(DOSDISK *disk,size_t dataLen,const unsigned char 
 		pos+=writeSize;
 	}
 	return firstCluster;
+}
+
+size_t DOSDISK_ReadData(DOSDISK *disk,size_t dataLen,unsigned char data[],uint32_t cluster)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t pos=0;
+	const uint32_t NullCluster=DOSDISK_NullCluster(disk);
+	unsigned char *FAT=DOSDISK_GetFAT(disk);
+	while(pos<dataLen && NullCluster!=cluster)
+	{
+		size_t readSize=_Smaller(dataLen-pos,BPB_GetBytesPerCluster(&bpb));
+
+		const unsigned char *ptr=DOSDISK_GetCluster(disk,cluster);
+		memcpy(data+pos,ptr,readSize);
+
+		pos+=readSize;
+
+		cluster=DOSDISK_GetFATEntry(disk,FAT,cluster);
+	}
+	return pos;
+}
+
+uint32_t DOSDISK_NullCluster(const DOSDISK *disk)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	int FATType=BPB_GetFATType(&bpb);
+	if(FAT12==FATType)
+	{
+		return 0xFFF;
+	}
+	else if(FAT16==FATType)
+	{
+		return 0xFFFF;
+	}
+	return NULL_CLUSTER;
 }

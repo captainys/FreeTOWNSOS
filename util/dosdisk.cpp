@@ -99,33 +99,33 @@ const unsigned char *Disk::GetRootDir(void) const
 	return DOSDISK_GetRootDir(&disk);
 }
 
-uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int cluster) const
+uint32_t Disk::GetFATEntry(const unsigned char FAT[],unsigned int cluster) const
 {
-	return DOSDISK_GetFATEntry(&disk,FAT,&bpb,cluster);
+	return DOSDISK_GetFATEntry(&disk,FAT,cluster);
 }
 
-void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,unsigned int incoming) const
+void Disk::PutFATEntry(unsigned char FAT[],unsigned int cluster,unsigned int incoming) const
 {
-	DOSDISK_PutFATEntry(&disk,FAT,&bpb,cluster,incoming);
+	DOSDISK_PutFATEntry(&disk,FAT,cluster,incoming);
 }
 
-uint32_t Disk::FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const
+uint32_t Disk::FindAvailableCluster(const unsigned char FAT[]) const
 {
-	return DOSDISK_FindAvailableCluster(&disk,FAT,&bpb);
+	return DOSDISK_FindAvailableCluster(&disk,FAT);
 }
 
-unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)
+unsigned char *Disk::GetCluster(int cluster)
 {
-	return DOSDISK_GetCluster(&disk,cluster,&bpb);
+	return DOSDISK_GetCluster(&disk,cluster);
 }
 void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
 {
 	DOSDISK_ClusterToCHR(&disk,CHR,cluster);
 }
 
-const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
+const unsigned char *Disk::GetCluster(int cluster) const
 {
-	return DOSDISK_GetCluster(&disk,cluster,&bpb);
+	return DOSDISK_GetCluster(&disk,cluster);
 }
 
 unsigned char *Disk::FindAvailableDirEnt(void)
