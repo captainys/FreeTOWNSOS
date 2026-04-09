@@ -11,19 +11,6 @@
 
 ////////////////////////////////////////////////////////////
 
-unsigned int Disk::BPB::GetFATType(void) const
-{
-	unsigned int a=bytesPerSector;
-	unsigned int b=sectorsPerCluster;
-	if(FAT16_SIZE_THRESHOLD<=a*b)
-	{
-		return FAT16;
-	}
-	return FAT12;
-}
-
-////////////////////////////////////////////////////////////
-
 bool Disk::CreateFD(unsigned int BPB_mediaType)
 {
 	if(BPB_MEDIA_1232K==BPB_mediaType)
@@ -159,7 +146,7 @@ void Disk::MakeInitialFAT(unsigned char FAT[]) const
 	{
 		FAT[i]=0;
 	}
-	if(FAT12==BPB.GetFATType())
+	if(FAT12==BPB_GetFATType(&BPB))
 	{
 		if(true==isFloppyDisk)
 		{
@@ -197,7 +184,7 @@ void Disk::WriteIPLSector(const std::vector <unsigned char> &ipl)
 	memcpy(data.data(),ipl.data(),ipl.size());
 }
 
-Disk::BPB Disk::GetBPB(void) const
+BPB Disk::GetBPB(void) const
 {
 	auto sect=data.data();
 	BPB bpb;
@@ -265,13 +252,13 @@ const unsigned char *Disk::GetBackupFAT(void) const
 unsigned char *Disk::GetRootDir(void)
 {
 	auto bpb=GetBPB();
-	size_t pos=bpb.bytesPerSector*bpb.GetRootDirSector();
+	size_t pos=bpb.bytesPerSector*BPB_GetRootDirSector(&bpb);
 	return data.data()+pos;
 }
 const unsigned char *Disk::GetRootDir(void) const
 {
 	auto bpb=GetBPB();
-	size_t pos=bpb.bytesPerSector*bpb.GetRootDirSector();
+	size_t pos=bpb.bytesPerSector*BPB_GetRootDirSector(&bpb);
 	return data.data()+pos;
 }
 
@@ -280,7 +267,7 @@ uint32_t Disk::GetFATEntry(const unsigned char FAT[],const BPB &bpb,unsigned int
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	if(FAT12==bpb.GetFATType())
+	if(FAT12==BPB_GetFATType(&bpb))
 	{
 		if(0==(cluster&1))
 		{
@@ -309,7 +296,7 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 	// If total number of clusters (DPB_MAX_CLUSTER_NUM)>0xFF6, take it as FAT16.
 	// Can happen if HDD.
 
-	if(FAT12==bpb.GetFATType())
+	if(FAT12==BPB_GetFATType(&bpb))
 	{
 		if(0==(cluster&1))
 		{
@@ -349,7 +336,7 @@ uint32_t Disk::FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) co
 
 unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)
 {
-	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();
+	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
 	if(2<=cluster) // Cluster 2 is real first cluster.
 	{
 		cluster-=2;
@@ -358,7 +345,7 @@ unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)
 	{
 		cluster=0;
 	}
-	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
+	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
 	return data.data()+clusterPos;
 }
 void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
@@ -369,7 +356,7 @@ void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
 
 	auto bpb=GetBPB();
 
-	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();
+	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
 	if(2<=cluster) // Cluster 2 is real first cluster.
 	{
 		cluster-=2;
@@ -378,7 +365,7 @@ void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
 	{
 		cluster=0;
 	}
-	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
+	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
 
 	if(0<bpb.bytesPerSector && 0<bpb.sectorsPerTrack)
 	{
@@ -391,7 +378,7 @@ void Disk::ClusterToCHR(unsigned char CHR[3],int cluster) const
 }
 const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
 {
-	size_t firstDataPos=bpb.bytesPerSector*bpb.GetFirstDataSector();
+	size_t firstDataPos=bpb.bytesPerSector*BPB_GetFirstDataSector(&bpb);
 	if(2<=cluster) // Cluster 2 is real first cluster.
 	{
 		cluster-=2;
@@ -400,7 +387,7 @@ const unsigned char *Disk::GetCluster(int cluster,const BPB &bpb) const
 	{
 		cluster=0;
 	}
-	size_t clusterPos=firstDataPos+bpb.GetBytesPerCluster()*cluster;
+	size_t clusterPos=firstDataPos+BPB_GetBytesPerCluster(&bpb)*cluster;
 	return data.data()+clusterPos;
 }
 
@@ -456,7 +443,7 @@ unsigned int Disk::WriteData(const std::vector <unsigned char> &data)
 	unsigned int prevCluster=0,firstCluster=NULL_CLUSTER;
 	while(pos<data.size())
 	{
-		size_t writeSize=std::min(data.size()-pos,bpb.GetBytesPerCluster());
+		size_t writeSize=std::min(data.size()-pos,BPB_GetBytesPerCluster(&bpb));
 		auto cluster=FindAvailableCluster(GetFAT(),bpb);
 		if(cluster!=NULL_CLUSTER)
 		{

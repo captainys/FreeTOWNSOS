@@ -7,42 +7,6 @@
 class Disk
 {
 public:
-	class BPB : public ::BPB
-	{
-	public:
-		size_t GetBytesPerCluster(void) const
-		{
-			return sectorsPerCluster*bytesPerSector;
-		}
-
-		unsigned int GetFATSector(void) const
-		{
-			return numReservedSectors;  // Skip IPL
-		}
-		unsigned int GetBackupFATSector(void) const // NULL_CLUSTER if no backup FAT
-		{
-			if(2==numFATs)
-			{
-				return numReservedSectors+sectorsPerFAT;
-			}
-			else
-			{
-				return NULL_CLUSTER;
-			}
-		}
-		unsigned int GetRootDirSector(void) const
-		{
-			return numReservedSectors+sectorsPerFAT*numFATs;
-		}
-		unsigned int GetFirstDataSector(void) const
-		{
-			unsigned int dirEntPerSector=(bytesPerSector>>DIRENT_SHIFT);
-			unsigned int numDirEntSectors=(numRootDirEnt+dirEntPerSector-1)/dirEntPerSector;
-			return numReservedSectors+sectorsPerFAT*numFATs+numDirEntSectors;
-		}
-		unsigned int GetFATType(void) const; // Returns FAT12 or FAT16
-	};
-
 	bool isFloppyDisk=true;  // false for HD.
 	unsigned int FAT12or16=FAT12;
 	std::vector <unsigned char> data;
