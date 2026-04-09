@@ -1,0 +1,123 @@
+#ifndef DOSDISC_C_IS_INCLUDED
+#define DOSDISC_C_IS_INCLUDED
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+#include <stdio.h>
+#include <stdint.h>
+
+
+// The disk layout:
+// 
+// Sector 0
+//     Number of reserve sectors.  IPL etc.
+// --------
+//     File Allocation Table
+//     Back Up File Allocation Table
+//     (In total File Allocation Table times [BPB_NUM_FATS])
+// --------
+//     Root Directory
+// --------
+//     Data
+// --------
+
+
+#define BPB_BYTES_PER_SECTOR   0x0B
+#define BPB_SECTOR_PER_CLUSTER 0x0D
+#define BPB_RESERVED_SECTOR_CT 0x0E
+#define BPB_NUM_FATS           0x10
+#define BPB_NUM_ROOT_DIR_ENT   0x11
+#define BPB_TOTALNUM_SECT      0x13
+#define BPB_MEDIA_DESC         0x15
+#define BPB_SECT_PER_FAT       0x16
+#define BPB_SECT_PER_TRACK     0x18
+#define BPB_NUM_HEADS          0x1A
+#define BPB_HIDDEN_SECT        0x1C
+#define BPB_32BIT_NUM_SECT     0x20  // Used to indicate the location of IO.SYS in FM-R/TOWNS IPL.
+
+#define BPB_MEDIA_1440K        0xF0
+#define BPB_MEDIA_HARD_DISK    0xF8
+#define BPB_MEDIA_HD_FAT12     0xFD
+#define BPB_MEDIA_HD_FAT16     0xFE
+#define BPB_MEDIA_720K         0xF9
+#define BPB_MEDIA_1232K        0xFE
+#define BPB_MEDIA_320K         0xFF
+
+
+#define DIRENT_ATTR_READONLY	0x01
+#define DIRENT_ATTR_HIDDEN		0x02
+#define DIRENT_ATTR_SYSTEM		0x04
+#define DIRENT_ATTR_VOLLABEL	0x08
+#define DIRENT_ATTR_DIRECTORY	0x10
+#define DIRENT_ATTR_ARCHIVE		0x20
+
+#define DIRENT_FILENAME			0x00
+#define DIRENT_EXT				0x08
+#define DIRENT_ATTR				0x0B
+#define DIRENT_UNUSED			0x0C
+#define DIRENT_TIME				0x16
+#define DIRENT_DATE				0x18
+#define DIRENT_FIRST_CLUSTER	0x1A
+#define DIRENT_FILE_SIZE		0x1C
+
+#define DIRENT_BYTES			32
+#define DIRENT_SHIFT			5    // 32 bytes per dirent
+
+#define NULL_CLUSTER 0xFFFFFFFF
+
+#define I386_RETF              0xCB
+
+#define FAT16_SIZE_THRESHOLD	(64*1024*1024)
+#define FAT12					12
+#define FAT16					16
+
+
+
+typedef struct
+{
+	char file[8];
+	char ext[3];
+	uint8_t attr;
+	char unused[10];
+	uint16_t time; // HHHHHMMMMMMSSSSS (SSSSS=seconds/2)
+	uint16_t date; // YYYYYYYMMMMDDDDD (D=1 to 31, M=1 to 12, Y=Year-1980)
+	uint16_t firstCluster;
+	uint32_t fileSize;
+} DIRENT;
+
+typedef struct
+{
+	// DOS BPB is so deficient that same mediaDesc is used for FAT16 of HD and FAT12 of 1232KB floppy disk.
+	// How can I identify FAT12 or FAT16 then?
+	// All I can think of is sectorsPerTrack is zero for HD.  Then mediaDesc for FAT12 or FAT16.
+	uint16_t bytesPerSector;
+	uint8_t sectorsPerCluster;
+	uint16_t numReservedSectors; // Such as IPL sector.
+	uint8_t numFATs;
+	uint16_t numRootDirEnt;
+	uint16_t totalNumSectors; // Including reserved sectors
+	uint8_t mediaDesc;
+	uint16_t sectorsPerFAT;
+	uint16_t sectorsPerTrack;
+	uint16_t numHeads;
+	uint16_t numHiddenSectors;
+	uint32_t totalNumSectors32bit;
+} BPB;
+
+size_t BPB_GetBytesPerCluster(const BPB *bpb);
+unsigned int BPB_GetFATSector(const BPB *bpb);
+unsigned int BPB_GetBackupFATSector(const BPB *bpb); // NULL_CLUSTER if no backup FAT
+unsigned int BPB_GetRootDirSector(const BPB *bpb);
+unsigned int BPB_GetFirstDataSector(const BPB *bpb);
+unsigned int BPB_GetFATType(const BPB *bpb);
+
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif

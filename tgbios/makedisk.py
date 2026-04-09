@@ -72,13 +72,13 @@ def Run(argv):
 
 
 
-	proc1=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc1=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","../util/dosdiskc.c","/EHsc"])
 	proc1.communicate()
 	if 0!=proc1.returncode:
 		print("Error bulding makefd.exe")
 		quit()
 
-	proc2=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc2=subprocess.Popen(["cl","../util/makehd.cpp","../util/dosdisk.cpp","../util/dosdiskc.c","/EHsc"])
 	proc2.communicate()
 	if 0!=proc2.returncode:
 		print("Error building makehd.exe")

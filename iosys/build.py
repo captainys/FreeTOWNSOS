@@ -80,7 +80,7 @@ def Run(argv):
 
 
 
-	proc=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","/EHsc"])
+	proc=subprocess.Popen(["cl","../util/makefd.cpp","../util/dosdisk.cpp","../util/dosdiskc.c","/EHsc"])
 	proc.communicate()
 	if 0!=proc.returncode:
 		print("Error bulding makefd.exe")
