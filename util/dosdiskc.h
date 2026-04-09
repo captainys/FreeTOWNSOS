@@ -120,14 +120,12 @@ typedef struct
 {
 	unsigned char isFloppyDisk;  // non-zero means FD, zero means HD partition or ICM.
 	unsigned int FAT12or16;
-	size_t dataLen;
-	unsigned char *data; // DOSDISK does not own the data.  Must be managed outside.
+	// DOSDISK does not own the disk image.  Must be retained outside.
 } DOSDISK;
 
 /*! Initialize a disk to floppydisk, FAT12, and zero data.
 */
 void DOSDISK_Init(DOSDISK *disk);
-
 
 #ifdef __cplusplus
 } // extern "C"

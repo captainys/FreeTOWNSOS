@@ -50,6 +50,4 @@ void DOSDISK_Init(DOSDISK *disk)
 {
 	disk->isFloppyDisk=1;  // false for HD.
 	disk->FAT12or16=FAT12;
-	disk->dataLen=0;
-	disk->data=NULL; // DOSDISK does not own the data.  Must be managed outside.
 }

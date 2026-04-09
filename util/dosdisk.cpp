@@ -11,6 +11,11 @@
 
 ////////////////////////////////////////////////////////////
 
+Disk::Disk()
+{
+	DOSDISK_Init(&disk);
+}
+
 bool Disk::CreateFD(unsigned int BPB_mediaType)
 {
 	if(BPB_MEDIA_1232K==BPB_mediaType)
@@ -22,6 +27,7 @@ bool Disk::CreateFD(unsigned int BPB_mediaType)
 		std::cout << "Media Type Not Supported Yet." << std::endl;
 		return false;
 	}
+
 	MakeFDBootSectBPB(data.data(),BPB_mediaType);
 
 	auto bpb=GetBPB();
@@ -148,7 +154,7 @@ void Disk::MakeInitialFAT(unsigned char FAT[]) const
 	}
 	if(FAT12==BPB_GetFATType(&BPB))
 	{
-		if(true==isFloppyDisk)
+		if(disk.isFloppyDisk)
 		{
 			FAT[0]=0xFE;
 			FAT[1]=0xFF;

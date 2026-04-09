@@ -7,8 +7,10 @@
 class Disk
 {
 public:
-	bool isFloppyDisk=true;  // false for HD.
-	unsigned int FAT12or16=FAT12;
+	DOSDISK disk;
+
+	Disk();
+
 	std::vector <unsigned char> data;
 
 	bool CreateFD(unsigned int BPB_mediaType);
