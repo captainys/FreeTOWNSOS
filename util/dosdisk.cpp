@@ -111,15 +111,7 @@ void Disk::PutFATEntry(unsigned char FAT[],const BPB &bpb,unsigned int cluster,u
 
 uint32_t Disk::FindAvailableCluster(const unsigned char FAT[],const BPB &bpb) const
 {
-	for(int i=0; i<BPB_GetNumClusters(&bpb); ++i)
-	{
-		auto data=GetFATEntry(FAT,bpb,i);
-		if(0==data)
-		{
-			return i;
-		}
-	}
-	return ~0;
+	return DOSDISK_FindAvailableCluster(&disk,FAT,&bpb);
 }
 
 unsigned char *Disk::GetCluster(int cluster,const BPB &bpb)

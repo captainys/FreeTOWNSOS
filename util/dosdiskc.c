@@ -352,6 +352,19 @@ void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],const BPB *bpb,
 	}
 }
 
+DOSDISK_FindAvailableCluster(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb)
+{
+	for(int i=0; i<BPB_GetNumClusters(bpb); ++i)
+	{
+		auto data=DOSDISK_GetFATEntry(disk,FAT,bpb,i);
+		if(0==data)
+		{
+			return i;
+		}
+	}
+	return ~0;
+}
+
 unsigned char *DOSDISK_GetBackupFAT(const DOSDISK *disk)
 {
 	BPB bpb=DOSDISK_GetBPB(disk);
