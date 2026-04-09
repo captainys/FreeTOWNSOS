@@ -11,6 +11,11 @@ extern "C" {
 #include <stdint.h>
 
 
+#define DOSDISK_NOERR                   0
+#define DOSDISK_ERR                     1
+#define DOSDISK_ERR_MEDIA_NOT_SUPPORTED 2
+#define DOSDISK_ERR_WRONG_SIZE          3
+
 
 void WriteWord(unsigned char *ptr,unsigned short data);
 uint16_t ReadWord(const unsigned char *ptr);
@@ -122,6 +127,7 @@ unsigned int BPB_GetBackupFATSector(const BPB *bpb); // NULL_CLUSTER if no backu
 unsigned int BPB_GetRootDirSector(const BPB *bpb);
 unsigned int BPB_GetFirstDataSector(const BPB *bpb);
 unsigned int BPB_GetFATType(const BPB *bpb);
+size_t BPB_GetFATLength(const BPB *bpb);
 size_t BPB_GetNumClusters(const BPB *bpb);
 
 
@@ -140,13 +146,53 @@ typedef struct
 */
 void DOSDISK_Init(DOSDISK *disk);
 
+/*! Create a floppy disk image.  Returns DOSDISK error code.
+*/
+int DOSDISK_CreateFD(DOSDISK *disk,unsigned int mediaDesc,size_t dataSize,unsigned char *data);
+
+/*! Create a hard-disk partition image.  Returns DOSDISK error code.
+*/
+int DOSDISK_CreateHDPartitionByMegaBytes(DOSDISK *disk,size_t MB,size_t dataSize,unsigned char *data);
+
+/*! Unsupported -> 0.
+*/
+size_t DOSDISK_GetRequiredBytesFD(unsigned int mediaDesc);
+
 /*!
 */
 BPB DOSDISK_GetBPB(const DOSDISK *disk);
 
 /*!
 */
-void DOSDISK_MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType);
+int DOSDISK_MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType);
+
+/*!
+*/
+void DOSDISK_MakeInitialFAT(const DOSDISK *disk,unsigned char fat[]);
+
+/*!
+*/
+void DOSDISK_MakeInitialRootDir(const DOSDISK *disk,unsigned char rootDir[],size_t numRootDirEnt);
+
+/*!
+*/
+unsigned char *DOSDISK_GetFAT(const DOSDISK *disk);
+
+/*!
+*/
+uint32_t DOSDISK_GetFATEntry(const DOSDISK *disk,const unsigned char FAT[],const BPB *bpb,unsigned int cluster);
+
+/*!
+*/
+void DOSDISK_PutFATEntry(const DOSDISK *disk,unsigned char FAT[],const BPB *bpb,unsigned int cluster,uint32_t newValue);
+
+/*!
+*/
+unsigned char *DOSDISK_GetBackupFAT(const DOSDISK *disk);
+
+/*!
+*/
+unsigned char *DOSDISK_GetRootDir(const DOSDISK *disk);
 
 #ifdef __cplusplus
 } // extern "C"

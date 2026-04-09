@@ -282,7 +282,7 @@ bool HardDisk::AddPartition(size_t sizeInMB,std::string label,std::string volume
 	Partition p;
 	partitions.push_back(p);
 
-	partitions.back().disk.isFloppyDisk=false;  // Do it before FAT is made by CreateHDPartitionByMegaBytes.
+	partitions.back().disk.disk.isFloppyDisk=false;  // Do it before FAT is made by CreateHDPartitionByMegaBytes.
 	partitions.back().label=label;
 	partitions.back().volumeLabel=volumeLabel;
 	if(true!=partitions.back().disk.CreateHDPartitionByMegaBytes(sizeInMB))
