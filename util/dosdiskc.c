@@ -755,7 +755,6 @@ int DOSDISK_MkDir(DOSDISK *disk,const char fileName[],
 	}
 
 	uint32_t cluster=NULL_CLUSTER;
-	uint32_t dirLen=0;
 
 	int ptr=0;
 	while('\\'==fileName[ptr] || '/'==fileName[ptr])
@@ -995,4 +994,118 @@ int DOSDISK_WriteVolumeLabel(DOSDISK *disk,const char volumeLabel[],
 		0,0);
 
 	return DOSDISK_NOERR;
+}
+
+uint32_t DOSDISK_ReserveClusterChain(DOSDISK *disk,size_t requestedNumClusters)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t totalNumClusters=BPB_GetNumClusters(&bpb);
+	size_t i=0,nAvailable=0;
+	while(i<totalNumClusters)
+	{
+		if(0==DOSDISK_GetFATEntry(disk,DOSDISK_GetFAT(disk),i))
+		{
+			++nAvailable;
+		}
+	}
+
+	if(requestedNumClusters<=nAvailable)
+	{
+		size_t i=0,nAllocated=0,prevCluster=0,firstCluster=NULL_CLUSTER;
+		while(i<totalNumClusters && nAllocated<requestedNumClusters)
+		{
+			if(0==DOSDISK_GetFATEntry(disk,DOSDISK_GetFAT(disk),i))
+			{
+				if(0==nAllocated)
+				{
+					firstCluster=i;
+				}
+				else
+				{
+					DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),prevCluster,i);
+					DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),prevCluster,i);
+					if(nAllocated+1==requestedNumClusters)
+					{
+						DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),i,NULL_CLUSTER);
+						DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),i,NULL_CLUSTER);
+					}
+				}
+				prevCluster=i;
+				nAllocated++;
+			}
+			++i;
+		}
+		return firstCluster;
+	}
+	else
+	{
+		return NULL_CLUSTER;
+	}
+}
+
+uint32_t DOSDISK_ReserveContinuousClusterChain(DOSDISK *disk,size_t numClusters)
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t totalNumClusters=BPB_GetNumClusters(&bpb);
+	size_t i=0;
+	while(i<totalNumClusters)
+	{
+		size_t nAvailable=0,i0=i;
+		while(0==DOSDISK_GetFATEntry(disk,DOSDISK_GetFAT(disk),i) && nAvailable<numClusters)
+		{
+			++nAvailable;
+			++i;
+		}
+		if(nAvailable==numClusters)
+		{
+			return DOSDISK_ReserveContinuousClusterChainFromCluster(disk,i0,numClusters);
+		}
+		++i;
+	}
+	return NULL_CLUSTER;
+}
+
+uint32_t DOSDISK_ReserveContinuousClusterChainFromCluster(DOSDISK *disk,uint32_t firstCluster,size_t numClusters)
+{
+	size_t i;
+	for(i=0; i<numClusters; ++i)
+	{
+		if(0!=DOSDISK_GetFATEntry(disk,DOSDISK_GetFAT(disk),firstCluster+i))
+		{
+			return NULL_CLUSTER;
+		}
+	}
+	for(i=0; i<numClusters; ++i)
+	{
+		if(i+1!=numClusters)
+		{
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),firstCluster+i,firstCluster+i+1);
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),firstCluster+i,firstCluster+i+1);
+		}
+		else
+		{
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetFAT(disk),firstCluster+i,NULL_CLUSTER);
+			DOSDISK_PutFATEntry(disk,DOSDISK_GetBackupFAT(disk),firstCluster+i,NULL_CLUSTER);
+		}
+	}
+	return firstCluster;
+
+}
+
+size_t DOSDISK_WriteDataToClusterChain(DOSDISK *disk,uint32_t cluster,size_t dataLen,const unsigned char data[])
+{
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t readPtr=0;
+	while(DOSDISK_IsValidCluster(disk,cluster) && readPtr<dataLen)
+	{
+		unsigned char *writePtr=DOSDISK_GetCluster(disk,cluster);
+		size_t bytesPerCluster=BPB_GetBytesPerCluster(&bpb);
+		size_t i=0;
+		while(i<bytesPerCluster && readPtr<dataLen)
+		{
+			writePtr[i++]=data[readPtr++];
+		}
+		cluster=DOSDISK_GetFATEntry(disk,DOSDISK_GetFAT(disk),cluster);
+	}
+	return readPtr;
 }

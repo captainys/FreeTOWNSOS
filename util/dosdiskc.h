@@ -8,7 +8,7 @@ extern "C" {
 
 #include <stdio.h>
 #include <string.h> // for memcpy
-#include <stdint.h>
+#include "stdyinz.h"
 
 
 #define DOSDISK_NOERR                   0
@@ -85,7 +85,8 @@ unsigned short ReadDword(const unsigned char *ptr);
 #define DIRENT_BYTES			32
 #define DIRENT_SHIFT			5    // 32 bytes per dirent
 
-#define NULL_CLUSTER 0xFFFFFFFF
+#define NULL_CLUSTER            0xFFFFFFFF
+#define FIRST_CLUSTER           2
 
 #define I386_RETF              0xCB
 
@@ -281,6 +282,22 @@ int DOSDISK_WriteFile(DOSDISK *disk,const char fileName[],
 	    uint8_t additional_attr,
 	    unsigned int hour,unsigned int min,unsigned int sec,
 	    unsigned int year,unsigned int month,unsigned int day);
+
+/*! Returns NULL_CLUSTER if fails.  If successful, returns the first cluster number.
+*/
+uint32_t DOSDISK_ReserveClusterChain(DOSDISK *disk,size_t numClusters);
+
+/*! Returns NULL_CLUSTER if fails.  If successful, returns the first cluster number.
+*/
+uint32_t DOSDISK_ReserveContinuousClusterChain(DOSDISK *disk,size_t numClusters);
+
+/*! Returns NULL_CLUSTER if fails.  If successful, returns firstCluster.
+*/
+uint32_t DOSDISK_ReserveContinuousClusterChainFromCluster(DOSDISK *disk,uint32_t firstCluster,size_t numClusters);
+
+/*! Returns actual number of bytes written to the cluster chain.
+*/
+size_t DOSDISK_WriteDataToClusterChain(DOSDISK *disk,uint32_t firstCluster,size_t dataLen,const unsigned char data[]);
 
 
 #ifdef __cplusplus
