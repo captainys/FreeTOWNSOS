@@ -57,10 +57,12 @@ unsigned short ReadDword(const unsigned char *ptr);
 
 #define BPB_MEDIA_1440K        0xF0
 #define BPB_MEDIA_HARD_DISK    0xF8
+#define BPB_MEDIA_IC_MEMORY_CARD  0xF8   // FM TOWNS TICM.SYS
 #define BPB_MEDIA_HD_FAT12     0xFD
 #define BPB_MEDIA_HD_FAT16     0xFE
 #define BPB_MEDIA_720K         0xF9
 #define BPB_MEDIA_1232K        0xFE
+#define BPB_MEDIA_640K         0xFB
 #define BPB_MEDIA_320K         0xFF
 
 

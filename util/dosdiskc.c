@@ -258,6 +258,22 @@ int DOSDISK_MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType)
 	memcpy(sect,"IPL4",4);
 	sect[4]=I386_RETF;
 
+	if(BPB_MEDIA_1440K==mediaType)
+	{
+		WriteWord(sect+BPB_BYTES_PER_SECTOR,512);
+		sect[BPB_SECTOR_PER_CLUSTER]=1;
+		WriteWord(sect+BPB_RESERVED_SECTOR_CT,1);
+		sect[BPB_NUM_FATS]=2;
+		WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,0xE0);
+		WriteWord(sect+BPB_TOTALNUM_SECT,0xB40);
+		sect[BPB_MEDIA_DESC]=mediaType;
+		WriteWord(sect+BPB_SECT_PER_FAT,9);
+		WriteWord(sect+BPB_SECT_PER_TRACK,0x12);
+		WriteWord(sect+BPB_NUM_HEADS,2);
+		WriteWord(sect+BPB_HIDDEN_SECT,0);
+		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
+		return DOSDISK_NOERR;
+	}
 	if(BPB_MEDIA_1232K==mediaType)
 	{
 		WriteWord(sect+BPB_BYTES_PER_SECTOR,1024);
@@ -290,6 +306,22 @@ int DOSDISK_MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType)
 		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
 		return DOSDISK_NOERR;
 	}
+	if(BPB_MEDIA_640K==mediaType)
+	{
+		WriteWord(sect+BPB_BYTES_PER_SECTOR,512);
+		sect[BPB_SECTOR_PER_CLUSTER]=2;
+		WriteWord(sect+BPB_RESERVED_SECTOR_CT,1);
+		sect[BPB_NUM_FATS]=2;
+		WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,0x70);
+		WriteWord(sect+BPB_TOTALNUM_SECT,0x500);
+		sect[BPB_MEDIA_DESC]=mediaType;
+		WriteWord(sect+BPB_SECT_PER_FAT,2);
+		WriteWord(sect+BPB_SECT_PER_TRACK,8);
+		WriteWord(sect+BPB_NUM_HEADS,2);
+		WriteWord(sect+BPB_HIDDEN_SECT,0);
+		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
+		return DOSDISK_NOERR;
+	}
 	return DOSDISK_ERR_MEDIA_NOT_SUPPORTED;
 }
 
@@ -302,7 +334,7 @@ void DOSDISK_MakeInitialFAT(const DOSDISK *disk,unsigned char FAT[])
 	{
 		if(disk->isFloppyDisk)
 		{
-			FAT[0]=0xFE;
+			FAT[0]=bpb.mediaDesc;
 			FAT[1]=0xFF;
 			FAT[2]=0xFF;
 		}
@@ -672,11 +704,11 @@ static void InitializeSubdirectory(unsigned char *data,uint32_t ownCluster,uint3
 	    unsigned int hour,unsigned int min,unsigned int sec,
 	    unsigned int year,unsigned int month,unsigned int day)
 {
-	DOSDISK_WriteDirEnt(data,".","",DIRENT_ATTR_DIRECTORY,
+	DOSDISK_WriteDirEnt(data,".","",DIRENT_ATTR_READONLY|DIRENT_ATTR_DIRECTORY,
 		hour,min,sec,
 		year,month,day,
 		ownCluster,0);
-	DOSDISK_WriteDirEnt(data+DIRENT_BYTES,"..","",DIRENT_ATTR_DIRECTORY,
+	DOSDISK_WriteDirEnt(data+DIRENT_BYTES,"..","",DIRENT_ATTR_READONLY|DIRENT_ATTR_DIRECTORY,
 		hour,min,sec,
 		year,month,day,
 		parentDirCluster,0);
@@ -726,14 +758,14 @@ int DOSDISK_MkDir(DOSDISK *disk,const char fileName[],
 	uint32_t dirLen=0;
 
 	int ptr=0;
-	while('\\'==fileName[0] || '/'==fileName[0])
+	while('\\'==fileName[ptr] || '/'==fileName[ptr])
 	{
 		++ptr;
 	}
 
 	size_t nameLen=0,extLen=0;
-	char name[8],ext[3];
-	memset(name,' ',9);
+	char name[8]={0},ext[3]={0};
+	memset(name,' ',8);
 	memset(ext,' ',3);
 	for(;; ++ptr)
 	{
@@ -882,7 +914,7 @@ int DOSDISK_MkDir(DOSDISK *disk,const char fileName[],
 					}
 				}
 			}
-			memset(name,' ',9);
+			memset(name,' ',8);
 			memset(ext,' ',3);
 			nameLen=0;
 			extLen=0;
