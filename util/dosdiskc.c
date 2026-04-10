@@ -948,3 +948,51 @@ int DOSDISK_MkDir(DOSDISK *disk,const char fileName[],
 	}
 	return DOSDISK_NOERR;
 }
+
+int DOSDISK_WriteVolumeLabel(DOSDISK *disk,const char volumeLabel[],
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day)
+{
+	int i;
+	char name[11]={' '};
+	unsigned char *rootDir=NULL;
+	unsigned char *dirEnt=NULL;
+	BPB bpb=DOSDISK_GetBPB(disk);
+	size_t numRootDirEnt=bpb.numRootDirEnt;
+
+	rootDir=DOSDISK_GetRootDir(disk);
+	for(i=0; i<numRootDirEnt; ++i)
+	{
+		if(0!=(rootDir[DIRENT_ATTR]&DIRENT_ATTR_VOLLABEL))
+		{
+			dirEnt=rootDir;
+			break;
+		}
+		rootDir+=DIRENT_BYTES;
+	}
+	if(NULL==dirEnt)
+	{
+		dirEnt=DOSDISK_FindAvailableDirEnt(disk);
+	}
+	if(NULL==dirEnt)
+	{
+		return DOSDISK_ERR_DIRECTORY_FULL;
+	}
+
+	for(i=0; i<11 && 0!=volumeLabel[i]; ++i)
+	{
+		char c=volumeLabel[i];
+		if('*'==c || '.'==c || '/'==c || '\\'==c)
+		{
+			c=' ';
+		}
+		name[i]=c;
+	}
+
+	DOSDISK_WriteDirEnt(dirEnt,name,name+8,DIRENT_ATTR_VOLLABEL,
+		hour,min,sec,
+		year,month,day,
+		0,0);
+
+	return DOSDISK_NOERR;
+}

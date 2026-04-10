@@ -268,6 +268,21 @@ int DOSDISK_MkDir(DOSDISK *disk,const char fileName[],
 	    unsigned int hour,unsigned int min,unsigned int sec,
 	    unsigned int year,unsigned int month,unsigned int day);
 
+/*!
+*/
+int DOSDISK_WriteVolumeLabel(DOSDISK *disk,const char volumeLabel[],
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day);
+
+/*!
+*/
+int DOSDISK_WriteFile(DOSDISK *disk,const char fileName[],
+	    size_t dataLen,unsigned char data[],
+	    uint8_t additional_attr,
+	    unsigned int hour,unsigned int min,unsigned int sec,
+	    unsigned int year,unsigned int month,unsigned int day);
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
