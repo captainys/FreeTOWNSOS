@@ -274,6 +274,22 @@ int DOSDISK_MakeFDBootSectBPB(unsigned char sect[],unsigned char mediaType)
 		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
 		return DOSDISK_NOERR;
 	}
+	if(BPB_MEDIA_720K==mediaType)
+	{
+		WriteWord(sect+BPB_BYTES_PER_SECTOR,512);
+		sect[BPB_SECTOR_PER_CLUSTER]=2;
+		WriteWord(sect+BPB_RESERVED_SECTOR_CT,1);
+		sect[BPB_NUM_FATS]=2;
+		WriteWord(sect+BPB_NUM_ROOT_DIR_ENT,0x70);
+		WriteWord(sect+BPB_TOTALNUM_SECT,0x5A0);
+		sect[BPB_MEDIA_DESC]=mediaType;
+		WriteWord(sect+BPB_SECT_PER_FAT,3);
+		WriteWord(sect+BPB_SECT_PER_TRACK,9);
+		WriteWord(sect+BPB_NUM_HEADS,2);
+		WriteWord(sect+BPB_HIDDEN_SECT,0);
+		WriteDword(sect+BPB_32BIT_NUM_SECT,0);
+		return DOSDISK_NOERR;
+	}
 	return DOSDISK_ERR_MEDIA_NOT_SUPPORTED;
 }
 
