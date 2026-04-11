@@ -218,6 +218,48 @@ int DOSDISK_CreateHDPartitionByMegaBytes(DOSDISK *disk,size_t MB,size_t dataLen,
 	return DOSDISK_NOERR;
 }
 
+int DOSDISK_CreateFromBPB(DOSDISK *disk,size_t dataLen,unsigned char *data,const BPB *bpb)
+{
+	DOSDISK_Init(disk);
+
+	disk->isFloppyDisk=0;
+	disk->dataLen=dataLen;
+	disk->data=data;
+
+	if(bpb->mediaDesc==BPB_MEDIA_1440K ||
+	   bpb->mediaDesc==BPB_MEDIA_720K ||
+	   bpb->mediaDesc==BPB_MEDIA_1232K ||
+	   bpb->mediaDesc==BPB_MEDIA_320K)
+	{
+		disk->isFloppyDisk=1;
+	}
+
+	memset(data,0,dataLen);
+	memcpy(data,"IPL4",4);
+	data[4]=I386_RETF;
+
+	WriteWord(data+BPB_BYTES_PER_SECTOR,bpb->bytesPerSector);
+	data[BPB_SECTOR_PER_CLUSTER]=bpb->sectorsPerCluster;
+	WriteWord(data+BPB_RESERVED_SECTOR_CT,bpb->numReservedSectors);
+	data[BPB_NUM_FATS]=bpb->numFATs;
+	WriteWord(data+BPB_NUM_ROOT_DIR_ENT,bpb->numRootDirEnt);
+	WriteWord(data+BPB_TOTALNUM_SECT,bpb->totalNumSectors);
+	data[BPB_MEDIA_DESC]=bpb->mediaDesc;
+	WriteWord(data+BPB_SECT_PER_FAT,bpb->sectorsPerFAT);
+	WriteWord(data+BPB_SECT_PER_TRACK,bpb->sectorsPerTrack);
+	WriteWord(data+BPB_NUM_HEADS,bpb->numHeads);
+	WriteWord(data+BPB_HIDDEN_SECT,bpb->numHiddenSectors);
+	WriteDword(data+BPB_32BIT_NUM_SECT,bpb->totalNumSectors32bit);
+
+	DOSDISK_MakeInitialFAT(disk,DOSDISK_GetFAT(disk));
+	DOSDISK_MakeInitialFAT(disk,DOSDISK_GetBackupFAT(disk));
+	DOSDISK_MakeInitialRootDir(disk,DOSDISK_GetRootDir(disk),bpb->numRootDirEnt);
+
+	disk->FAT12or16=BPB_GetFATType(bpb);
+
+	return DOSDISK_NOERR;
+}
+
 int DOSDISK_CreateFromImage(DOSDISK *disk,size_t dataLen,unsigned char *data)
 {
 	DOSDISK_Init(disk);

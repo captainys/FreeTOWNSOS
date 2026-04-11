@@ -165,6 +165,10 @@ int DOSDISK_CreateHDPartitionByMegaBytes(DOSDISK *disk,size_t MB,size_t dataSize
 */
 int DOSDISK_CreateFromImage(DOSDISK *disk,size_t dataSize,unsigned char *data);
 
+/*!
+*/
+int DOSDISK_CreateFromBPB(DOSDISK *disk,size_t dataSize,unsigned char *data,const BPB *bpb);
+
 /*! Unsupported -> 0.
 */
 size_t DOSDISK_GetRequiredBytesFD(unsigned int mediaDesc);

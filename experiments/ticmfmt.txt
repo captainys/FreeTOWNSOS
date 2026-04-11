@@ -120,6 +120,19 @@ ticmfmt.cの実験結果によると、4MBまではFAT12でこの計算で合っ
 バイトとなる。
 
 
+最初のデータセクタは、
+
+(resvSect+#FATs*sectorsPerFAT+(32*#rootDirEnts+511)/512
+
+なんてこった。全部奇数セクタから始まってる。FATが2個あるから必ずFATは偶数個セクタ使う。rootDirEntsは64の倍数で、32倍するとバイト数になるから、2048の倍数。512バイトセクタでは必ず4の倍数個のセクタを使う。resvSectを2個にするしかないんだが、問題はTICM.SYSが認識するかということだ。
+
+ということは、AL=4AHでは、セクタ長が1024なので、ちょうどクラスタの切れ目から読むことができない。RDHIGHをIPLに追加する余地は残ってない。
+
+
+
+
+
+
 
 KB,bytes/sect,sect/cluster,resvSect,#FATs,#rootDirEnts,sectorsTotal,MediaDesc,#sectPerFAT,#sectPerTRK,#heads,#hiddenSect
    16,512,2,1,2,  64,   32,0xf8,   1,8,2,0
