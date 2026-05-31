@@ -100,6 +100,12 @@ SETUP_REALMODE_INT_HANDLER:
 						MOV		AX,NOP_INT_HANDLER
 						MOV		ES:[0EEH*4],EAX
 
+						; Debian GNU/Linux TOWNS loader calls INT ACH with AH=2.
+						; The comment says Terminate BIOS.
+						; INT ACH is registed in IO.SYS of Towns OS.  No more detail is available.
+						; Just let it ignore.
+						MOV		ES:[0ACH*4],EAX
+
 						MOV		AX,CS:[SEG_INT8EH]
 						SHL		EAX,16
 						MOV		ES:[08EH*4],EAX

@@ -53,7 +53,7 @@ INT93H_HD_05H_READ:
 						POP		DS
 
 						CALL	SCSI_READ_SECTOR
-						JC		INT93H_EXIT
+						JC		INT93H_SCSI_CLEAR_ERR_AND_EXIT
 
 						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
@@ -89,7 +89,7 @@ INT93H_HD_06H_WRITE:
 						POP		DS
 
 						CALL	SCSI_WRITE_SECTOR
-						JC		INT93H_EXIT
+						JC		INT93H_SCSI_CLEAR_ERR_AND_EXIT
 
 						MOV		BYTE CS:[ERROR_CODE],0
 						JMP		INT93H_EXIT
@@ -108,7 +108,17 @@ INT93H_HD_IDENTIFY_DEVICE:
 						;        00 means HD
 						;   Carry  Set if error
 						CALL	IDENTIFY_SCSI_DEVICE
-						JC		INT93H_EXIT
+						JC		INT93H_SCSI_CLEAR_ERR_AND_EXIT
 
 						MOV		BYTE [BP+SAVED_EAX],CL
 						JMP		INT93H_EXIT_NO_ERROR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+INT93H_SCSI_CLEAR_ERR_AND_EXIT:
+						MOV		CL,[BP+SAVED_ECX]
+						CALL	SCSI_SENSE
+
+						STC
+						JMP		INT93H_EXIT
