@@ -317,7 +317,7 @@ XMS_CONSOLIDATE_BLOCKS_END:
 ; Return BX=not FFFFh if found (offset to XMS_HANDLE_TO_PHYSMEM)
 ;        BX=FFFFh if not found
 XMS_FIND_AVAIL_HANDLE:
-						MOV		BX,XMS_HANDLE_TO_PHYSMEM
+						MOV		BX,XMS_HANDLE_TO_PHYSMEM+4	; Valid handle cannot be zero.  Start with plus 4.
 
 XMS_FIND_AVAIL_HANDLE_LOOP:
 						CMP		DWORD CS:[BX],0
@@ -812,30 +812,24 @@ XMS_BLOCK_TRANSFER:
 						MOV		BP,SP
 						PUSHAD
 
-						MOV		BL,0A3h
-						MOV		DI,[SI+4]
-						CMP		DI,4*XMS_MAX_MEMORY_BLOCKS
-						JAE		XMS_BLOCK_TRANSFER_ERROR_EXIT
-
-						MOV		EAX,CS:[XMS_HANDLE_TO_PHYSMEM+DI]
-						TEST	EAX,1
-						JE		XMS_BLOCK_TRANSFER_ERROR_EXIT
-
-						; SRC Handle OK
-
 						MOV		BL,0A5h
 						MOV		DI,[SI+10]
-						CMP		DI,4*XMS_MAX_MEMORY_BLOCKS
-						JAE		XMS_BLOCK_TRANSFER_ERROR_EXIT
-
-						MOV		EDX,CS:[XMS_HANDLE_TO_PHYSMEM+DI]
-						TEST	EDX,1
-						JE		XMS_BLOCK_TRANSFER_ERROR_EXIT
+						MOV		ECX,[SI+12]
+						CALL	XMS_TFR_HANDLE_TO_PHYS
+						JB		XMS_BLOCK_TRANSFER_ERROR_EXIT
+						MOV		EDX,EAX
 
 						; DST Handle OK
 
-						AND		EAX,XMS_BLOCK_ADDR_MASK
-						AND		EDX,XMS_BLOCK_ADDR_MASK
+						MOV		BL,0A3h
+						MOV		DI,[SI+4]
+						MOV		ECX,[SI+6]
+						CALL	XMS_TFR_HANDLE_TO_PHYS
+						JB		XMS_BLOCK_TRANSFER_ERROR_EXIT
+
+						; SRC Handle OK
+
+
 
 						; Let's hope length is ok, too....
 
@@ -858,7 +852,43 @@ XMS_BLOCK_TRANSFER_EXIT:
 						POP		SI
 						RETF
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Input:
+;   DI  Handle.
+;   ECX Offset.  Maybe destroyed on return, if DI==0.
+; Output:
+;   CF=0  EAX=Physical Address
+;   CF=1  Error.  Invalid Handle.
+;   Does not change EDX.
+XMS_TFR_HANDLE_TO_PHYS:
+						CMP		DI,4*XMS_MAX_MEMORY_BLOCKS
+						JAE		XMS_TFR_HANDLE_TO_PHYS_ERROR
+
+						MOV		EAX,[CS:XMS_HANDLE_TO_PHYSMEM+DI]
+						AND		DI,DI
+						JE		XMS_TFR_HANDLE_TO_PHYS_REAL
+
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+						JE		XMS_TFR_HANDLE_TO_PHYS_ERROR
+
+XMS_TFR_HANDLE_TO_PHYS_OK:
+						ADD		EAX,ECX
+						CLC
+						RET
+
+XMS_TFR_HANDLE_TO_PHYS_REAL:
+						MOV		EAX,ECX
+						MOVZX	ECX,CX
+						SHR		EAX,12
+						AND		EAX,0FFFF0H
+						ADD		EAX,ECX
+						CLC
+						RET
+
+XMS_TFR_HANDLE_TO_PHYS_ERROR:
+						STC
+						RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
