@@ -246,12 +246,12 @@ AUTOMOUNT_HDD_PARTITION_LOOP:
 						MOV		AX,BLKDEV_PART_TABLE_SEG
 						MOV		DS,AX
 
-						CMP		BYTE [SI+1],6	; MS-DOS 512?
-						JE		IS_MSDOS512_PARTITION
+						# CMP		BYTE [SI+1],6	; MS-DOS 512?
+						# JE		IS_MSDOS512_PARTITION
 
 						CMP		BYTE [SI+1],1	; BASIC MS-DOS?
 						JNE		AUTOMOUNT_HDD_PARTITION_NEXT
-IS_MSDOS512_PARTITION:
+# IS_MSDOS512_PARTITION:
 
 						; If the partition type is MS-DOS BASIC, and the IPL sector starts with "IPL4"
 						; Add a unit.
