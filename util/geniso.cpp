@@ -256,8 +256,8 @@ size_t ISOImage::Dir::MakeISO9660Directory(struct ISO9660_Directory &dir) const
 	}
 	else
 	{
-		nameLen=sep[1].size();
-		memcpy(name,sep[1].c_str(),sep[1].size());
+		nameLen=std::min(sep[1].size(),(size_t)31);
+		memcpy(name,sep[1].c_str(),nameLen);
 	}
 
 	size_t sizeInDisc=(len+CD_SECTOR_SIZE-1);
@@ -591,8 +591,8 @@ std::vector <unsigned char> ISOImage::MakeDescriptorTable(void) const
 	memset(PVD.abstractFileID,37,' ');
 	memset(PVD.biblioFileID,37,' ');
 	auto todayString=GetTodayString();
-	memcpy(PVD.creationDate,todayString.c_str(),16); // Like "20241105123700000" Not a C-String ... I see some ISO's that makes it a C-string.
-	memcpy(PVD.modificationDate,todayString.c_str(),16);// Like "20241105123700000" Not a C-String ...
+	memcpy(PVD.creationDate,todayString.c_str(),std::min(todayString.size(),(size_t)16)); // Like "20241105123700000" Not a C-String ... I see some ISO's that makes it a C-string.
+	memcpy(PVD.modificationDate,todayString.c_str(),std::min(todayString.size(),(size_t)16));// Like "20241105123700000" Not a C-String ...
 	memset(PVD.expierationDate,16,'0'); // keep it all '0'
 	memset(PVD.effectiveDate,16,'0');
 	PVD.fileStructVersion=1;
@@ -989,7 +989,7 @@ std::string ISOImage::GetTodayString(void) const
 	const int sec=tm->tm_sec;
 
 	char str[256];
-	sprintf(str,"%04d%02d%02d%02d%02d%02d0000000000000000",year,month,date,hour,min,sec);
+	snprintf(str,sizeof(str),"%04d%02d%02d%02d%02d%02d0000000000000000",year,month,date,hour,min,sec);
 	str[16]=0;
 
 	return str;
