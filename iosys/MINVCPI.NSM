@@ -611,6 +611,8 @@ XMS_WANNABE_ENTRY:
 						JE		XMS_ALLOC_MEMORY
 						CMP		AH,0AH
 						JE		XMS_FREE_MEMORY
+						CMP		AH,0BH
+						JE		XMS_BLOCK_TRANSFER
 
 						RETF
 
@@ -794,6 +796,72 @@ XMS_FREE_INVALID_HANDLE:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+XMS_BLOCK_TRANSFER:
+						; DS:SI Parameter Block
+						;   +0  DD  size
+						;   +4  DW  src_handle
+						;   +6  DD  src_offset
+						;   +10 DW  dst_handle
+						;   +12 DD  dst_offset
+						; Return
+						;   1 Success
+						;   0 Error
+
+						PUSH	SI
+						PUSH	BP
+						MOV		BP,SP
+						PUSHAD
+
+						MOV		BL,0A3h
+						MOV		DI,[SI+4]
+						CMP		DI,4*XMS_MAX_MEMORY_BLOCKS
+						JAE		XMS_BLOCK_TRANSFER_ERROR_EXIT
+
+						MOV		EAX,CS:[XMS_HANDLE_TO_PHYSMEM+DI]
+						TEST	EAX,1
+						JE		XMS_BLOCK_TRANSFER_ERROR_EXIT
+
+						; SRC Handle OK
+
+						MOV		BL,0A5h
+						MOV		DI,[SI+10]
+						CMP		DI,4*XMS_MAX_MEMORY_BLOCKS
+						JAE		XMS_BLOCK_TRANSFER_ERROR_EXIT
+
+						MOV		EDX,CS:[XMS_HANDLE_TO_PHYSMEM+DI]
+						TEST	EDX,1
+						JE		XMS_BLOCK_TRANSFER_ERROR_EXIT
+
+						; DST Handle OK
+
+						AND		EAX,XMS_BLOCK_ADDR_MASK
+						AND		EDX,XMS_BLOCK_ADDR_MASK
+
+						; Let's hope length is ok, too....
+
+						MOV		ECX,[SI]
+						MOV		ESI,EAX
+						MOV		EDI,EDX
+						CALL	PHYSMEM_TRANSFER
+
+XMS_BLOCK_TRANSFER_NORMAL_EXIT:
+						POPAD
+						MOV		AX,1
+						JMP		SHORT XMS_BLOCK_TRANSFER_EXIT
+
+XMS_BLOCK_TRANSFER_ERROR_EXIT:
+						POPAD
+						XOR		AX,AX
+
+XMS_BLOCK_TRANSFER_EXIT:
+						POP		BP
+						POP		SI
+						RETF
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;Output  EDX=RAM size in bytes.
 ;        BX=Dextroyed
 ;        AX=Destroyed
@@ -947,6 +1015,9 @@ RESTORE_SYSROM_FMRVRAM:
 						POP		AX
 						POP		DX
 						RET
+
+
+						%INCLUDE "RDHIGH.NSM"
 
 
 MINVCPI_LOGO:			DB		"VCPI/XMS Pretender Driver by CaptainYS (http://www.ysflight.com)",0Dh,0Ah,'$',0
