@@ -78,6 +78,8 @@ BOOT_CONTINUE:
 FIND_BOOT_PART_LOOP:
 						CMP		WORD [SI],01FFH		; Boot and BASIC MS-DOS partition
 						JE		FOUND_BOOT_PART
+						CMP		WORD [SI],0120H		; Boot and Linux partition
+						JE		FOUND_BOOT_PART
 
 						ADD		EDI,[SI+6] ; sectors for the partition
 						ADD		SI,030H
