@@ -78,7 +78,7 @@ BOOT_CONTINUE:
 FIND_BOOT_PART_LOOP:
 						; CMP		WORD [SI],01FFH		; Boot and BASIC MS-DOS partition
 						; JE		FOUND_BOOT_PART
-						CMP		BYTE [SI+1],00H			; Boot partition check
+						CMP		BYTE [SI],00H			; Boot partition check
 						JNE		FOUND_BOOT_PART
 
 						ADD		EDI,[SI+6] ; sectors for the partition
