@@ -29,7 +29,7 @@ BPB_CALC_ROOTDIR_SECT_CT:
 
 						ADD		AX,FS:[DI+BPB_BYTES_PER_SECTOR]  ; Add bytesPerSector-1 for rounding up.
 						DEC		AX
-						CWD
+						XOR		DX,DX
 						DIV		WORD FS:[DI+BPB_BYTES_PER_SECTOR]  ; AX is the number of sectors of the root directory.
 
 						RET
