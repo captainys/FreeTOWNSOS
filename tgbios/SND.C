@@ -2676,7 +2676,6 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 		{
 			if(stat->PCMCh[ch].header->totalBytes<=stat->PCMCh[ch].curPos)
 			{
-				// Not respecting loop for the time being.
 				stat->PCMKey|=CHFlag;
 				_outb(TOWNSIO_SOUND_PCM_CH_ON_OFF,stat->PCMKey); // Key Off
 				stat->PCMCh[ch].playing=0;
@@ -2694,13 +2693,36 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 				{
 					transferSizeLimit-=256;
 				}
-				transferSize=_min(transferSizeLimit,bytesLeft);
 
 				_outb(TOWNSIO_SOUND_PCM_CTRL,0x80|stat->PCMCh[ch].nextFillBank);
-				for(i=0;i<transferSize;i++)
+
+				if(0<stat->PCMCh[ch].header->loopLength &&
+				   stat->PCMCh[ch].header->loopStart+stat->PCMCh[ch].header->loopLength<=stat->PCMCh[ch].header->totalBytes)
 				{
-					waveRAM[i]=_min(stat->PCMCh[ch].playPtr[i+currentPosition],PCM_LOOP_STOP_CODE-1);
+					// Do loop
+					unsigned int loopEnd=stat->PCMCh[ch].header->loopStart+stat->PCMCh[ch].header->loopLength;
+					transferSize=transferSizeLimit;
+					for(i=0; i<transferSize; ++i)
+					{
+						waveRAM[i]=_min(stat->PCMCh[ch].playPtr[currentPosition++],PCM_LOOP_STOP_CODE-1);
+						if(loopEnd<=currentPosition)
+						{
+							currentPosition=stat->PCMCh[ch].header->loopStart;
+						}
+					}
+					stat->PCMCh[ch].curPos=currentPosition;
 				}
+				else
+				{
+					// Do not loop
+					transferSize=_min(transferSizeLimit,bytesLeft);
+					for(i=0;i<transferSize;i++)
+					{
+						waveRAM[i]=_min(stat->PCMCh[ch].playPtr[i+currentPosition],PCM_LOOP_STOP_CODE-1);
+					}
+					stat->PCMCh[ch].curPos+=transferSize;
+				}
+
 				if(transferSize<PCM_BANK_SIZE)
 				{
 					int fillEnd=_min(transferSize+256,PCM_BANK_SIZE);
@@ -2733,7 +2755,6 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 					_outb(TOWNSIO_SOUND_PCM_LSH,endAddr>>8); // Loop start address high-byte
 				}
 
-				stat->PCMCh[ch].curPos+=transferSize;
 				stat->PCMCh[ch].nextFillBank^=1;
 			}
 		}

@@ -7,7 +7,8 @@ THISDIR=os.path.dirname(THISFILE)
 
 ROMDIR=os.path.join(THISDIR,"..","CompROM")
 SRCDIR=os.path.join(THISDIR,"..","src")
-FDIMG=os.path.join(SRCDIR,"FDIMG.bin")
+RSCDIR=os.path.join(THISDIR,"..","resources")
+FDIMG=os.path.join(RSCDIR,"FDIMG.bin")
 
 proc=subprocess.Popen([
 	"Tsugaru_CUI",
