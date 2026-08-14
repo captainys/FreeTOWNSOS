@@ -59,11 +59,22 @@ unsigned int BPB_GetFirstDataSector(const BPB *bpb)
 }
 unsigned int BPB_GetFATType(const BPB *bpb)
 {
-	unsigned int a=bpb->bytesPerSector;
-	unsigned int b=bpb->sectorsPerCluster;
-	if(FAT16_SIZE_THRESHOLD<=a*b)
+	if(BPB_MEDIA_HD_FAT16==bpb->mediaDesc)
 	{
 		return FAT16;
+	}
+	else if(BPB_MEDIA_HD_FAT12==bpb->mediaDesc)
+	{
+		return FAT12;
+	}
+	else
+	{
+		unsigned int a=bpb->bytesPerSector;
+		unsigned int b=bpb->totalNumSectors;
+		if(FAT16_SIZE_THRESHOLD<=a*b) // 64MB
+		{
+			return FAT16;
+		}
 	}
 	return FAT12;
 }
