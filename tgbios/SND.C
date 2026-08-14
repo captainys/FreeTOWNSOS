@@ -2665,9 +2665,8 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 
 	_Far struct SND_Status *stat=SND_GetStatus();
 	unsigned char INTBank=_inb(TOWNSIO_SOUND_PCM_INT);
-	int i,ch=7;
-
-	for(i=0; i<stat->numVoiceModeChannels; ++i)
+	int I,ch=7;
+	for(I=0; I<stat->numVoiceModeChannels; ++I)
 	{
 		unsigned char CHFlag=(1<<ch);
 		unsigned char INTBankFlag=1;
@@ -2700,6 +2699,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 				   stat->PCMCh[ch].header->loopStart+stat->PCMCh[ch].header->loopLength<=stat->PCMCh[ch].header->totalBytes)
 				{
 					// Do loop
+					int i;
 					unsigned int loopEnd=stat->PCMCh[ch].header->loopStart+stat->PCMCh[ch].header->loopLength;
 					transferSize=transferSizeLimit;
 					for(i=0; i<transferSize; ++i)
@@ -2715,6 +2715,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 				else
 				{
 					// Do not loop
+					int i;
 					transferSize=_min(transferSizeLimit,bytesLeft);
 					for(i=0;i<transferSize;i++)
 					{
@@ -2725,6 +2726,7 @@ void SND_PCM_Voice_Mode_Interrupt(void)
 
 				if(transferSize<PCM_BANK_SIZE)
 				{
+					int i;
 					int fillEnd=_min(transferSize+256,PCM_BANK_SIZE);
 					for(i=i; i<fillEnd; ++i)
 					{
