@@ -59,22 +59,13 @@ unsigned int BPB_GetFirstDataSector(const BPB *bpb)
 }
 unsigned int BPB_GetFATType(const BPB *bpb)
 {
-	if(BPB_MEDIA_HD_FAT16==bpb->mediaDesc)
+	// I rather want to check FAT12 or FAT16 based on the media desc,
+	// but DOS media desc is so broken that 1232KB FD and FAT16 HD are both 0xFE.
+	unsigned int a=bpb->bytesPerSector;
+	unsigned int b=bpb->totalNumSectors;
+	if(FAT16_SIZE_THRESHOLD<=a*b) // 64MB
 	{
 		return FAT16;
-	}
-	else if(BPB_MEDIA_HD_FAT12==bpb->mediaDesc)
-	{
-		return FAT12;
-	}
-	else
-	{
-		unsigned int a=bpb->bytesPerSector;
-		unsigned int b=bpb->totalNumSectors;
-		if(FAT16_SIZE_THRESHOLD<=a*b) // 64MB
-		{
-			return FAT16;
-		}
 	}
 	return FAT12;
 }

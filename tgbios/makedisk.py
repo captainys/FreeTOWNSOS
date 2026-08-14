@@ -257,7 +257,7 @@ def Run(argv):
 		"HDIMG128.zip",
 		"HDIMG128.h0",
 	]).wait()
-	os.remove("HDIMG128.h0")
+	# os.remove("HDIMG128.h0")
 
 
 
