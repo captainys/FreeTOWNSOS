@@ -27,6 +27,7 @@ def Run(argv):
 		"RUNNERFD.BIN",
 		"FDIMG_USEROM.BIN",
 		"HDIMG.h0",
+		"HDIMG128.zip",
 		"CDIMG.ISO",
 	]
 	for file in files:

@@ -224,6 +224,43 @@ def Run(argv):
 
 
 
+	proc=subprocess.Popen(["./makehd",
+		"-o",		"HDIMG128.h0",
+		"-p",		"127", "TSUGARU_OS",
+		"-mbr",		"../iosys/HD_MBR.bin",
+		"-ipl",		"../iosys/HD_IPL.bin",
+		"-i",		"0",	"../resources/IO.SYS",
+		"-i",		"0",	"../resources/YSDOS.SYS",
+		"-i",		"0",	"../resources/YAMAND.COM",
+		"-i",		"0",	"../resources/HD/CONFIG.SYS",
+		"-i",		"0",	"../resources/HD/AUTOEXEC.BAT",
+		"-i",		"0",	"../resources/TGDRV.COM",
+		"-i",		"0",	"../resources/FORCE31K.COM",
+		"-i",		"0",	"../resources/TEST.EXP",
+		"-i",		"0",	"../resources/MINVCPI.SYS",
+		"-i",		"0",	"../resources/FAKENSDD.SYS",
+		"-i",		"0",	"../resources/SYSXXXX0.COM",
+		"-i",		"0",	"../resources/REPLACE.SYS",
+		"-i",		"0",	"../externals/ORICON/ORICON.COM",
+		"-i",		"0",	"../externals/Free386/free386.com",
+		"-i",		"0",	"TGBIOS.SYS",
+		"-i",		"0",	"TGBIOS.BIN",
+	])
+	proc.communicate()
+	if 0!=proc.returncode:
+		print("Error building HDIMG128.h0")
+		quit()
+
+	subprocess.Popen([
+		"7z",
+		"a",
+		"HDIMG128.zip",
+		"HDIMG128.h0",
+	]).wait()
+	os.remove("HDIMG128.h0")
+
+
+
 	isoparam=[]
 	for fn in os.listdir("../tests/tgbios/build"):
 		if IsTestFile(fn):
