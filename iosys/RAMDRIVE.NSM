@@ -5,7 +5,7 @@
 						%INCLUDE "DEF.NSM"
 						%INCLUDE "TOWNSDEF.NSM"
 
-MAX_SIZE_IN_KB			EQU		4096
+MAX_SIZE_IN_KB			EQU		16384
 
 HEADER_NEXT				DW	0FFFFh	; Tentative.  Block devices next.
 						DW	0FFFFh
@@ -494,7 +494,7 @@ MAKE_INITIAL_DISK_IMAGE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 INIT_MSG_ERROR_IN_PARAM			DB	"Error in the command option.$",0
-INIT_MSG_ERROR_TOO_LARGE		DB	"Error: Max size if 4MB.$",0
+INIT_MSG_ERROR_TOO_LARGE		DB	"Error: Max size is 16MB.$",0
 INIT_MSG_ERROR_UNDEFINED_OPTION	DB	"Error: Undefined option.$",0
 INIT_MSG_ERROR_MISSING_COLON	DB	"Error: Missing colon after the option.$",0
 INIT_MSG_XMS_NOT_AVAILABLE		DB	"Error: XMS drive unavailable.$",0
